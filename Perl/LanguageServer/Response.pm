@@ -1,4 +1,4 @@
-package Perl::Response;
+package Perl::LanguageServer::Response;
 
 use JSON;
 

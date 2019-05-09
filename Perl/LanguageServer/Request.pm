@@ -1,4 +1,4 @@
-package Perl::Request;
+package Perl::LanguageServer::Request;
 
 use strict;
 

@@ -1,5 +1,5 @@
-package Perl::Response::InitializeResult;
-use parent q(Perl::Response);
+package Perl::LanguageServer::Response::InitializeResult;
+use parent q(Perl::LanguageServer::Response);
 
 use strict;
 
