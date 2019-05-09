@@ -26,12 +26,6 @@ sub new {
     return bless \%self, $class;
 }
 
-sub continue {
-    my ($self) = @_;
-
-    return !eof($self->{readfh});
-}
-
 sub get_request {
     my ($self) = @_;
 
@@ -39,7 +33,7 @@ sub get_request {
     my $readfh = $self->{readfh};
     my $line; 
     while (sysread($readfh, my $buffer, 1)) {
-        die "error while reading headers" unless length($buffer);
+        return 0 unless length($buffer);
         $line .= $buffer;
         last if $line eq "\r\n";
         next unless $line =~ /\r\n$/;
@@ -58,10 +52,10 @@ sub get_request {
 
     my $content = decode_json $raw;
 
-    return Perl::LanguageServer::Request->new(
+    return (1, Perl::LanguageServer::Request->new(
         headers => \%headers,
         content => $content
-    );
+    ));
 }
 
 sub handle_request {
@@ -90,7 +84,8 @@ sub handle_request {
 sub initialize {
     my ($self) = @_;
 
-    my $request = $self->get_request;
+    my ($ok, $request) = $self->get_request;
+    return $ok unless $ok;
 
     unless ($request->{content}{method} eq 'initialize') {
         # send error
@@ -100,7 +95,8 @@ sub initialize {
     my $response = Perl::LanguageServer::Response::InitializeResult->new;
     $response->send($request, $self->{writefh});
 
-    $request = $self->get_request;
+    ($ok, $request) = $self->get_request;
+    return $ok unless $ok;
 
     unless ($request->{content}{method} eq 'initialized') {
         # send error
@@ -114,12 +110,10 @@ sub initialize {
 sub run {
     my $server = Perl::LanguageServer->new;
 
-    for (my $tries = 0; $tries < 5; $tries++) {
-        last if $server->initialize;
-    }
+    return unless $server->initialize;
 
-    while ($server->continue) {
-        my $request = $server->get_request;
+    while (1) {
+        my ($ok, $request) = $server->get_request;
         return unless $server->handle_request($request);
    }
 }
