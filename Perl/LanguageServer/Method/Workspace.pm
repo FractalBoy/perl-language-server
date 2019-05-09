@@ -1,4 +1,4 @@
-package Perl::LanguageServer::Methods::Workspace;
+package Perl::LanguageServer::Method::Workspace;
 
 use strict;
 
@@ -19,7 +19,7 @@ sub dispatch {
     my ($self) = @_;
 
     if ($self->{method} eq 'didChangeConfiguration') {
-        print STDERR Dumper($self->{request});
+        syswrite STDERR, Dumper($self->{request});
     }
 }
 

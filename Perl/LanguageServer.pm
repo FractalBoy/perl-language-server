@@ -3,18 +3,20 @@ package Perl::LanguageServer;
 use strict;
 
 use Data::Dumper;
+use IO::Handle;
+use IO::Select;
 use JSON;
+use Symbol;
 
 use Perl::LanguageServer::Request;
 use Perl::LanguageServer::Response;
 use Perl::LanguageServer::Response::InitializeResult;
-use Perl::LanguageServer::Methods::Workspace;
+use Perl::LanguageServer::Method::Workspace;
+use Perl::LanguageServer::Method::TextDocument;
 
 sub new {
     my ($class, $readfh, $writefh) = @_;
 
-    my $fh = select($readfh); $| = 1; select($fh);
-    
     my %self = (
         readfh => $readfh || \*STDIN,
         writefh => $writefh || \*STDOUT,
@@ -35,21 +37,23 @@ sub get_request {
 
     my %headers;
     my $readfh = $self->{readfh};
-    
-    local $/ = "\r\n";
-    while (my $buffer = <$readfh>) {
-        die "error while reading headers" unless $buffer;
-        last if $buffer eq "\r\n";
-        chomp($buffer);
-        my ($field, $value) = split /: /, $buffer;
+    my $line; 
+    while (sysread($readfh, my $buffer, 1)) {
+        die "error while reading headers" unless length($buffer);
+        $line .= $buffer;
+        last if $line eq "\r\n";
+        next unless $line =~ /\r\n$/;
+        $line =~ s/^\s+|\s+$//g;
+        my ($field, $value) = split /: /, $line;
         $headers{$field} = $value;
+        $line = '';
+        sleep(1); # this sleep really helps, not sure why.
     }
 
     my $size = $headers{'Content-Length'};
     die 'no Content-Length header provided' unless $size;
 
-    my $raw;
-    my $length = read($readfh, $raw, $size);
+    my $length = sysread($readfh, my $raw, $size);
     die 'content length does not match header' unless $length == $size;
 
     my $content = decode_json $raw;
@@ -73,8 +77,11 @@ sub handle_request {
 
     # implement the rest of the methods here
     if ($type eq 'workspace') {
-        my $workspace = Perl::LanguageServer::Methods::Workspace->new($method, $request);
+        my $workspace = Perl::LanguageServer::Method::Workspace->new($method, $request);
         $workspace->dispatch;
+    } elsif ($type eq 'textDocument') {
+        my $textDocument = Perl::LanguageServer::Method::TextDocument->new($method, $request);
+        $textDocument->dispatch;
     }
 
     return 1;
