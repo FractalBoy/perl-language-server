@@ -4,16 +4,18 @@ use parent q(Perl::LanguageServer::Response);
 use strict;
 
 sub new {
-    my ($class) = @_;
+    my ($class, $id) = @_;
 
     my %self = ( 
         result => {
             capabilities => {
-                definitionProvider => 1,
-                documentFormattingProvider => 1
+                definitionProvider => \1,
+#                documentFormattingProvider => \1
             }
         }
     );
 
-    return bless $self, $class;
+    return bless \%self, $class;
 }
+
+1;

@@ -2,14 +2,20 @@ package Perl::LanguageServer::Response;
 
 use JSON;
 
-sub serialize {
-    my ($self) = @_;
+sub send {
+    my ($self, $request, $fh) = @_;
 
     my %content = (
-        id => Perl::LanguageServer::next_request_id(),
+        jsonrpc => '2.0',
+        id => $request->{content}{id},
         result => $self->{result},
-        error => $self->{error}
-    )
+#        error => $self->{error}
+    );
 
-    return encode_json \%content;
+    my $json = encode_json \%content;
+    my $size = length($json);
+    syswrite $fh, "Content-Length: $size\r\n\r\n";
+    syswrite $fh, $json, $size;
 }
+
+1;

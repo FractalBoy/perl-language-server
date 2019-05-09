@@ -3,50 +3,21 @@ package Perl::LanguageServer::Request;
 use strict;
 
 use JSON;
+use List::Util;
 
 sub new {
-    my ($class, $fh) = @_;
+    my ($class, @args) = @_;
 
-    die unless $fh;
+    my %self = @args;
 
-    my %self = ( fh => $fh );
-    my $self = bless \%self, $class;
-    
-    $self->{headers} = $self->getHeaders();
-    $self->{content} = $self->getContent();
+    my @required_args = ( 'headers', 'content' );
+    die 'missing named argument to Request.pm' unless
+        (   
+            (List::Util::all { my $req = $_; List::Util::any { $_ eq $req } (keys %self) } @required_args) &&
+            keys %self == @required_args
+        );
 
-    return $self;
-}
-
-sub getHeaders {
-    my ($self) = @_;
-
-    my %headers;
-    my $fh = $self->{fh};
-    
-    while (my $buffer = <$fh>) {
-        die "error while reading headers" unless $buffer;
-        last if $buffer eq "\r\n";
-        $buffer =~ s/^\s+|\s+$//g;
-        my ($field, $value) = split /: /, $buffer;
-        $headers{$field} = $value;
-    }
-
-    return \%headers;
-}
-
-sub getContent {
-    my ($self) = @_;
-
-    my $size = $self->{headers}{'Content-Length'};
-    die 'no Content-Length header provided' unless $size;
-
-    my $raw;
-    my $length = read($self->{fh}, $raw, $size);
-    die 'content length does not match header' unless $length == $size;
-
-    my $content = decode_json $raw;
-    return $content;
+    return bless \%self, $class;
 }
 
 1;
