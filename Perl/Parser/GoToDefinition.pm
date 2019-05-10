@@ -1,4 +1,4 @@
-#!/usr/bin/perl
+package Perl::Parser::GoToDefinition;
 
 use PPI; 
 use PPI::Find;
