@@ -21,9 +21,7 @@ sub new {
 
     my %self = (
         readfh => Coro::Handle->new_from_fh($readfh),
-        writefh => Coro::Handle->new_from_fh($writefh),
-        initialize_started => 0,
-        initialized => 0
+        writefh => Coro::Handle->new_from_fh($writefh)
     );
 
     return bless \%self, $class;
