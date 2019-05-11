@@ -42,7 +42,6 @@ sub recv {
         my ($field, $value) = split /: /, $line;
         $headers{$field} = $value;
         $line = '';
-        Coro::AnyEvent::sleep 1; # this sleep really helps, not sure why.
     }
 
     my $size = $headers{'Content-Length'};
