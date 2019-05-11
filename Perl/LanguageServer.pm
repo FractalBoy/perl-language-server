@@ -8,7 +8,6 @@ use Coro::AnyEvent;
 use Coro::Handle;
 use Data::Dumper;
 use JSON;
-use Symbol;
 
 use Perl::LanguageServer::Request;
 use Perl::LanguageServer::Response;
