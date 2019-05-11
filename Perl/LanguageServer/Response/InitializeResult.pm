@@ -4,9 +4,10 @@ use parent q(Perl::LanguageServer::Response);
 use strict;
 
 sub new {
-    my ($class, $id) = @_;
+    my ($class, $request) = @_;
 
     my %self = ( 
+        id => $request->{id},
         result => {
             capabilities => {
                 definitionProvider => \1,

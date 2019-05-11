@@ -2,38 +2,41 @@ package Perl::LanguageServer;
 
 use strict;
 
+use AnyEvent;
+use Coro;
+use Coro::AnyEvent;
+use Coro::Handle;
 use Data::Dumper;
-use IO::Handle;
-use IO::Select;
 use JSON;
 use Symbol;
 
 use Perl::LanguageServer::Request;
 use Perl::LanguageServer::Response;
-use Perl::LanguageServer::Response::InitializeResult;
-use Perl::LanguageServer::Method::Workspace;
-use Perl::LanguageServer::Method::TextDocument;
 
 sub new {
     my ($class, $readfh, $writefh) = @_;
 
+    my $readfh = $readfh || \*STDIN;
+    my $writefh = $writefh || \*STDOUT;
+
     my %self = (
-        readfh => $readfh || \*STDIN,
-        writefh => $writefh || \*STDOUT,
+        readfh => Coro::Handle->new_from_fh($readfh),
+        writefh => Coro::Handle->new_from_fh($writefh),
+        initialize_started => 0,
         initialized => 0
     );
 
     return bless \%self, $class;
 }
 
-sub get_request {
+sub recv {
     my ($self) = @_;
 
     my %headers;
     my $readfh = $self->{readfh};
     my $line; 
-    while (sysread($readfh, my $buffer, 1)) {
-        return 0 unless length($buffer);
+
+    while ($readfh->readable && $readfh->sysread(my $buffer, 1)) {
         $line .= $buffer;
         last if $line eq "\r\n";
         next unless $line =~ /\r\n$/;
@@ -41,81 +44,60 @@ sub get_request {
         my ($field, $value) = split /: /, $line;
         $headers{$field} = $value;
         $line = '';
-        sleep(1); # this sleep really helps, not sure why.
+        Coro::AnyEvent::sleep 1; # this sleep really helps, not sure why.
     }
 
     my $size = $headers{'Content-Length'};
     die 'no Content-Length header provided' unless $size;
 
-    my $length = sysread($readfh, my $raw, $size);
+    my $length = $readfh->sysread(my $raw, $size) if $readfh->readable;
     die 'content length does not match header' unless $length == $size;
 
     my $content = decode_json $raw;
 
-    return (1, Perl::LanguageServer::Request->new(
-        headers => \%headers,
-        content => $content
-    ));
+    return Perl::LanguageServer::Request->new($content);
 }
 
-sub handle_request {
-    my ($self, $request) = @_;
+sub send {
+    my ($self, $response) = @_;
 
-    # if we're not initialized yet, send an error
-    unless ($self->{initialized}) {
-        # send error
-        return 0;
-    }
+    my $json = $response->serialize;
+    my $size = length($json);
 
-    my ($type, $method) = split '/', $request->{content}{method};
-
-    # implement the rest of the methods here
-    if ($type eq 'workspace') {
-        my $workspace = Perl::LanguageServer::Method::Workspace->new($method, $request);
-        $workspace->dispatch;
-    } elsif ($type eq 'textDocument') {
-        my $textDocument = Perl::LanguageServer::Method::TextDocument->new($method, $request);
-        $textDocument->dispatch;
-    }
-
-    return 1;
-}
-
-sub initialize {
-    my ($self) = @_;
-
-    my ($ok, $request) = $self->get_request;
-    return $ok unless $ok;
-
-    unless ($request->{content}{method} eq 'initialize') {
-        # send error
-        return 0;
-    }
-        
-    my $response = Perl::LanguageServer::Response::InitializeResult->new;
-    $response->send($request, $self->{writefh});
-
-    ($ok, $request) = $self->get_request;
-    return $ok unless $ok;
-
-    unless ($request->{content}{method} eq 'initialized') {
-        # send error
-        return 0;
-    }
-
-    $self->{initialized} = 1;
-    return 1;
+    $self->{writefh}->syswrite("Content-Length: $size\r\n\r\n") if $self->{writefh}->writable;
+    $self->{writefh}->syswrite($json) if $self->{writefh}->writable;
 }
 
 sub run {
+    my $requests = Coro::Channel->new;
+    my $responses = Coro::Channel->new;
     my $server = Perl::LanguageServer->new;
 
-    return unless $server->initialize;
+    my $stderr = Coro::Handle->new_from_fh(\*STDERR);
 
+    async_pool {
+        # check for requests and service them
+        while (my $request = $requests->get) {
+            my $response = $request->service($server);
+            $responses->put($response);
+        }
+    };
+
+    async_pool {
+        # check for responses and send them
+        while (my $response = $responses->get) {
+            $server->send($response) if defined $response;
+            $stderr->print(Dumper $response);
+        }
+    };
+
+    # main loop
     while (1) {
-        my ($ok, $request) = $server->get_request;
-        return unless $server->handle_request($request);
-   }
+        # check for requests and drop them on the channel to be serviced by existing threads
+        my $request = $server->recv;
+        $stderr->print(Dumper $request);
+        $requests->put($request);
+    }
 }
 
 1;

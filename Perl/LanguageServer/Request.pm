@@ -5,19 +5,27 @@ use strict;
 use JSON;
 use List::Util;
 
+use Perl::LanguageServer::Request::Base;
+use Perl::LanguageServer::Request::Initialize;
+use Perl::LanguageServer::Request::Initialized;
+
 sub new {
-    my ($class, @args) = @_;
+    my ($class, $request) = @_;
 
-    my %self = @args;
+    my $method = $request->{method};
 
-    my @required_args = ( 'headers', 'content' );
-    die 'missing named argument to Request.pm' unless
-        (   
-            (List::Util::all { my $req = $_; List::Util::any { $_ eq $req } (keys %self) } @required_args) &&
-            keys %self == @required_args
-        );
+    if ($method eq 'initialize') {
+        return Perl::LanguageServer::Request::Initialize->new($request);
+    } elsif ($method eq 'initialized') {
+        return Perl::LanguageServer::Request::Initialized->new($request);
+    }
 
-    return bless \%self, $class;
+    return Perl::LanguageServer::Response::ServerNotInitialized->new($request)
+        unless $Perl::LanguageServer::State::INITIALIZED;
+
+    # create and return request classes here
+
+    return Perl::LanguageServer::Request::Base->new($request);
 }
 
 1;
