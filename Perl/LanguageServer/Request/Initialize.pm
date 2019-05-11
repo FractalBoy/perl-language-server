@@ -1,6 +1,7 @@
 package Perl::LanguageServer::Request::Initialize;
-
 use parent q(Perl::LanguageServer::Request::Base);
+
+use strict;
 
 use Perl::LanguageServer::Response::InitializeResult;
 

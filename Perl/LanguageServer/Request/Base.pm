@@ -1,5 +1,7 @@
 package Perl::LanguageServer::Request::Base;
 
+use strict;
+
 sub new {
     my ($class, $request) = @_;
 

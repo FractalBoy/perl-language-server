@@ -2,24 +2,15 @@ package Perl::LanguageServer::Method::Workspace;
 
 use strict;
 
-use Data::Dumper;
+use Perl::LanguageServer::Request::Workspace::DidChangeConfiguration;
 
-sub new {
-    my ($class, $method, $request) = @_;
+sub get_request {
+    my ($request) = @_;
 
-    my %self = (
-        method => $method,
-        request => $request
-    );
+    my (undef, $method) = split '/', $request->{method};
 
-    return bless \%self, $class;
-}
-
-sub dispatch {
-    my ($self) = @_;
-
-    if ($self->{method} eq 'didChangeConfiguration') {
-        syswrite STDERR, Dumper($self->{request});
+    if ($method eq 'didChangeConfiguration') {
+        return Perl::LanguageServer::Request::Workspace::DidChangeConfiguration->new($request);
     }
 }
 

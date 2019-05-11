@@ -75,6 +75,7 @@ sub run {
         # check for requests and service them
         while (my $request = $requests->get) {
             my $response = $request->service($server);
+            next unless defined $response;
             $responses->put($response);
         }
     };
@@ -82,8 +83,7 @@ sub run {
     async_pool {
         # check for responses and send them
         while (my $response = $responses->get) {
-            $server->send($response) if defined $response;
-            $stderr->print(Dumper $response);
+            $server->send($response);
         }
     };
 
@@ -91,7 +91,6 @@ sub run {
     while (1) {
         # check for requests and drop them on the channel to be serviced by existing threads
         my $request = $server->recv;
-        $stderr->print(Dumper $request);
         $requests->put($request);
     }
 }

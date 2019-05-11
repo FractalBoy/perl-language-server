@@ -2,24 +2,15 @@ package Perl::LanguageServer::Method::TextDocument;
 
 use strict;
 
-use Data::Dumper;
+use Perl::LanguageServer::Request::TextDocument::Definition;
 
-sub new {
-    my ($class, $method, $request) = @_;
+sub get_request {
+    my ($request) = @_;
 
-    my %self = (
-        method => $method,
-        request => $request
-    );
+    my (undef, $method) = split '/', $request->{method};
 
-    return bless \%self, $class;
-}
-
-sub dispatch {
-    my ($self) = @_;
-
-    if ($self->{method} eq 'definition') {
-        syswrite STDERR, Dumper($self->{request});
+    if ($method eq 'definition') {
+        return Perl::LanguageServer::Request::TextDocument::Definition->new($request);
     }
 }
 

@@ -1,6 +1,7 @@
 package Perl::LanguageServer::Request::Initialized;
-
 use parent q{Perl::LanguageServer::Request::Base};
+
+use strict;
 
 use Perl::LanguageServer::State;
 

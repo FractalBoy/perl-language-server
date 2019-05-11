@@ -1,5 +1,7 @@
 package Perl::LanguageServer::Response;
 
+use strict;
+
 use JSON;
 
 sub serialize {
