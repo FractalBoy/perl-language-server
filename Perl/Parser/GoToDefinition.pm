@@ -1,14 +1,31 @@
 package Perl::Parser::GoToDefinition;
 
+use File::Spec;
 use PPI; 
 use PPI::Find;
-use Data::Dumper;
-use File::Spec;
+use URI;
+
+sub go_to_definition {
+    my ($uri, $line, $column) = @_;
+
+    # LSP defines position as 0-indexed, PPI defines it 1-indexed
+    $line++; $column++;
+    my $uri = URI->new($uri);
+    my $document = PPI::Document->new($uri->file);
+    $document->index_locations;
+    my $match = find_symbol_at_location($document, $line, $column);
+    return ($line - 1, $column - 1) unless $match;
+
+    my $name = $match->content;
+    $name =~ s/^\$/%/ if is_hash($match);
+    $name =~ s/^\$/@/ if is_array($match);
+
+    my ($def_line, $def_column) = find_definition_location($document, $name);
+    return ($def_line - 1, $def_column - 1);
+}
 
 sub find_symbol_at_location {
     my ($document, $line, $column) = @_;
-
-    $document->index_locations;
 
     my $find = PPI::Find->new(sub {
         $_[0]->line_number == $line &&
@@ -24,12 +41,11 @@ sub find_symbol_at_location {
 sub find_definition_location {
     my ($document, $scalar) = @_;
 
-    $document->index_locations;
-
     my $find_variable_statement = PPI::Find->new(sub {
         $_[0]->class eq 'PPI::Statement::Variable' &&
         grep { $_ eq $scalar } $_[0]->variables;
     });
+
     return unless $find_variable_statement->start($document);
     my $variable_statement = $find_variable_statement->match;
     return unless $variable_statement;
@@ -68,10 +84,4 @@ sub is_array_ref {
     # $$array[i] or $array->[i] or $array->class_method
 }
 
-my $document = PPI::Document->new(File::Spec->catfile('Perl', 'LanguageServer.pm'));
-my $match = find_symbol_at_location($document, 42, 11);
-my $name = $match->content;
-$name =~ s/^\$/%/ if is_hash($match);
-my @declaration = find_definition_location($document, $name);
-
-print Dumper(\@declaration);
+1;
