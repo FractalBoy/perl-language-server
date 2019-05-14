@@ -39,12 +39,22 @@ sub find_token_at_location {
         $element->line_number == $line &&
         $element->visual_column_number <= $column &&
         $element->visual_column_number + length($element->content) >= $column &&
-        $element->isa('PPI::Token::Symbol');
+        ($element->isa('PPI::Token::Symbol') || $element->isa('PPI::Token::Cast'));
     });
 
     return unless $find->start($document);
     my $match = $find->match; # let's just use the first match
     $find->finish;
+
+    return undef unless $match;
+
+    # find the thing we're casting, if this is a cast
+    if ($match->isa('PPI::Token::Cast')) {
+        while ($match = $match->next_sibling) {
+            last if $match->isa('PPI::Token::Symbol');
+        }
+    }
+
     return $match;
 }
 
