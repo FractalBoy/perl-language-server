@@ -64,11 +64,8 @@ sub find_variable_definition {
     return $element if $element->parent->isa('PPI::Statement::Variable');
 
     my $parent = $element;
-
     while ($parent = $parent->parent) {
-        next unless $parent->isa('PPI::Structure::Block') &&
-            $parent->scope ||
-            $parent->isa('PPI::Document');
+        next unless $parent->scope;
 
         for my $statement ($parent->children) {
             next unless $statement->isa('PPI::Statement::Variable');
@@ -78,7 +75,30 @@ sub find_variable_definition {
         }
     }
 
-    return undef;
+    # if we get here, we didn't find any my, our, local, or state variables
+    # let's find the first use of this variable name that affects this element 
+    # we'll look in reverse, and keep the last one found
+    my $match;
+    $parent = $element;
+
+    while ($parent = $parent->parent) {
+        next unless $parent->scope;
+
+        for my $statement (reverse $parent->children) {
+            next unless $statement->isa('PPI::Statement');
+            my @matches = grep {
+                $_->isa('PPI::Token::Symbol') &&
+                $_->symbol eq $element->symbol
+            } $statement->children;
+            next unless scalar @matches;
+            $match = $matches[0];
+        } 
+    }
+
+    return $match if $match;
+
+    # if we get here, this is the first declaration.
+    return $element;
 }
 
 =head2 is_scalar
