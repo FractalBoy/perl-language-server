@@ -1,87 +1,137 @@
 package Perl::Parser::GoToDefinition;
 
 use File::Spec;
-use PPI; 
+use PPI;
 use PPI::Find;
+use Scalar::Util qw(blessed);
 use URI;
 
+sub document_from_uri {
+    my ($uri) = @_;
+
+    my $file = URI->new($uri);
+    my $document = PPI::Document->new($file->file);
+    $document->index_locations;
+
+    return $document;
+}
+
 sub go_to_definition {
-    my ($uri, $line, $column) = @_;
+    my ($document, $line, $column) = @_;
 
     # LSP defines position as 0-indexed, PPI defines it 1-indexed
     $line++; $column++;
-    my $uri = URI->new($uri);
-    my $document = PPI::Document->new($uri->file);
-    $document->index_locations;
-    my $match = find_symbol_at_location($document, $line, $column);
-    return ($line - 1, $column - 1) unless $match;
+    my $match = find_token_at_location($document, $line, $column);
+    return undef unless $match;
 
-    my $name = $match->content;
-    $name =~ s/^\$/%/ if is_hash($match);
-    $name =~ s/^\$/@/ if is_array($match);
-
-    my ($def_line, $def_column) = find_definition_location($document, $name);
-    return ($def_line - 1, $def_column - 1);
+    my $definition = find_variable_definition($document, $match);
+    return undef unless $definition;
+    # Subtract 1 again to get back to 0-indexed
+    return ($definition->line_number - 1, $definition->visual_column_number - 1);
 }
 
-sub find_symbol_at_location {
+sub find_token_at_location {
     my ($document, $line, $column) = @_;
 
     my $find = PPI::Find->new(sub {
-        $_[0]->line_number == $line &&
-        $_[0]->visual_column_number <= $column &&
-        $_[0]->visual_column_number + length($_[0]->content) >= $column &&
-        $_[0]->class eq 'PPI::Token::Symbol';
+        my ($element) = @_;
+
+        $element->line_number == $line &&
+        $element->visual_column_number <= $column &&
+        $element->visual_column_number + length($element->content) >= $column &&
+        $element->isa('PPI::Token::Symbol');
     });
 
     return unless $find->start($document);
-    return $find->match; # let's just use the first match
+    my $match = $find->match; # let's just use the first match
+    $find->finish;
+    return $match;
 }
 
-sub find_definition_location {
-    my ($document, $scalar) = @_;
+sub find_variable_definition {
+    my ($document, $element) = @_;
+    return undef unless $element->isa('PPI::Token::Symbol');
+    return $element if $element->parent->isa('PPI::Statement::Variable');
 
-    my $find_variable_statement = PPI::Find->new(sub {
-        $_[0]->class eq 'PPI::Statement::Variable' &&
-        grep { $_ eq $scalar } $_[0]->variables;
-    });
+    my $parent = $element;
 
-    return unless $find_variable_statement->start($document);
-    my $variable_statement = $find_variable_statement->match;
-    return unless $variable_statement;
+    while ($parent = $parent->parent) {
+        next unless $parent->isa('PPI::Structure::Block') &&
+            $parent->scope ||
+            $parent->isa('PPI::Document');
 
-    $find = PPI::Find->new(sub {
-        $_[0]->content eq $scalar &&
-        $_[0]->class eq 'PPI::Token::Symbol';
-    });
+        for my $statement ($parent->children) {
+            next unless $statement->isa('PPI::Statement::Variable');
+            my @matches = grep { $_->symbol eq $element->symbol } $statement->symbols;
+            next unless scalar @matches;
+            return $matches[0];
+        }
+    }
 
-    return unless $find->start($variable_statement);
-    my $declaration = $find->match;
-    return ($declaration->line_number, $declaration->visual_column_number);
+    return undef;
 }
+
+=head2 is_scalar
+
+Determines if a L<PPI::Element> is a scalar. This includes references.
+
+=cut
+
+sub is_scalar {
+    my ($element) = @_;
+
+    return 0 unless blessed $element;
+
+    return $element->isa('PPI::Token::Symbol') &&
+        # It starts with a $...
+        $element->content =~ /^\$/ && 
+        # ...and the next sibling is not a subscript.
+        !$element->next_sibling->isa('PPI::Structure::Subscript');
+}
+
+=head2 is_hash
+
+Determines if a L<PPI::Element> is a hash.
+
+=cut
 
 sub is_hash {
-    # $hash{x}
     my ($element) = @_;
 
-    return $element->next_sibling->class eq 'PPI::Structure::Subscript' &&
-    $element->next_sibling->braces eq '{}';
+    return 0 unless blessed $element;
+
+    return $element->isa('PPI::Token::Symbol') &&
+        (
+            # It starts with a %...
+            $element->content =~ /^%/ || 
+            # ...or it starts with a $...
+            $element->content =~ /^\$/ &&
+            # ...and the next sibling is a subscript that uses {}.
+            $element->next_sibling->isa('PPI::Structure::Subscript') &&
+            $element->next_sibling->braces eq '{}'
+        );
 }
 
-sub is_hash_ref {
-    # $$hash{x} or $hash->{x} or $hash->class_method
-}
+=head1 is_array
+
+Determines if a L<PPI::Element> is an array
+
+=cut
 
 sub is_array {
-    # $array[i]
     my ($element) = @_;
 
-    return $element->next_sibling->class eq 'PPI::Structure::Subscript' &&
-    $element->next_sibling->braces eq '[]';
-}
+    return 0 unless blessed $element;
 
-sub is_array_ref {
-    # $$array[i] or $array->[i] or $array->class_method
+    return $element->isa('PPI::Token::Symbol') && (
+        # It starts with a @...
+        $element->content =~ /^@/ ||
+        # ...or it starts with a $...
+        $element->content =~ /^\$/ &&
+        # ...and the next sibling is a subscript that uses [].
+        $element->next_sibling->isa('PPI::Structure::Subscript') &&
+        $element->next_sibling->braces eq '[]'
+    );
 }
 
 1;
