@@ -3,8 +3,17 @@ use parent q(Perl::LanguageServer::Response);
 
 use strict;
 
+use Perl::Parser::GoToDefinition;
+
 sub new {
     my ($class, $request) = @_;
+
+    my $document = Perl::Parser::GoToDefinition::document_from_uri($request->{params}{textDocument}{uri});
+    my ($line, $column) = Perl::Parser::GoToDefinition::go_to_definition(
+        $document,
+        $request->{params}{position}{line},
+        $request->{params}{position}{character}
+    );
 
     # right now, this always sends the cursor to the top left corner of the document
     my %self = (
@@ -13,12 +22,12 @@ sub new {
             uri => $request->{params}{textDocument}{uri},
             range => {
                 start => {
-                    line => 0,
-                    character => 0,
+                    line => $line,
+                    character => $column,
                 },
                 end => {
-                    line => 0,
-                    character => 0
+                    line => $line,
+                    character => $column
                 }
             }
         }
