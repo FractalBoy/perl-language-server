@@ -1,7 +1,7 @@
 #!/usr/bin/env perl
 
 use PPI;
-use Test::More tests => 2;
+use Test::More tests => 3;
 use Data::Dumper;
 
 use Perl::Parser::GoToDefinition;
@@ -10,7 +10,7 @@ my $source = do { local $/; <DATA> };
 my $document = PPI::Document->new(\$source);
 $document->index_locations;
 
-subtest 'find scalar declaration' => sub {
+subtest 'find scalar lexical variable declaration' => sub {
     plan tests => 5;
 
     is_deeply([Perl::Parser::GoToDefinition::go_to_definition($document, 0, 3)], [0, 3]);
@@ -20,7 +20,7 @@ subtest 'find scalar declaration' => sub {
     is_deeply([Perl::Parser::GoToDefinition::go_to_definition($document, 10, 4)], [0, 3]);
 };
 
-subtest 'find array declaration' => sub {
+subtest 'find array lexical variable declaration' => sub {
     plan tests => 7;
 
     is_deeply([Perl::Parser::GoToDefinition::go_to_definition($document, 13, 3)], [13, 3]);
@@ -30,6 +30,20 @@ subtest 'find array declaration' => sub {
     is_deeply([Perl::Parser::GoToDefinition::go_to_definition($document, 20, 4)], [17, 7]);
     is_deeply([Perl::Parser::GoToDefinition::go_to_definition($document, 24, 4)], [13, 3]);
     is_deeply([Perl::Parser::GoToDefinition::go_to_definition($document, 25, 4)], [13, 3]);
+};
+
+subtest 'find hash lexical variable declaration' => sub {
+    plan tests => 9;
+
+    is_deeply([Perl::Parser::GoToDefinition::go_to_definition($document, 28, 3)], [28, 3]);
+    is_deeply([Perl::Parser::GoToDefinition::go_to_definition($document, 29, 0)], [28, 3]);
+    is_deeply([Perl::Parser::GoToDefinition::go_to_definition($document, 32, 7)], [32, 7]);
+    is_deeply([Perl::Parser::GoToDefinition::go_to_definition($document, 34, 4)], [32, 7]);
+    is_deeply([Perl::Parser::GoToDefinition::go_to_definition($document, 35, 4)], [32, 7]);
+    is_deeply([Perl::Parser::GoToDefinition::go_to_definition($document, 36, 4)], [32, 7]);
+    is_deeply([Perl::Parser::GoToDefinition::go_to_definition($document, 40, 4)], [28, 3]);
+    is_deeply([Perl::Parser::GoToDefinition::go_to_definition($document, 41, 4)], [28, 3]);
+    is_deeply([Perl::Parser::GoToDefinition::go_to_definition($document, 42, 4)], [28, 3]);
 };
 
 __DATA__
@@ -59,4 +73,21 @@ sub array1 {
 sub array2 {
     @array = (4); # (24, 4) -> (13, 3)
     $array[2] = 2; # (25, 4) -> (13, 3)
+}
+
+my %hash = (a => 1, b => 2); # (28, 3) -> (28, 3)
+%hash = (a => 1); # (29, 0) -> (28, 3)
+
+sub hash1 {
+    my %hash = (a => 1, b => 2, c => 3); # (32, 7) -> (32, 7)
+
+    %hash = (d => 4); # (34, 4) -> (32, 7)
+    $hash{a} = 2; # (35, 4) -> (32, 7)
+    $hash{'a'} = 3; # (36, 4) -> (32, 7)
+}
+
+sub hash2 {
+    %hash = (d => 4); # (40, 4) -> (28, 3)
+    $hash{b} = 4; # (41, 4) -> (28, 3)
+    $hash{'c'} = 5; # (42, 4) -> (28, 3)
 }
