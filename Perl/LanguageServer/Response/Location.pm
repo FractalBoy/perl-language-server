@@ -8,8 +8,9 @@ use Perl::Parser::GoToDefinition;
 sub new {
     my ($class, $request) = @_;
 
+    my $document = Perl::Parser::GoToDefinition::document_from_uri($request->{params}{textDocument}{uri});
     my ($line, $column) = Perl::Parser::GoToDefinition::go_to_definition(
-        $request->{params}{textDocument}{uri},
+        $document,
         $request->{params}{position}{line},
         $request->{params}{position}{character}
     );
