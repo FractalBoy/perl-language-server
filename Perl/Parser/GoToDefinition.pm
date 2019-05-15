@@ -24,7 +24,7 @@ sub go_to_definition {
     my $match = find_symbol_at_location($document, $line, $column);
     return undef unless $match;
 
-    my $definition = find_symbol_declaration($document, $match);
+    my $definition = find_lexical_variable_declaration($document, $match);
     return undef unless $definition;
     # Subtract 1 again to get back to 0-indexed
     return ($definition->line_number - 1, $definition->visual_column_number - 1);
@@ -58,7 +58,7 @@ sub find_symbol_at_location {
     return $match;
 }
 
-sub find_symbol_declaration {
+sub find_lexical_variable_declaration {
     my ($document, $element) = @_;
     return undef unless $element->isa('PPI::Token::Symbol');
     return $element if $element->parent->isa('PPI::Statement::Variable');
@@ -74,9 +74,6 @@ sub find_symbol_declaration {
             return $matches[0];
         }
     }
-
-    # if we get here, this is the first declaration.
-    return $element;
 }
 
 =head2 is_scalar
