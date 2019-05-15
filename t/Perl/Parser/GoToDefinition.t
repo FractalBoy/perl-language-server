@@ -46,6 +46,16 @@ subtest 'find hash lexical variable declaration' => sub {
     is_deeply([Perl::Parser::GoToDefinition::go_to_definition($document, 42, 4)], [28, 3]);
 };
 
+=pod
+
+TODO
+----
+
+1. Redeclaring variables
+2. Global, our, state, local variables - those work differently and it's hard to figure out the rules
+
+=cut
+
 __DATA__
 my $var = 1; # (0, 3) -> (0, 3)
 $var = 2; # (1, 0) -> (0, 3)
