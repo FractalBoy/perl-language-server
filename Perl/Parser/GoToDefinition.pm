@@ -68,7 +68,7 @@ sub find_lexical_variable_declaration {
         next unless $parent->scope;
 
         for my $statement ($parent->children) {
-            next unless $statement->isa('PPI::Statement::Variable');
+            next unless $statement->isa('PPI::Statement::Variable') && $statement->type eq 'my';
             my @matches = grep { $_->symbol eq $element->symbol } $statement->symbols;
             next unless scalar @matches;
             return $matches[0];
