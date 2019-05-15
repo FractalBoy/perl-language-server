@@ -1,7 +1,7 @@
 #!/usr/bin/env perl
 
 use PPI;
-use Test::More tests => 3;
+use Test::More tests => 2;
 use Data::Dumper;
 
 use Perl::Parser::GoToDefinition;
@@ -32,16 +32,6 @@ subtest 'find array declaration' => sub {
     is_deeply([Perl::Parser::GoToDefinition::go_to_definition($document, 25, 4)], [13, 3]);
 };
 
-subtest 'find global declaration' => sub {
-    plan tests => 5;
-
-    is_deeply([Perl::Parser::GoToDefinition::go_to_definition($document, 28, 0)], [28, 0]);
-    is_deeply([Perl::Parser::GoToDefinition::go_to_definition($document, 31, 4)], [28, 0]);
-    is_deeply([Perl::Parser::GoToDefinition::go_to_definition($document, 32, 7)], [32, 7]);
-    is_deeply([Perl::Parser::GoToDefinition::go_to_definition($document, 33, 4)], [33, 4]);
-    is_deeply([Perl::Parser::GoToDefinition::go_to_definition($document, 34, 4)], [33, 4]);
-};
-
 __DATA__
 my $var = 1; # (0, 3) -> (0, 3)
 $var = 2; # (1, 0) -> (0, 3)
@@ -69,13 +59,4 @@ sub array1 {
 sub array2 {
     @array = (4); # (24, 4) -> (13, 3)
     $array[2] = 2; # (25, 4) -> (13, 3)
-}
-
-$global = 1; # (28, 0) -> (28, 0)
-
-sub global {
-    $global = 2; # (31, 4) -> (28, 0)
-    my $global = 1; # (32, 7) -> (32, 7)
-    $global2 = 1; # (33, 4) -> (33, 4)
-    $global2 = 2; # (34, 4) -> (33, 4)
 }

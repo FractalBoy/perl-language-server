@@ -21,16 +21,16 @@ sub go_to_definition {
 
     # LSP defines position as 0-indexed, PPI defines it 1-indexed
     $line++; $column++;
-    my $match = find_token_at_location($document, $line, $column);
+    my $match = find_symbol_at_location($document, $line, $column);
     return undef unless $match;
 
-    my $definition = find_variable_definition($document, $match);
+    my $definition = find_symbol_declaration($document, $match);
     return undef unless $definition;
     # Subtract 1 again to get back to 0-indexed
     return ($definition->line_number - 1, $definition->visual_column_number - 1);
 }
 
-sub find_token_at_location {
+sub find_symbol_at_location {
     my ($document, $line, $column) = @_;
 
     my $find = PPI::Find->new(sub {
@@ -58,7 +58,7 @@ sub find_token_at_location {
     return $match;
 }
 
-sub find_variable_definition {
+sub find_symbol_declaration {
     my ($document, $element) = @_;
     return undef unless $element->isa('PPI::Token::Symbol');
     return $element if $element->parent->isa('PPI::Statement::Variable');
@@ -74,28 +74,6 @@ sub find_variable_definition {
             return $matches[0];
         }
     }
-
-    # if we get here, we didn't find any my, our, local, or state variables
-    # let's find the first use of this variable name that affects this element 
-    # we'll look in reverse, and keep the last one found
-    my $match;
-    $parent = $element;
-
-    while ($parent = $parent->parent) {
-        next unless $parent->scope;
-
-        for my $statement (reverse $parent->children) {
-            next unless $statement->isa('PPI::Statement');
-            my @matches = grep {
-                $_->isa('PPI::Token::Symbol') &&
-                $_->symbol eq $element->symbol
-            } $statement->children;
-            next unless scalar @matches;
-            $match = $matches[0];
-        } 
-    }
-
-    return $match if $match;
 
     # if we get here, this is the first declaration.
     return $element;
