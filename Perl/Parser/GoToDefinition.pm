@@ -67,8 +67,13 @@ sub find_lexical_variable_declaration {
     while ($parent = $parent->parent) {
         next unless $parent->scope;
 
-        for my $statement ($parent->children) {
+        my $ok_to_look = 0;
+        for my $statement (reverse $parent->children) {
+            # since we're looking in reverse, only start looking after we find this element
+            # (i.e. this statement is before the element)
+            $ok_to_look = 1 if $statement->ancestor_of($element);
             next unless $statement->isa('PPI::Statement::Variable') && $statement->type eq 'my';
+            next unless $ok_to_look == 1;
             my @matches = grep { $_->symbol eq $element->symbol } $statement->symbols;
             next unless scalar @matches;
             return $matches[0];

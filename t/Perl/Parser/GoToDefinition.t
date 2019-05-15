@@ -1,7 +1,7 @@
 #!/usr/bin/env perl
 
 use PPI;
-use Test::More tests => 3;
+use Test::More tests => 4;
 use Data::Dumper;
 
 use Perl::Parser::GoToDefinition;
@@ -46,13 +46,22 @@ subtest 'find hash lexical variable declaration' => sub {
     is_deeply([Perl::Parser::GoToDefinition::go_to_definition($document, 42, 4)], [28, 3]);
 };
 
+subtest 'redeclare lexical variable in same scope' => sub {
+    plan tests => 5;
+
+    is_deeply([Perl::Parser::GoToDefinition::go_to_definition($document, 46, 7)], [46, 7]);
+    is_deeply([Perl::Parser::GoToDefinition::go_to_definition($document, 47, 4)], [46, 7]);
+    is_deeply([Perl::Parser::GoToDefinition::go_to_definition($document, 48, 7)], [48, 7]);
+    is_deeply([Perl::Parser::GoToDefinition::go_to_definition($document, 49, 4)], [48, 7]);
+    is_deeply([Perl::Parser::GoToDefinition::go_to_definition($document, 50, 4)], [48, 7]);
+};
+
 =pod
 
 TODO
 ----
 
-1. Redeclaring variables
-2. Global, our, state, local variables - those work differently and it's hard to figure out the rules
+* Global, our, state, local variables - those work differently and it's hard to figure out the rules
 
 =cut
 
@@ -100,4 +109,12 @@ sub hash2 {
     %hash = (d => 4); # (40, 4) -> (28, 3)
     $hash{b} = 4; # (41, 4) -> (28, 3)
     $hash{'c'} = 5; # (42, 4) -> (28, 3)
+}
+
+sub redeclare {
+    my $scalar = 1; # (46, 7) -> (46, 7)
+    $scalar = 2; # (47, 4) -> (46, 7)
+    my $scalar = 3; (48, 7) -> (48, 7)
+    $scalar = 4; (49, 4) -> (48, 7)
+    $scalar = 5; (50, 4) -> (48, 7)
 }
