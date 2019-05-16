@@ -1,7 +1,7 @@
 #!/usr/bin/env perl
 
 use PPI;
-use Test::More tests => 4;
+use Test::More tests => 5;
 use Data::Dumper;
 
 use Perl::Parser::GoToDefinition;
@@ -54,6 +54,21 @@ subtest 'redeclare lexical variable in same scope' => sub {
     is_deeply([Perl::Parser::GoToDefinition::go_to_definition($document, 48, 7)], [48, 7]);
     is_deeply([Perl::Parser::GoToDefinition::go_to_definition($document, 49, 4)], [48, 7]);
     is_deeply([Perl::Parser::GoToDefinition::go_to_definition($document, 50, 4)], [48, 7]);
+};
+
+subtest 'named subroutine declarations' => sub {
+    plan tests => 10;
+    
+    is_deeply([Perl::Parser::GoToDefinition::go_to_definition($document, 53, 4)], [66, 8]);
+    is_deeply([Perl::Parser::GoToDefinition::go_to_definition($document, 55, 0)], [66, 8]);
+    is_deeply([Perl::Parser::GoToDefinition::go_to_definition($document, 57, 4)], [66, 8]);
+    is([Perl::Parser::GoToDefinition::go_to_definition($document, 61, 0)], undef);
+    is_deeply([Perl::Parser::GoToDefinition::go_to_definition($document, 62, 0)], [66, 8]);
+    is_deeply([Perl::Parser::GoToDefinition::go_to_definition($document, 64, 4)], [64, 4]);
+    is_deeply([Perl::Parser::GoToDefinition::go_to_definition($document, 65, 4)], [66, 8]);
+    is_deeply([Perl::Parser::GoToDefinition::go_to_definition($document, 66, 8)], [66, 8]);
+    is_deeply([Perl::Parser::GoToDefinition::go_to_definition($document, 71, 0)], [64, 4]);
+    is_deeply([Perl::Parser::GoToDefinition::go_to_definition($document, 72, 0)], [66, 8]);
 };
 
 =pod
@@ -118,3 +133,24 @@ sub redeclare {
     $scalar = 4; (49, 4) -> (48, 7)
     $scalar = 5; (50, 4) -> (48, 7)
 }
+
+sub subroutine; (53, 4) -> (66, 8)
+
+subroutine; (55, 0) -> (66, 8)
+
+sub subroutine { (57, 4) -> (66, 8)
+    ...
+}
+
+subroutine2; (61, 0) -> (????)
+subroutine; (62, 0) -> (66, 8)
+
+sub subroutine2 { (64, 4) -> (64, 4)
+    subroutine; (65, 4) -> (66, 8)
+    sub subroutine { (66, 8) -> (66, 8)
+        ...
+    }
+}
+
+subroutine2; (71, 0) -> (64, 4)
+subroutine; (72, 0) -> (66, 8)
