@@ -4,6 +4,7 @@ use File::Spec;
 use Perl::Critic::Utils;
 use PPI;
 use PPI::Find;
+use List::Util qw(any);
 use Scalar::Util qw(blessed);
 use URI;
 
@@ -85,7 +86,7 @@ sub find_subroutine_at_location {
         if ($element->isa('PPI::Token::Cast')) {
             my $sibling = $element;
             while ($sibling = $sibling->next_sibling) {
-                return $sibling if element_is_subroutine_name($element);
+                return $sibling if element_is_subroutine_name($sibling);
             }
         }
     }
@@ -95,7 +96,24 @@ sub element_is_subroutine_name {
     my ($element) = @_;
 
     return $element->isa('PPI::Token::Word') &&
-        Perl::Critic::Utils::is_subroutine_name($element);
+        (
+            is_subroutine_name($element) ||
+            Perl::Critic::Utils::is_function_call($element)
+        );
+}
+
+sub is_subroutine_name {
+    my ($element) = @_;
+
+    return unless $element->isa('PPI::Token::Word');
+    return $element->sprevious_sibling eq 'sub' && $element->parent->isa('PPI::Statement');
+}
+
+sub is_forward_declaration {
+    my ($element) = @_;
+
+    return unless is_subroutine_name($element);
+    return $element->snext_sibling eq ';';
 }
 
 sub find_lexical_variable_declaration {
@@ -124,47 +142,28 @@ sub find_lexical_variable_declaration {
 sub find_subroutine_declaration {
     my ($document, $element) = @_;
 
-    my $parent = $element;
-    my $sub;
-
-    while ($parent = $parent->parent) {
-        if ($parent->isa('PPI::Statement::Sub')) {
-            $sub = $parent;
-            last;
-        }
-    }
-
     my $find = PPI::Find->new(sub {
         my ($elem) = @_;
 
-        return $elem->isa('PPI::Statement::Sub') &&
-            $elem->name eq $element->content &&
-            ($sub ? 1 : $elem->line_number < $element->line_number) &&
-            $elem->forward;
+        return $elem->content eq $element->content &&
+            is_subroutine_name($elem);
     });
 
     $find->start($document);
-    my $forward = $find->match;
-    $find->finish;
+    my @matches;
 
-    $find = PPI::Find->new(sub {
-        my ($elem) = @_;
-$DB::signal = 1 if $elem->isa('PPI::Statement::Sub') && $elem->name eq $element->content;
-        return $elem->isa('PPI::Statement::Sub') &&
-            $elem->name eq $element->content &&
-            !$elem->forward &&
-            ($forward ? 1 : $elem->line_number < $element->line_number);
-    });
-
-    my $last_decl;
-
-    $find->start($document);
     while (my $match = $find->match) {
-        $last_decl = $match unless defined $last_decl;
-        $last_decl = $match if $match->line_number > $last_decl->line_number;
+        push @matches, $match;
     }
 
-    return $last_decl;
+    my @fwd_decl = grep { is_forward_declaration($_) } @matches;
+    @matches = grep {
+        $_->line_number < $element->line_number ||
+        scalar(@fwd_decl) && (any { $_->line_number <= $element->line_number } @fwd_decl) ||
+        is_subroutine_name($element) && $_ == $element
+    } @matches;
+    @matches = sort { $b->line_number <=> $a->line_number } @matches;
+    return $matches[0];
 }
 
 1;

@@ -62,7 +62,7 @@ subtest 'named subroutine declarations' => sub {
     is_deeply([Perl::Parser::GoToDefinition::go_to_definition($document, 53, 4)], [66, 8]);
     is_deeply([Perl::Parser::GoToDefinition::go_to_definition($document, 55, 0)], [66, 8]);
     is_deeply([Perl::Parser::GoToDefinition::go_to_definition($document, 57, 4)], [66, 8]);
-    is([Perl::Parser::GoToDefinition::go_to_definition($document, 61, 0)], undef);
+    is(Perl::Parser::GoToDefinition::go_to_definition($document, 61, 0), undef);
     is_deeply([Perl::Parser::GoToDefinition::go_to_definition($document, 62, 0)], [66, 8]);
     is_deeply([Perl::Parser::GoToDefinition::go_to_definition($document, 64, 4)], [64, 4]);
     is_deeply([Perl::Parser::GoToDefinition::go_to_definition($document, 65, 4)], [66, 8]);
