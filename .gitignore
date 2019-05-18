@@ -1,2 +1,4 @@
 client/node_modules
 client/out
+client/dist
+client/*.vsix
