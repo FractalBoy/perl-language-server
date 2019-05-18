@@ -1,7 +1,8 @@
 #!/usr/bin/perl
 
 BEGIN {
-    use lib '../lib';
+    use FindBin;
+    use lib "$FindBin::Bin/../lib";
 }
 
 use warnings;
