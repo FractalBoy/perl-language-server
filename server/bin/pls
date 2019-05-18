@@ -1,0 +1,13 @@
+#!/usr/bin/perl
+
+BEGIN {
+    use lib '../lib';
+}
+
+use warnings;
+use strict;
+
+use PLS::Server;
+
+my $server = PLS::Server->new();
+$server->run;
