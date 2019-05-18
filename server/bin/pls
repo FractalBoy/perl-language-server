@@ -1,0 +1,14 @@
+#!/usr/bin/perl
+
+BEGIN {
+    use FindBin;
+    use lib "$FindBin::Bin/../lib";
+}
+
+use warnings;
+use strict;
+
+use PLS::Server;
+
+my $server = PLS::Server->new();
+$server->run;
