@@ -1,5 +1,10 @@
 #!/usr/bin/env perl
 
+BEGIN {
+    use FindBin;
+    use lib "$FindBin::Bin/../../../lib";
+}
+
 use PPI;
 use Test::More tests => 5;
 use Data::Dumper;
