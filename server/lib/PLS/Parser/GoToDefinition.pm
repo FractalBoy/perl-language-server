@@ -144,6 +144,7 @@ sub find_lexical_variable_declaration {
     while ($parent = $parent->parent) {
         next unless $parent->scope;
 
+        # try to find variable declarations in for/foreach my $var (@array)
         if ($parent->isa('PPI::Statement::Compound')) {
             my $find = PPI::Find->new(sub {
                 my ($elem) = @_;
@@ -157,7 +158,7 @@ sub find_lexical_variable_declaration {
             return $match if $match;
         }
 
-        # try to find variable declarations in for/while/foreach/if/unless
+        # try to find variable declarations in for/while/if/unless
         my $sib = $parent->sprevious_sibling;
         if (ref($sib) && ($sib->isa('PPI::Structure::Condition') ||
             $sib->isa('PPI::Structure::For'))) {
