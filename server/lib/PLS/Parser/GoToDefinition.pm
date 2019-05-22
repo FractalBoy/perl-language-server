@@ -136,9 +136,47 @@ sub find_lexical_variable_declaration {
     return undef unless $element->isa('PPI::Token::Symbol');
     return $element if $element->parent->isa('PPI::Statement::Variable');
 
+    # for something like for my $scalar (@array) { ... }
+    return $element if $element->parent->isa('PPI::Statement::Compound') &&
+        $element->sprevious_sibling eq 'my';
+
     my $parent = $element;
     while ($parent = $parent->parent) {
         next unless $parent->scope;
+
+        # try to find variable declarations in for/foreach my $var (@array)
+        if ($parent->isa('PPI::Statement::Compound')) {
+            my $find = PPI::Find->new(sub {
+                my ($elem) = @_;
+                return $elem->isa('PPI::Token::Symbol') &&
+                    $elem->symbol eq $element->symbol &&
+                    $elem->sprevious_sibling eq 'my';
+            });
+            $find->start($parent);
+            my $match = $find->match;
+            $find->finish;
+            return $match if $match;
+        }
+
+        # try to find variable declarations in for/while/if/unless
+        my $sib = $parent->sprevious_sibling;
+        if (ref($sib) && ($sib->isa('PPI::Structure::Condition') ||
+            $sib->isa('PPI::Structure::For'))) {
+            my $find = PPI::Find->new(sub {
+                my ($elem) = @_;
+                return $elem->isa('PPI::Statement::Variable') && 
+                    grep { $_->symbol eq $element->symbol } $elem->symbols;
+            });
+
+            $find->start($sib);
+            my $match = $find->match;
+            $find->finish;
+
+            if ($match) {
+                my @symbols = $match->symbols;
+                return $symbols[0] if @symbols;
+            }
+        }
 
         my $ok_to_look = 0;
         for my $statement (reverse $parent->children) {
