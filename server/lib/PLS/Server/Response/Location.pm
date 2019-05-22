@@ -4,33 +4,37 @@ use parent q(PLS::Server::Response);
 use strict;
 
 use PLS::Parser::GoToDefinition;
+use JSON;
 
 sub new {
     my ($class, $request) = @_;
 
     my $document = PLS::Parser::GoToDefinition::document_from_uri($request->{params}{textDocument}{uri});
-    my ($line, $column) = PLS::Parser::GoToDefinition::go_to_definition(
+    my @result = PLS::Parser::GoToDefinition::go_to_definition(
         $document,
         $request->{params}{position}{line},
         $request->{params}{position}{character}
     );
 
-    # right now, this always sends the cursor to the top left corner of the document
-    my %self = (
-        id => $request->{id},
-        result => {
-            uri => $request->{params}{textDocument}{uri},
-            range => {
-                start => {
-                    line => $line,
-                    character => $column,
-                },
-                end => {
-                    line => $line,
-                    character => $column
-                }
+    my $result;
+
+    $result = {
+        uri => $request->{params}{textDocument}{uri},
+        range => {
+            start => {
+                line => $result[0],
+                character => $result[1],
+            },
+            end => {
+                line => $result[0],
+                character => $result[1]
             }
         }
+    } if @result;
+
+    my %self = (
+        id => $request->{id},
+        result => $result
     );
 
     return bless \%self, $class;

@@ -43,6 +43,7 @@ sub go_to_definition {
     $match = find_subroutine_at_location(@matches);
     $definition = find_subroutine_declaration($document, $match) if $match;
     return lsp_location($definition) if $definition;
+    return ();
 }
 
 sub find_elements_at_location {
