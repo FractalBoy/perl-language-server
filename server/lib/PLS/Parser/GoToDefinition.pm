@@ -140,6 +140,26 @@ sub find_lexical_variable_declaration {
     while ($parent = $parent->parent) {
         next unless $parent->scope;
 
+        # try to find variable declarations in for/while/foreach/if
+        my $sib = $parent->sprevious_sibling;
+        if (ref($sib) && ($sib->isa('PPI::Structure::Condition') ||
+            $sib->previous_sibling->isa('PPI::Structure::For'))) {
+            my $find = PPI::Find->new(sub {
+                my ($elem) = @_;
+                return $elem->isa('PPI::Statement::Variable') && 
+                    grep { $_->symbol eq $element->symbol } $elem->symbols;
+            });
+
+            $find->start($sib);
+            my $match = $find->match;
+            $find->finish;
+
+            if ($match) {
+                my @symbols = $match->symbols;
+                return $symbols[0] if @symbols;
+            }
+        }
+
         my $ok_to_look = 0;
         for my $statement (reverse $parent->children) {
             # since we're looking in reverse, only start looking after we find this element

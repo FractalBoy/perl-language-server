@@ -26,7 +26,7 @@ sub get_document {
 }
 
 subtest 'find scalar lexical variable declaration' => sub {
-    plan tests => 5;
+    plan tests => 7;
 
     my $document = get_document(File::Spec->catfile(DATA_DIR, 'scalars.pl'));
     is_deeply([PLS::Parser::GoToDefinition::go_to_definition($document, 0, 3)], [0, 3]);
@@ -34,6 +34,9 @@ subtest 'find scalar lexical variable declaration' => sub {
     is_deeply([PLS::Parser::GoToDefinition::go_to_definition($document, 4, 7)], [4, 7]);
     is_deeply([PLS::Parser::GoToDefinition::go_to_definition($document, 6, 4)], [4, 7]);
     is_deeply([PLS::Parser::GoToDefinition::go_to_definition($document, 10, 4)], [0, 3]);
+    is_deeply([PLS::Parser::GoToDefinition::go_to_definition($document, 21, 10)], [21, 10]);
+    $DB::signal = 1;
+    is_deeply([PLS::Parser::GoToDefinition::go_to_definition($document, 22, 4)], [21, 10]);
 };
 
 subtest 'find array lexical variable declaration' => sub {
@@ -84,7 +87,6 @@ subtest 'named subroutine declarations' => sub {
     is_deeply([PLS::Parser::GoToDefinition::go_to_definition($document, 4, 4)], [15, 8]);
     is(PLS::Parser::GoToDefinition::go_to_definition($document, 8, 0), undef);
     is_deeply([PLS::Parser::GoToDefinition::go_to_definition($document, 9, 0)], [13, 4]);
-    $DB::signal = 1;
     is_deeply([PLS::Parser::GoToDefinition::go_to_definition($document, 10, 0)], [13, 4]);
     is_deeply([PLS::Parser::GoToDefinition::go_to_definition($document, 11, 0)], [15, 8]);
     is_deeply([PLS::Parser::GoToDefinition::go_to_definition($document, 13, 4)], [13, 4]);
