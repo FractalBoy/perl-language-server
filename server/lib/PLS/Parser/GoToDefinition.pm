@@ -67,16 +67,27 @@ sub find_elements_at_location {
 }
 
 sub find_symbol_at_location {
-    for my $element (@_) {
-        return $element if $element->isa('PPI::Token::Symbol');
+    my $symbol;
+
+    OUTER: for my $element (@_) {
+        if ($element->isa('PPI::Token::Symbol')) {
+            $symbol = $element;
+            last;
+        }
 
         if ($element->isa('PPI::Token::Cast')) {
             my $sibling = $element;
-            while ($sibling = $sibling->next_sibling) {
-                return $sibling if $element->isa('PPI::Token::Symbol');
+            INNER: while ($sibling = $sibling->next_sibling) {
+                if ($element->isa('PPI::Token::Symbol')) {
+                    $symbol = $element;
+                    last OUTER;
+                }
             }
         }
     }
+
+    return if $symbol =~ /^&/; # this is a subroutine call, not a variable
+    return $symbol;
 }
 
 sub find_subroutine_at_location {
@@ -99,7 +110,8 @@ sub element_is_subroutine_name {
         (
             is_subroutine_name($element) ||
             Perl::Critic::Utils::is_function_call($element)
-        );
+        ) ||
+        $element->isa('PPI::Token::Symbol') && $element =~ /^&/;
 }
 
 sub is_subroutine_name {
@@ -139,13 +151,29 @@ sub find_lexical_variable_declaration {
     }
 }
 
+sub sub_has_parentheses {
+    my ($element) = @_;
+
+    my $sib = $element->snext_sibling;
+    return $sib->isa('PPI::Structure::List') && $sib->complete;
+}
+
+sub sub_has_ampersand {
+    my ($element) = @_;
+
+    return $element =~ /^&/;
+}
+
 sub find_subroutine_declaration {
     my ($document, $element) = @_;
+
+    my $subroutine_name = $element->content;
+    $subroutine_name =~ s/^&//;
 
     my $find = PPI::Find->new(sub {
         my ($elem) = @_;
 
-        return $elem->content eq $element->content &&
+        return $elem->content eq $subroutine_name &&
             is_subroutine_name($elem);
     });
 
@@ -160,7 +188,9 @@ sub find_subroutine_declaration {
     @matches = grep {
         $_->line_number < $element->line_number ||
         scalar(@fwd_decl) && (any { $_->line_number <= $element->line_number } @fwd_decl) ||
-        is_subroutine_name($element) && $_ == $element
+        is_subroutine_name($element) && $_ == $element ||
+        sub_has_parentheses($element) ||
+        sub_has_ampersand($element)
     } @matches;
     @matches = sort { $b->line_number <=> $a->line_number } @matches;
     return $matches[0];
