@@ -86,7 +86,8 @@ sub find_symbol_at_location {
         }
     }
 
-    return if $symbol =~ /^&/; # this is a subroutine call, not a variable
+    return unless $symbol;
+    return if element_is_subroutine_name($symbol); # this is a subroutine call, not a variable
     return $symbol;
 }
 
@@ -111,7 +112,9 @@ sub element_is_subroutine_name {
             is_subroutine_name($element) ||
             Perl::Critic::Utils::is_function_call($element)
         ) ||
-        $element->isa('PPI::Token::Symbol') && $element =~ /^&/;
+        $element->isa('PPI::Token::Symbol') &&
+        $element =~ /^&/ &&
+        $element !~ /^\$/;
 }
 
 sub is_subroutine_name {
