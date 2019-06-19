@@ -3,6 +3,8 @@ use parent q(PLS::Server::Request::Base);
 
 use strict;
 
+use PLS::Server::State;
+
 sub service {
     my ($self) = @_;
 

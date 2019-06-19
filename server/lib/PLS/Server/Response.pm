@@ -4,6 +4,10 @@ use strict;
 
 use JSON;
 
+use PLS::Server::Response::InitializeResult;
+use PLS::Server::Response::Location;
+use PLS::Server::Response::ServerNotInitialized;
+
 sub serialize {
     my ($self) = @_;
 

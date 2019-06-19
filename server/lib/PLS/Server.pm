@@ -11,6 +11,7 @@ use JSON;
 
 use PLS::Server::Request;
 use PLS::Server::Response;
+use PLS::Server::State;
 
 sub new {
     my ($class, $readfh, $writefh) = @_;
