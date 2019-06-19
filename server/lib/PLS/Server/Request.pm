@@ -5,8 +5,7 @@ use strict;
 use JSON;
 use List::Util;
 
-use PLS::Server::Method::TextDocument;
-use PLS::Server::Method::Workspace;
+use PLS::Server::Method;
 use PLS::Server::Request::Base;
 use PLS::Server::Request::Initialize;
 use PLS::Server::Request::Initialized;

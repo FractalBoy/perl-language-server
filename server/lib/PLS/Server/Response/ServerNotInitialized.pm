@@ -4,7 +4,7 @@ use parent q(PLS::Server::Response);
 use strict;
 
 sub new {
-    my ($class) = @_;
+    my ($class, $request) = @_;
 
     my %self = (
         id => $request->{id},
@@ -12,7 +12,7 @@ sub new {
             code => -32002,
             message => "server not yet initialized"
         }
-    )
+    );
 
     return bless \%self, $class;
 }
