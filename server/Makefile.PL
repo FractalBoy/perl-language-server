@@ -3,7 +3,8 @@ use ExtUtils::MakeMaker;
 WriteMakefile(
     NAME => 'PLS',
     VERSION_FROM => 'lib/PLS.pm',
-    EXE_FILES => ['bin/pls'],
+    EXE_FILES => [ 'bin/pls' ],
+    MIN_PERL_VERSION => 5.026001,
     PREREQ_PM => {
         'AnyEvent' => 7.15,
         'Coro' => 6.54,

@@ -1,6 +1,6 @@
 package PLS;
 
-$VERSION = 0.1;
+our $VERSION = '0.1';
 
 use PLS::Server;
 use PLS::Parser;
