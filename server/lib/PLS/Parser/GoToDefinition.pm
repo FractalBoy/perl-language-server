@@ -52,8 +52,16 @@ sub go_to_definition {
     {
         return search_files_for_subroutine_declaration($subroutine->content);
     }
+    if (my $method = find_method_calls_at_location(@matches))
+    {
+        return search_files_for_subroutine_declaration($method->content);
+    }
+    if (my ($class, $method) = find_class_calls_at_location(@matches))
+    {
+        return search_for_package_subroutine($class, $method);
+    }
 
-    return; 
+    return;
 }
 
 sub find_elements_at_location {
@@ -90,6 +98,16 @@ sub find_subroutine_at_location {
     }
 }
 
+sub find_method_calls_at_location
+{
+    return grep { is_method_call($_) } @_;
+}
+
+sub find_class_calls_at_location
+{
+    return grep { is_class_method_call($_) } @_;
+}
+
 sub element_is_subroutine_name {
     my ($element) = @_;
 
@@ -110,11 +128,56 @@ sub is_subroutine_name {
     return $element->sprevious_sibling eq 'sub' && $element->parent->isa('PPI::Statement');
 }
 
+sub is_class_method_call {
+    my ($element) = @_;
+
+    return unless $element->isa('PPI::Token::Word');
+    return unless $element->sprevious_sibling->isa('PPI::Token::Operator') && $element->sprevious_sibling eq '->';
+    return unless $element->sprevious_sibling->sprevious_sibling->isa('PPI::Token::Word');
+
+    my $class = $element->sprevious_sibling->sprevious_sibling;
+    my $method = $element;
+    return ($class, $method);
+}
+
+sub is_method_call {
+    my ($element) = @_;
+
+    return unless $element->isa('PPI::Token::Word');
+    return unless $element->sprevious_sibling->isa('PPI::Token::Operator') && $element->sprevious_sibling eq '->';
+    return $element->sprevious_sibling->sprevious_sibling->isa('PPI::Token::Symbol');
+}
+
+sub search_for_package_subroutine
+{
+    my ($class, $subroutine) = @_;
+
+    my @path = split ':', $subroutine;
+    my $package_path = join '/', @path;
+    $package_path .= '.pm';
+    my $perl_files = get_all_perl_files();
+
+    foreach my $perl_file (@$perl_files)
+    {
+        if ($perl_file =~ /\Q$package_path\E$/)
+        {
+            return search_files_for_subroutine_declaration($subroutine, $perl_file)
+        }
+    }
+
+    foreach my $dir (@INC)
+    {
+        my $potential_path = File::Spec->catfile($dir, @path);
+        next unless (-f $potential_path);
+        return search_files_for_subroutine_declaration($subroutine, $potential_path);
+    }
+}
+
 sub search_files_for_subroutine_declaration
 {
-    my ($subroutine) = @_;
+    my ($subroutine, @perl_files) = @_;
 
-    my $perl_files = get_all_perl_files();
+    @perl_files = @{get_all_perl_files()} unless (scalar @perl_files);
 
     my $find = PPI::Find->new(sub {
         my ($element) = @_;
@@ -124,7 +187,7 @@ sub search_files_for_subroutine_declaration
 
     my @results;
 
-    foreach my $perl_file (@$perl_files)
+    foreach my $perl_file (@perl_files)
     {
         my $document = PPI::Document->new($perl_file);
         next unless $find->start($document);
