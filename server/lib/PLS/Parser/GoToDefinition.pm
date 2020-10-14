@@ -196,10 +196,18 @@ sub search_files_for_subroutine_declaration
 {
     my ($subroutine, @perl_files) = @_;
 
+    @perl_files = @{get_all_perl_files()} unless (scalar @perl_files);
+
     my @results;
 
     foreach my $perl_file (@perl_files)
     {
+        next if (-l $perl_file);
+
+        # start with a grep since it's faster
+        open my $fh, '<', $perl_file or next;
+        next unless grep { /sub\s+\Q$subroutine\E/ } <$fh>;
+
         index_subroutine_declarations_in_file($perl_file);
         my $index = get_index_for_perl_file($perl_file);
         my ($found) = grep { $_->{name} eq $subroutine } @{$index->{subs}};
@@ -293,6 +301,7 @@ sub index_subroutine_declarations_in_file
     open my $fh, '>', $cache_file or return;
     my $json = encode_json \%cache_obj;
     print {$fh} $json;
+    $PLS::Server::State::FILE_CACHE{$perl_file} = \%cache_obj;
 }
 
 sub get_index_for_perl_file
@@ -302,9 +311,24 @@ sub get_index_for_perl_file
     my $relative = File::Spec->abs2rel($perl_file, $PLS::Server::State::ROOT_PATH);
     my $cache_file = File::Spec->catfile($PLS::Server::State::ROOT_PATH, '.pls_cache', $relative);
 
+    my $cached = $PLS::Server::State::FILE_CACHE{$perl_file};
+    my $json = encode_json $cached;
+
+    my $sha = Digest::SHA->new(256);
+    $sha->add($json);
+    my $cache_checksum = $sha->hexdigest;
+
+    $sha = Digest::SHA->new(256);
+    $sha->add($cache_file);
+    my $file_checksum = $sha->hexdigest;
+
+    return $cached if ($cache_checksum eq $file_checksum);
+
     open my $fh, '<', $cache_file or return {};
     my $json = do { local $/; <$fh> };
-    return decode_json $json;
+    my $data = decode_json $json;
+    $PLS::Server::State::FILE_CACHE{$perl_file} = $data;
+    return $data;
 }
 
 1;
