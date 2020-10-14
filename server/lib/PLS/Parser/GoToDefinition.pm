@@ -165,7 +165,7 @@ sub is_method_call
 
     return unless $element->isa('PPI::Token::Word');
     return unless $element->sprevious_sibling->isa('PPI::Token::Operator') && $element->sprevious_sibling eq '->';
-    return $element->sprevious_sibling->sprevious_sibling->isa('PPI::Token::Symbol');
+    return not $element->sprevious_sibling->sprevious_sibling->isa('PPI::Token::Word');
 } ## end sub is_method_call
 
 sub search_for_package_subroutine
