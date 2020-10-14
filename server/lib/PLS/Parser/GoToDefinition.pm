@@ -54,9 +54,14 @@ sub go_to_definition
     ($line, $column) = ppi_location($line, $column);
     my @matches = find_elements_at_location($document, $line, $column);
 
-    if (my $subroutine = find_subroutine_at_location(@matches))
+    if (my ($package, $subroutine) = find_subroutine_at_location(@matches))
     {
-        return search_files_for_subroutine_declaration($subroutine->content);
+        if (length $package)
+        {
+            return search_for_package_subroutine($package, $subroutine);
+        }
+
+        return search_files_for_subroutine_declaration($subroutine);
     }
     if (my $method = find_method_calls_at_location(@matches))
     {
@@ -99,16 +104,20 @@ sub find_subroutine_at_location
 {
     foreach my $element (@_)
     {
-        return $element if element_is_subroutine_name($element);
+       next unless Perl::Critic::Utils::is_function_call($element);
+       next unless $element->isa('PPI::Token::Word');
 
-        if ($element->isa('PPI::Token::Cast'))
-        {
-            my $sibling = $element;
-            while ($sibling = $sibling->next_sibling)
-            {
-                return $sibling if element_is_subroutine_name($sibling);
-            }
-        } ## end if ($element->isa('PPI::Token::Cast'...))
+       if ($element->content =~ /::/)
+       {
+           my @parts = split '::', $element->content;
+           my $subroutine = pop @parts;
+           my $package = join '::', @parts;
+           return ($package, $subroutine);
+       }
+       else
+       {
+           return $element->content;
+       }
     } ## end foreach my $element (@_)
 } ## end sub find_subroutine_at_location
 
@@ -132,23 +141,6 @@ sub find_class_calls_at_location
 
     return;
 }
-
-sub element_is_subroutine_name
-{
-    my ($element) = @_;
-
-    return $element->isa('PPI::Token::Word') && (   is_subroutine_name($element)
-                                                 || Perl::Critic::Utils::is_function_call($element))
-      || $element->isa('PPI::Token::Symbol') && $element =~ /^&/ && $element !~ /^\$/;
-} ## end sub element_is_subroutine_name
-
-sub is_subroutine_name
-{
-    my ($element) = @_;
-
-    return unless $element->isa('PPI::Token::Word');
-    return $element->sprevious_sibling eq 'sub' && $element->parent->isa('PPI::Statement');
-} ## end sub is_subroutine_name
 
 sub is_class_method_call
 {
