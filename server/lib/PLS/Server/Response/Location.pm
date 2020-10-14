@@ -10,31 +10,15 @@ sub new {
     my ($class, $request) = @_;
 
     my $document = PLS::Parser::GoToDefinition::document_from_uri($request->{params}{textDocument}{uri});
-    my @result = PLS::Parser::GoToDefinition::go_to_definition(
+    my $results = PLS::Parser::GoToDefinition::go_to_definition(
         $document,
         $request->{params}{position}{line},
         $request->{params}{position}{character}
     );
 
-    my $result;
-
-    $result = {
-        uri => $request->{params}{textDocument}{uri},
-        range => {
-            start => {
-                line => $result[0],
-                character => $result[1],
-            },
-            end => {
-                line => $result[0],
-                character => $result[1]
-            }
-        }
-    } if @result;
-
     my %self = (
         id => $request->{id},
-        result => $result
+        result => $results
     );
 
     return bless \%self, $class;
