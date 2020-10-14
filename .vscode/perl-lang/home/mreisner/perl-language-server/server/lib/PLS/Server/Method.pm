@@ -1,0 +1,1 @@
+{"version":3,"vars":[{"defintion":1,"name":"PLS::Server::Method","line":0,"kind":2},{"kind":2,"line":2,"containerName":"PLS::Server::Method","name":"TextDocument"},{"containerName":"PLS::Server::Method","name":"Workspace","kind":2,"line":3}]}
