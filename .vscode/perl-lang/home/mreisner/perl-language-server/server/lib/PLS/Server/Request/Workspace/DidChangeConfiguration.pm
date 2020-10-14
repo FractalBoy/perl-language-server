@@ -1,1 +1,0 @@
-{"version":3,"vars":[{"name":"PLS::Server::Request::Workspace::DidChangeConfiguration","line":0,"kind":2,"defintion":1},{"name":"parent","containerName":"","line":1,"kind":2},{"containerName":"","name":"strict","kind":2,"line":3}]}

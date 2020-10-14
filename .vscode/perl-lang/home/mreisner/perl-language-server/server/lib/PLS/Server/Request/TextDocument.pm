@@ -1,1 +1,0 @@
-{"version":3,"vars":[{"defintion":1,"name":"PLS::Server::Request::TextDocument","kind":2,"line":0},{"name":"Definition","containerName":"PLS::Server::Request::TextDocument","line":2,"kind":2}]}
