@@ -119,6 +119,8 @@ sub find_subroutine_at_location
            return $element->content;
        }
     } ## end foreach my $element (@_)
+
+    return;
 } ## end sub find_subroutine_at_location
 
 sub find_method_calls_at_location
