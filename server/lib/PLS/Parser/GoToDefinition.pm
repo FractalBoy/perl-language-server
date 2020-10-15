@@ -120,7 +120,7 @@ sub find_subroutine_at_location
         } ## end if ($element->content ...)
         else
         {
-            return $element->content;
+            return ('', $element->content);
         }
     } ## end foreach my $element (@_)
 
