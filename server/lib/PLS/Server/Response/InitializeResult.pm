@@ -11,7 +11,8 @@ sub new {
         result => {
             capabilities => {
                 definitionProvider => \1,
-                documentFormattingProvider => \1
+                documentFormattingProvider => \1,
+                documentSymbolProvider => \1
             }
         }
     );
