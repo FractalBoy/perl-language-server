@@ -241,7 +241,11 @@ sub get_all_perl_files
 
             # exclude hidden files and files in hidden directories
             return if grep { /^\./ } @pieces;
-            push @perl_files, $File::Find::name if (/\.p[ml]$/);
+            if (/\.p[ml]$/)
+            {
+                push @perl_files, $File::Find::name;
+                return;
+            }
             open my $code, '<', $File::Find::name or return;
             my $first_line = <$code>;
             push @perl_files, $File::Find::name if ($first_line =~ /^#!.*perl$/);
