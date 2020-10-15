@@ -69,7 +69,8 @@ sub go_to_definition
     } ## end if (my ($package, $subroutine...))
     if (my $method = find_method_calls_at_location(@matches))
     {
-        return search_files_for_subroutine_declaration($method->content);
+        my $subroutine = $method->content =~ s/SUPER:://r;
+        return search_files_for_subroutine_declaration($subroutine);
     }
     if (my ($class, $method) = find_class_calls_at_location(@matches))
     {
@@ -300,37 +301,31 @@ sub index_subroutine_declarations
         my $document = PPI::Document->new($perl_file);
         next unless (ref $document eq 'PPI::Document');
         $document->index_locations;
-        my %subroutines = map { $_->{name} => $_ } (@{get_subroutines_in_file($document)}, @{get_constants_in_file($document)});
+        my @subroutines = (@{get_subroutines_in_file($document)}, @{get_constants_in_file($document)});
 
+        # remove any references to this file
         foreach my $key (keys %{$index->{subs}})
         {
-            if (defined $subroutines{$key})
-            {
-                delete $subroutines{$key};
-                next;
-            }
-
-            @{$index->{subs}{$key}} = grep { $_ ne $perl_file } @{$index->{subs}{$key}};
+            @{$index->{subs}{$key}} = grep { $_->{file} ne $perl_file } @{$index->{subs}{$key}};
         } ## end foreach my $key (keys %{$index...})
 
-        foreach my $subroutine (keys %subroutines)
+        # add references for this file back in
+        foreach my $subroutine (@subroutines)
         {
-            my $element  = $subroutines{$subroutine};
-            my %sub_info = (file => $perl_file, location => $element->{location});
+            my %sub_info = (file => $perl_file, location => $subroutine->{location});
 
-            if (ref $index->{subs}{$subroutine} eq 'ARRAY')
+            if (ref $index->{subs}{$subroutine->{name}} eq 'ARRAY')
             {
-                push @{$index->{subs}{$subroutine}}, \%sub_info;
+                push @{$index->{subs}{$subroutine->{name}}}, \%sub_info;
             }
             else
             {
-                $index->{subs}{$subroutine} = [\%sub_info];
+                $index->{subs}{$subroutine->{name}} = [\%sub_info];
             }
         } ## end foreach my $subroutine (keys...)
     } ## end foreach my $perl_file (@perl_files...)
 
     Storable::nstore($index, $index_file);
-    $PLS::Server::State::FILE_CACHE = $index;
 } ## end sub index_subroutine_declarations
 
 sub get_constants
