@@ -6,6 +6,7 @@ use warnings;
 use Digest::SHA;
 use File::Path;
 use File::Spec;
+use File::stat;
 use JSON;
 use Perl::Critic::Utils ();
 use PPI;
@@ -65,7 +66,7 @@ sub go_to_definition
         }
 
         return search_files_for_subroutine_declaration($subroutine);
-    }
+    } ## end if (my ($package, $subroutine...))
     if (my $method = find_method_calls_at_location(@matches))
     {
         return search_files_for_subroutine_declaration($method->content);
@@ -107,20 +108,20 @@ sub find_subroutine_at_location
 {
     foreach my $element (@_)
     {
-       next unless Perl::Critic::Utils::is_function_call($element);
-       next unless $element->isa('PPI::Token::Word');
+        next unless Perl::Critic::Utils::is_function_call($element);
+        next unless $element->isa('PPI::Token::Word');
 
-       if ($element->content =~ /::/)
-       {
-           my @parts = split '::', $element->content;
-           my $subroutine = pop @parts;
-           my $package = join '::', @parts;
-           return ($package, $subroutine);
-       }
-       else
-       {
-           return $element->content;
-       }
+        if ($element->content =~ /::/)
+        {
+            my @parts      = split '::', $element->content;
+            my $subroutine = pop @parts;
+            my $package    = join '::', @parts;
+            return ($package, $subroutine);
+        } ## end if ($element->content ...)
+        else
+        {
+            return $element->content;
+        }
     } ## end foreach my $element (@_)
 
     return;
@@ -132,7 +133,7 @@ sub find_method_calls_at_location
     {
         return $element if is_method_call($element);
     }
-}
+} ## end sub find_method_calls_at_location
 
 sub find_class_calls_at_location
 {
@@ -142,10 +143,10 @@ sub find_class_calls_at_location
         {
             return ($element->sprevious_sibling->sprevious_sibling->content, $element->content);
         }
-    }
+    } ## end foreach my $element (@_)
 
     return;
-}
+} ## end sub find_class_calls_at_location
 
 sub is_class_method_call
 {
@@ -193,40 +194,45 @@ sub search_files_for_subroutine_declaration
 {
     my ($subroutine, @perl_files) = @_;
 
-    @perl_files = @{get_all_perl_files()} unless (scalar @perl_files);
+    index_subroutine_declarations(@perl_files);
+    my $index = get_index();
+    my $found = $index->{subs}{$subroutine};
+    return [] unless ref $found eq 'ARRAY';
+
+    my @locations = @$found;
+
+    if (scalar @perl_files)
+    {
+        @locations = grep
+        {
+            my $location = $_;
+            grep { $location->{file} eq $_ } @perl_files
+        } @locations;
+    } ## end if (scalar @perl_files...)
 
     my @results;
 
-    foreach my $perl_file (@perl_files)
+    foreach my $location (@locations)
     {
-        next if (-l $perl_file);
+        my ($line_number, $column_number) = @{$location->{location}}{qw(line_number column_number)};
+        $line_number--;
+        $column_number--;
 
-        # start with a grep since it's faster
-        open my $fh, '<', $perl_file or next;
-        next unless grep { /sub\s+\Q$subroutine\E/ } <$fh>;
-
-        index_subroutine_declarations_in_file($perl_file);
-        my $index = get_index_for_perl_file($perl_file);
-        my ($found) = grep { $_->{name} eq $subroutine } @{$index->{subs}};
-        next unless ref $found eq 'HASH';
-
-        my ($line_number, $column_number) = @{$found->{location}}{qw(line_number column_number)};
-        $line_number--; $column_number--;
-
-        push @results,  {
-                uri   => URI::file->new($perl_file)->as_string,
-                range => {
-                          start => {
-                                    line      => $line_number,
-                                    character => $column_number
-                                   },
-                          end => {
-                                  line      => $line_number,
-                                  character => ($column_number + length 'sub ' + length $found->{content})
-                                 }
-                         }
-              };
-    }
+        push @results,
+          {
+            uri   => URI::file->new($location->{file})->as_string,
+            range => {
+                      start => {
+                                line      => $line_number,
+                                character => $column_number
+                               },
+                      end => {
+                              line      => $line_number,
+                              character => ($column_number + length 'sub ' + length $subroutine)
+                             }
+                     }
+          };
+    } ## end foreach my $location (@locations...)
 
     return \@results;
 } ## end sub search_files_for_subroutine_declaration
@@ -251,7 +257,7 @@ sub get_all_perl_files
             }
             open my $code, '<', $File::Find::name or return;
             my $first_line = <$code>;
-            push @perl_files, $File::Find::name if ($first_line =~ /^#!.*perl$/);
+            push @perl_files, $File::Find::name if (length $first_line and $first_line =~ /^#!.*perl$/);
             close $code;
         },
         $PLS::Server::State::ROOT_PATH
@@ -260,76 +266,133 @@ sub get_all_perl_files
     return \@perl_files;
 } ## end sub get_all_perl_files
 
-sub index_subroutine_declarations_in_file
+sub get_index
 {
-    my ($perl_file) = @_;
+    my $index_file = File::Spec->catfile($PLS::Server::State::ROOT_PATH, '.pls_cache', 'index');
+    return {} unless -f $index_file;
+    return Storable::retrieve($index_file);
+}
 
-    my $relative = File::Spec->abs2rel($perl_file, $PLS::Server::State::ROOT_PATH);
-    my $cache_file = File::Spec->catfile($PLS::Server::State::ROOT_PATH, '.pls_cache', $relative);
-    my (undef, $cache_file_parent_dir) = File::Spec->splitpath($cache_file);
-    File::Path::make_path($cache_file_parent_dir);
+sub index_subroutine_declarations
+{
+    my (@perl_files) = @_;
 
-    my $sha = Digest::SHA->new(256);
-    $sha->addfile($perl_file, 'U');
-    my $checksum = $sha->hexdigest;
+    my $index_file = File::Spec->catfile($PLS::Server::State::ROOT_PATH, '.pls_cache', 'index');
+    my (undef, $index_parent_dir) = File::Spec->splitpath($index_file);
+    File::Path::make_path($index_parent_dir);
 
-    if (-f $cache_file)
+    @perl_files = @{get_all_perl_files()} unless (scalar @perl_files);
+    my $index = get_index();
+
+    if (-f $index_file)
     {
-        my $obj = get_index_for_perl_file($cache_file);
-        return if $obj->{checksum} eq $checksum;
-    }
+        my @mtimes      = map { (stat $_)->mtime } @perl_files;
+        my $index_mtime = (stat $index_file)->mtime;
 
-    my %cache_obj = (
-        checksum => $checksum,
-        subs => []
+        # return existing index if all files are older than index
+        return $index if (scalar grep { $_ <= $index_mtime } @mtimes == scalar @mtimes);
+        @perl_files = grep { (stat $_)->mtime > $index_mtime } @perl_files;
+    } ## end if (-f $index_file)
+
+    foreach my $perl_file (@perl_files)
+    {
+        my $document = PPI::Document->new($perl_file);
+        next unless (ref $document eq 'PPI::Document');
+        $document->index_locations;
+        my %subroutines = map { $_->{name} => $_ } (@{get_subroutines_in_file($document)}, @{get_constants_in_file($document)});
+
+        foreach my $key (keys %{$index->{subs}})
+        {
+            if (defined $subroutines{$key})
+            {
+                delete $subroutines{$key};
+                next;
+            }
+
+            @{$index->{subs}{$key}} = grep { $_ ne $perl_file } @{$index->{subs}{$key}};
+        } ## end foreach my $key (keys %{$index...})
+
+        foreach my $subroutine (keys %subroutines)
+        {
+            my $element  = $subroutines{$subroutine};
+            my %sub_info = (file => $perl_file, location => $element->{location});
+
+            if (ref $index->{subs}{$subroutine} eq 'ARRAY')
+            {
+                push @{$index->{subs}{$subroutine}}, \%sub_info;
+            }
+            else
+            {
+                $index->{subs}{$subroutine} = [\%sub_info];
+            }
+        } ## end foreach my $subroutine (keys...)
+    } ## end foreach my $perl_file (@perl_files...)
+
+    Storable::nstore($index, $index_file);
+    $PLS::Server::State::FILE_CACHE = $index;
+} ## end sub index_subroutine_declarations
+
+sub get_constants_in_file
+{
+    my ($document) = @_;
+
+    my $find = PPI::Find->new(
+        sub {
+            my ($element) = @_;
+
+            return 0 unless $element->isa('PPI::Statement::Include');
+            return   unless $element->type eq 'use';
+            return $element->module eq 'constant';
+        }
     );
 
-    my $document = PPI::Document->new($perl_file);
-    my $find = PPI::Find->new(sub { $_[0]->isa('PPI::Statement::Sub') });
-    return unless $find->start($document);
+    return [] unless $find->start($document);
+
+    my @constants;
 
     while (my $match = $find->match)
     {
-        push @{$cache_obj{subs}}, {
-            location => {
-                line_number => $match->line_number,
-                column_number => $match->column_number
-            },
-            name => $match->name
-        };
+        my ($constructor) = grep { $_->isa('PPI::Structure::Constructor') } $match->children;
+
+        if (ref $constructor eq 'PPI::Structure::Constructor')
+        {
+            push @constants, grep { _is_constant($_) }
+              map  { $_->children }
+              grep { $_->isa('PPI::Statement::Expression') } $constructor->children;
+        } ## end if (ref $constructor eq...)
+        else
+        {
+            push @constants, grep { _is_constant($_) } $match->children;
+        }
+    } ## end while (my $match = $find->...)
+
+    return [map { {name => $_->content, location => {line_number => $_->line_number, column_number => $_->column_number}} } @constants];
+} ## end sub get_constants_in_file
+
+sub get_subroutines_in_file
+{
+    my ($document) = @_;
+
+    my $find = PPI::Find->new(sub { $_[0]->isa('PPI::Statement::Sub') and not $_[0]->isa('PPI::Statement::Scheduled') });
+    return [] unless $find->start($document);
+
+    my @subroutines;
+
+    while (my $match = $find->match)
+    {
+        push @subroutines, $match;
     }
 
-    open my $fh, '>', $cache_file or return;
-    my $json = encode_json \%cache_obj;
-    print {$fh} $json;
-    $PLS::Server::State::FILE_CACHE{$perl_file} = \%cache_obj;
-}
+    return [map { {name => $_->name, location => {line_number => $_->line_number, column_number => $_->column_number}} } @subroutines];
+} ## end sub get_subroutines_in_file
 
-sub get_index_for_perl_file
+sub _is_constant
 {
-    my ($perl_file) = @_;
+    my ($element) = @_;
 
-    my $relative = File::Spec->abs2rel($perl_file, $PLS::Server::State::ROOT_PATH);
-    my $cache_file = File::Spec->catfile($PLS::Server::State::ROOT_PATH, '.pls_cache', $relative);
-
-    my $cached = $PLS::Server::State::FILE_CACHE{$perl_file};
-    my $json = encode_json $cached;
-
-    my $sha = Digest::SHA->new(256);
-    $sha->add($json);
-    my $cache_checksum = $sha->hexdigest;
-
-    $sha = Digest::SHA->new(256);
-    $sha->add($cache_file);
-    my $file_checksum = $sha->hexdigest;
-
-    return $cached if ($cache_checksum eq $file_checksum);
-
-    open my $fh, '<', $cache_file or return {};
-    $json = do { local $/; <$fh> };
-    my $data = decode_json $json;
-    $PLS::Server::State::FILE_CACHE{$perl_file} = $data;
-    return $data;
-}
+    return unless $element->isa('PPI::Token::Word');
+    return unless ref $_->snext_sibling eq 'PPI::Token::Operator';
+    return $_->snext_sibling->content eq '=>';
+} ## end sub _is_constant
 
 1;
