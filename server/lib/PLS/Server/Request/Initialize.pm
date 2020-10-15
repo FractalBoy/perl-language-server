@@ -21,12 +21,7 @@ sub service {
     my $path = URI->new($root_uri);
     $PLS::Server::State::ROOT_PATH = $path->file;
 
-    unless (fork)
-    {
-        parse_and_cache();
-        exit 0;
-    }
-
+    parse_and_cache();
     return PLS::Server::Response::InitializeResult->new($self);
 }
 
