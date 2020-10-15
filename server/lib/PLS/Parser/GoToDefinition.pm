@@ -228,7 +228,7 @@ sub search_files_for_subroutine_declaration
                                },
                       end => {
                               line      => $line_number,
-                              character => ($column_number + length 'sub ' + length $subroutine)
+                              character => ($column_number + length('sub ') + length($subroutine))
                              }
                      }
           };
@@ -332,7 +332,7 @@ sub index_subroutine_declarations
     $PLS::Server::State::FILE_CACHE = $index;
 } ## end sub index_subroutine_declarations
 
-sub get_constants_in_file
+sub get_constants
 {
     my ($document) = @_;
 
@@ -366,7 +366,14 @@ sub get_constants_in_file
         }
     } ## end while (my $match = $find->...)
 
-    return [map { {name => $_->content, location => {line_number => $_->line_number, column_number => $_->column_number}} } @constants];
+    return \@constants;
+}
+
+sub get_constants_in_file
+{
+    my $constants = get_constants(@_);
+
+    return [map { {name => $_->content, location => {line_number => $_->line_number, column_number => $_->column_number}} } @$constants];
 } ## end sub get_constants_in_file
 
 sub get_subroutines_in_file
