@@ -37,15 +37,7 @@ sub parse_and_cache
     my $ppi_cache = PPI::Cache->new(path => $cache);
     PPI::Document->set_cache($ppi_cache);
 
-    my $perl_files = PLS::Parser::GoToDefinition::get_all_perl_files();
-
-    foreach my $perl_file (@$perl_files)
-    {
-        my $document = PPI::Document->new($perl_file);
-        next unless (ref $document eq 'PPI::Document');
-        $document->index_locations;
-        PLS::Parser::GoToDefinition::index_subroutine_declarations_in_file($perl_file);
-    }
+    PLS::Parser::GoToDefinition::index_subroutine_declarations();
 }
 
 1;
