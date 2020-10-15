@@ -1,10 +1,13 @@
 package PLS::Parser::GoToDefinition;
 
+use strict;
+use warnings;
+
 use Digest::SHA;
 use File::Path;
 use File::Spec;
 use JSON;
-use Perl::Critic::Utils;
+use Perl::Critic::Utils ();
 use PPI::Cache;
 use PPI::Document;
 use PPI::Find;
@@ -20,7 +23,7 @@ sub document_from_uri
     if (length $PLS::Server::State::ROOT_PATH)
     {
         my $cache_path = File::Spec->catfile($PLS::Server::State::ROOT_PATH, '.pls_ppi_cache');
-        mkdir $cache unless (-d $cache_path);
+        mkdir $cache_path unless (-d $cache_path);
         my $ppi_cache = PPI::Cache->new(path => $cache_path);
         PPI::Document->set_cache($ppi_cache);
     } ## end if (length $PLS::Server::State::ROOT_PATH...)
@@ -323,7 +326,7 @@ sub get_index_for_perl_file
     return $cached if ($cache_checksum eq $file_checksum);
 
     open my $fh, '<', $cache_file or return {};
-    my $json = do { local $/; <$fh> };
+    $json = do { local $/; <$fh> };
     my $data = decode_json $json;
     $PLS::Server::State::FILE_CACHE{$perl_file} = $data;
     return $data;
