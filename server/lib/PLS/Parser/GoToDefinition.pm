@@ -246,6 +246,7 @@ sub get_all_perl_files
     File::Find::find(
         sub {
             return unless -f;
+            return if -l;
             my @pieces = File::Spec->splitdir($File::Find::name);
 
             # exclude hidden files and files in hidden directories
