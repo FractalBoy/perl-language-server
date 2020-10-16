@@ -21,18 +21,8 @@ sub service {
     my $path = URI->new($root_uri);
     $PLS::Server::State::ROOT_PATH = $path->file;
 
-    parse_and_cache();
-    return PLS::Server::Response::InitializeResult->new($self);
-}
-
-sub parse_and_cache
-{
-    my $cache = File::Spec->catfile($PLS::Server::State::ROOT_PATH, '.pls_ppi_cache');
-    mkdir $cache unless (-d $cache);
-    my $ppi_cache = PPI::Cache->new(path => $cache);
-    PPI::Document->set_cache($ppi_cache);
-
     PLS::Parser::GoToDefinition::index_subroutine_declarations();
+    return PLS::Server::Response::InitializeResult->new($self);
 }
 
 1;

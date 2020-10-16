@@ -21,14 +21,6 @@ sub document_from_uri
 {
     my ($uri) = @_;
 
-    if (length $PLS::Server::State::ROOT_PATH)
-    {
-        my $cache_path = File::Spec->catfile($PLS::Server::State::ROOT_PATH, '.pls_ppi_cache');
-        mkdir $cache_path unless (-d $cache_path);
-        my $ppi_cache = PPI::Cache->new(path => $cache_path);
-        PPI::Document->set_cache($ppi_cache);
-    } ## end if (length $PLS::Server::State::ROOT_PATH...)
-
     my $file     = URI->new($uri);
     my $document = PPI::Document->new($file->file);
     $document->index_locations;
