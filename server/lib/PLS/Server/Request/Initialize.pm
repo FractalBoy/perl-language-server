@@ -21,7 +21,7 @@ sub service {
     my $path = URI->new($root_uri);
     $PLS::Server::State::ROOT_PATH = $path->file;
 
-    PLS::Parser::GoToDefinition::index_subroutine_declarations();
+    PLS::Parser::GoToDefinition::index_declarations();
     return PLS::Server::Response::InitializeResult->new($self);
 }
 

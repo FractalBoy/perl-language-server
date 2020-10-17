@@ -69,6 +69,10 @@ sub go_to_definition
     {
         return search_for_package_subroutine($class, $method);
     }
+    if (my $package = find_package_at_location(@matches))
+    {
+        return search_for_package($package);
+    }
 
     return;
 } ## end sub go_to_definition
@@ -142,6 +146,17 @@ sub find_class_calls_at_location
     return;
 } ## end sub find_class_calls_at_location
 
+sub find_package_at_location
+{
+    foreach my $element (@_)
+    {
+        if (my $name = is_package($element))
+        {
+            return $name;
+        }
+    }
+}
+
 sub is_class_method_call
 {
     my ($element) = @_;
@@ -160,6 +175,14 @@ sub is_method_call
     return (ref $element->sprevious_sibling->sprevious_sibling and ref $element->sprevious_sibling->sprevious_sibling ne 'PPI::Token::Word');
 } ## end sub is_method_call
 
+sub is_package
+{
+    my ($element) = @_;
+    return $element->module if ($element->isa('PPI::Statement::Include') and $element->type eq 'use');
+    return $element->content if ($element->isa('PPI::Token::Word') and ref $element->snext_sibling eq 'PPI::Token::Operator' and $element->snext_sibling eq '->');
+    return;
+}
+
 sub search_for_package_subroutine
 {
     my ($class, $subroutine) = @_;
@@ -176,22 +199,69 @@ sub search_for_package_subroutine
         }
     } ## end foreach my $perl_file (@$perl_files...)
 
-    foreach my $dir (@INC)
-    {
-        my $potential_path = File::Spec->join($dir, @path) . '.pm';
-        next unless (-f $potential_path);
-        return search_files_for_subroutine_declaration($subroutine, $potential_path);
-    } ## end foreach my $dir (@INC)
+#    foreach my $dir (@INC)
+#    {
+#        my $potential_path = File::Spec->join($dir, @path) . '.pm';
+#        next unless (-f $potential_path);
+#        return search_files_for_subroutine_declaration($subroutine, $potential_path);
+#    } ## end foreach my $dir (@INC)
 } ## end sub search_for_package_subroutine
+
+sub search_for_package
+{
+    my ($package, @perl_files) = @_;
+
+    index_declarations(@perl_files);
+    my $index = get_index();
+    my $found = $index->{packages}{$package};
+    return [] unless (ref $found eq 'ARRAY');
+
+    my @locations = @$found;
+
+    if (scalar @perl_files)
+    {
+        @locations = grep
+        {
+            my $location = $_;
+            grep { $location->{file} eq $_ } @perl_files
+        } @locations;
+    } ## end if (scalar @perl_files...)
+
+    my @results;
+
+    foreach my $location (@locations)
+    {
+        my ($line_number, $column_number) = @{$location->{location}}{qw(line_number column_number)};
+        $line_number--;
+        $column_number--;
+
+        push @results,
+          {
+            uri   => URI::file->new($location->{file})->as_string,
+            range => {
+                      start => {
+                                line      => $line_number,
+                                character => $column_number
+                               },
+                      end => {
+                              line      => $line_number,
+                              character => ($column_number + length $package)
+                             }
+                     }
+          };
+    } ## end foreach my $location (@locations...)
+
+    return \@results;
+}
 
 sub search_files_for_subroutine_declaration
 {
     my ($subroutine, @perl_files) = @_;
 
-    index_subroutine_declarations(@perl_files);
+    index_declarations(@perl_files);
     my $index = get_index();
     my $found = $index->{subs}{$subroutine};
-    return [] unless ref $found eq 'ARRAY';
+    return [] unless (ref $found eq 'ARRAY');
 
     my @locations = @$found;
 
@@ -255,7 +325,7 @@ sub get_all_perl_files
             push @perl_files, $File::Find::name if (length $first_line and $first_line =~ /^#!.*perl$/);
             close $code;
         },
-        $PLS::Server::State::ROOT_PATH
+        $PLS::Server::State::ROOT_PATH, @INC
                     );
 
     return \@perl_files;
@@ -273,7 +343,7 @@ sub get_index
     return $PLS::Server::State::INDEX;
 }
 
-sub index_subroutine_declarations
+sub index_declarations
 {
     my (@perl_files) = @_;
 
@@ -299,48 +369,112 @@ sub index_subroutine_declarations
         my $document = PPI::Document->new($perl_file);
         next unless (ref $document eq 'PPI::Document');
         $document->index_locations;
-        my @subroutines = (@{get_subroutines_in_file($document)}, @{get_constants_in_file($document)});
 
-        if (ref $index->{files}{$perl_file} eq 'ARRAY')
-        {
-            # remove any old references
-            my @subs_to_remove = grep { my $sub = $_; all { $_->{name} ne $sub } @subroutines } @{$index->{files}{$perl_file}};
-
-            foreach my $sub (@subs_to_remove)
-            {
-                @{$index->{subs}{$sub}} = grep { $_->{file} ne $perl_file } @{$index->{subs}{$sub}};
-                delete $index->{subs}{$sub} unless (scalar @{$index->{subs}{$sub}});
-            } ## end foreach my $key (keys %{$index...})
-
-            @{$index->{files}{$perl_file}} = ();
-        }
-        else
-        {
-            $index->{files}{$perl_file} = [];
-        }
-
-        # add references for this file back in
-        foreach my $subroutine (@subroutines)
-        {
-            my %sub_info = (file => $perl_file, location => $subroutine->{location});
-
-            if (ref $index->{subs}{$subroutine->{name}} eq 'ARRAY')
-            {
-                push @{$index->{subs}{$subroutine->{name}}}, \%sub_info;
-            }
-            else
-            {
-                $index->{subs}{$subroutine->{name}} = [\%sub_info];
-            }
-
-            push @{$index->{files}{$perl_file}}, $subroutine->{name};
-        } ## end foreach my $subroutine (keys...)
+        update_index_for_subroutines($perl_file, $document, $index);
+        update_index_for_packages($perl_file, $document, $index);
     } ## end foreach my $perl_file (@perl_files...)
 
     Storable::nstore($index, $index_file);
     $PLS::Server::State::INDEX = $index;
     $PLS::Server::State::INDEX_LAST_MTIME = (stat $index_file)->mtime;
 } ## end sub index_subroutine_declarations
+
+sub update_index_for_subroutines
+{
+    my ($perl_file, $document, $index) = @_;
+
+    my @subroutines = (@{get_subroutines_in_file($document)}, @{get_constants_in_file($document)});
+
+    if (ref $index->{files}{$perl_file}{subs} eq 'ARRAY')
+    {
+        # remove any old references
+        my @subs_to_remove = grep { my $sub = $_; all { $_->{name} ne $sub } @subroutines } @{$index->{files}{$perl_file}{subs}};
+
+        foreach my $sub (@subs_to_remove)
+        {
+            @{$index->{subs}{$sub}} = grep { $_->{file} ne $perl_file } @{$index->{subs}{$sub}};
+            delete $index->{subs}{$sub} unless (scalar @{$index->{subs}{$sub}});
+        } ## end foreach my $key (keys %{$index...})
+
+        @{$index->{files}{$perl_file}{subs}} = ();
+    }
+    else
+    {
+        $index->{files}{$perl_file}{subs} = [];
+    }
+
+    # add references for this file back in
+    foreach my $subroutine (@subroutines)
+    {
+        my %sub_info = (file => $perl_file, location => $subroutine->{location});
+
+        if (ref $index->{subs}{$subroutine->{name}} eq 'ARRAY')
+        {
+            push @{$index->{subs}{$subroutine->{name}}}, \%sub_info;
+        }
+        else
+        {
+            $index->{subs}{$subroutine->{name}} = [\%sub_info];
+        }
+
+        push @{$index->{files}{$perl_file}{subs}}, $subroutine->{name};
+    } ## end foreach my $subroutine (keys...)
+}
+
+sub update_index_for_packages
+{
+    my ($perl_file, $document, $index) = @_;
+
+    my $find = PPI::Find->new(sub { $_[0]->isa('PPI::Statement::Package') });
+    return unless $find->start($document);
+
+    my @packages;
+
+    while (my $match = $find->match)
+    {
+        push @packages, {
+            name => $match->namespace,
+            location => {
+                line_number => $match->line_number,
+                column_number => $match->column_number
+            }
+        };
+    }
+
+    if (ref $index->{files}{$perl_file}{packages} eq 'ARRAY')
+    {
+        # remove any old references
+        my @packages_to_remove = grep { my $pack = $_; all { $_->{name} ne $pack } @packages } @{$index->{files}{$perl_file}{subs}};
+
+        foreach my $pack (@packages_to_remove)
+        {
+            @{$index->{packages}{$pack}} = grep { $_->{file} ne $perl_file } @{$index->{packages}{$pack}};
+            delete $index->{packages}{$pack} unless (scalar @{$index->{packages}{$pack}});
+        } ## end foreach my $key (keys %{$index...})
+
+        @{$index->{files}{$perl_file}{packages}} = ();
+    }
+    else
+    {
+        $index->{files}{$perl_file}{packages} = [];
+    }
+
+    foreach my $package (@packages)
+    {
+        my %package_info = (file => $perl_file, location => $package->{location});
+
+        if (ref $index->{packages}{$package->{name}} eq 'ARRAY')
+        {
+            push @{$index->{packages}{$package->{name}}}, \%package_info;
+        }    
+        else
+        {
+            $index->{packages}{$package->{name}} =  [\%package_info];
+        }
+
+        push @{$index->{files}{$perl_file}{packages}}, $package->{name};
+    }
+}
 
 sub get_constants
 {
