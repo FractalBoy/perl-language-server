@@ -6,7 +6,6 @@ use strict;
 use File::Find;
 use File::Spec;
 use JSON;
-use PPI::Cache;
 use PPI::Document;
 use URI;
 

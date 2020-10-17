@@ -13,6 +13,7 @@ WriteMakefile(
         'Coro' => 6.54,
         'JSON' => 4.02,
         'Perl::Critic' => 1.138,
+        'Pod::Markdown' => 3.200,
         'PPI' => 1.264,
         'Test::More' => 1.302073,
         'URI' => 1.76

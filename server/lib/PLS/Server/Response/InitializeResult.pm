@@ -12,7 +12,8 @@ sub new {
             capabilities => {
                 definitionProvider => \1,
                 documentFormattingProvider => \1,
-                documentSymbolProvider => \1
+                documentSymbolProvider => \1,
+                hoverProvider => \1
             }
         }
     );
