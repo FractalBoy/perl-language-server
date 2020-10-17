@@ -7,6 +7,7 @@ use Digest::SHA;
 use File::Path;
 use File::Spec;
 use File::stat;
+use FindBin;
 use JSON;
 use List::Util qw(all);
 use Perl::Critic::Utils ();
@@ -198,13 +199,6 @@ sub search_for_package_subroutine
             return search_files_for_subroutine_declaration($subroutine, $perl_file);
         }
     } ## end foreach my $perl_file (@$perl_files...)
-
-#    foreach my $dir (@INC)
-#    {
-#        my $potential_path = File::Spec->join($dir, @path) . '.pm';
-#        next unless (-f $potential_path);
-#        return search_files_for_subroutine_declaration($subroutine, $potential_path);
-#    } ## end foreach my $dir (@INC)
 } ## end sub search_for_package_subroutine
 
 sub search_for_package
@@ -306,6 +300,7 @@ sub get_all_perl_files
     my @perl_files;
 
     return unless (length $PLS::Server::State::ROOT_PATH);
+    my @include = grep { !/\Q$FindBin::RealBin\E/ and -d } @INC;
 
     File::Find::find(
         sub {
@@ -325,7 +320,7 @@ sub get_all_perl_files
             push @perl_files, $File::Find::name if (length $first_line and $first_line =~ /^#!.*perl$/);
             close $code;
         },
-        $PLS::Server::State::ROOT_PATH, @INC
+        $PLS::Server::State::ROOT_PATH, @include
                     );
 
     return \@perl_files;
