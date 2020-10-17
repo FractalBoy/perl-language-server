@@ -49,9 +49,6 @@ sub new
         } ## end if (my $variable = PLS::Parser::GoToDefinition::find_variable_at_location...)
     } ## end unless ($ok)
 
-    $line_number--;
-    $column_number-- if $ok;
-
     my $result;
 
     if ($ok)
