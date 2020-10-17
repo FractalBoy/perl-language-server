@@ -8,6 +8,7 @@ use File::Path;
 use File::Spec;
 use File::stat;
 use JSON;
+use List::Util qw(all);
 use Perl::Critic::Utils ();
 use PPI;
 use PPI::Cache;
@@ -146,8 +147,8 @@ sub is_class_method_call
     my ($element) = @_;
 
     return unless $element->isa('PPI::Token::Word');
-    return unless $element->sprevious_sibling->isa('PPI::Token::Operator') && $element->sprevious_sibling eq '->';
-    return $element->sprevious_sibling->sprevious_sibling->isa('PPI::Token::Word');
+    return unless (ref $element->sprevious_sibling eq 'PPI::Token::Operator' and $element->sprevious_sibling eq '->');
+    return (ref $element->sprevious_sibling->sprevious_sibling eq 'PPI::Token::Word');
 } ## end sub is_class_method_call
 
 sub is_method_call
@@ -155,8 +156,8 @@ sub is_method_call
     my ($element) = @_;
 
     return unless $element->isa('PPI::Token::Word');
-    return unless $element->sprevious_sibling->isa('PPI::Token::Operator') && $element->sprevious_sibling eq '->';
-    return not $element->sprevious_sibling->sprevious_sibling->isa('PPI::Token::Word');
+    return unless (ref $element->sprevious_sibling eq 'PPI::Token::Operator' and $element->sprevious_sibling eq '->');
+    return (ref $element->sprevious_sibling->sprevious_sibling and ref $element->sprevious_sibling->sprevious_sibling ne 'PPI::Token::Word');
 } ## end sub is_method_call
 
 sub search_for_package_subroutine
@@ -264,7 +265,12 @@ sub get_index
 {
     my $index_file = File::Spec->catfile($PLS::Server::State::ROOT_PATH, '.pls_cache', 'index');
     return {} unless -f $index_file;
-    return Storable::retrieve($index_file);
+    my $mtime = (stat $index_file)->mtime;
+    $PLS::Server::State::INDEX_LAST_MTIME = 0 unless (length $PLS::Server::State::INDEX_LAST_MTIME);
+    return $PLS::Server::State::INDEX if $mtime <= $PLS::Server::State::INDEX_LAST_MTIME;
+    $PLS::Server::State::INDEX_LAST_MTIME = $mtime;
+    $PLS::Server::State::INDEX = Storable::retrieve($index_file);
+    return $PLS::Server::State::INDEX;
 }
 
 sub index_subroutine_declarations
@@ -284,7 +290,7 @@ sub index_subroutine_declarations
         my $index_mtime = (stat $index_file)->mtime;
 
         # return existing index if all files are older than index
-        return $index if (scalar grep { $_ <= $index_mtime } @mtimes == scalar @mtimes);
+        return $index if (all { $_ <= $index_mtime } @mtimes);
         @perl_files = grep { (stat $_)->mtime > $index_mtime } @perl_files;
     } ## end if (-f $index_file)
 
@@ -295,11 +301,23 @@ sub index_subroutine_declarations
         $document->index_locations;
         my @subroutines = (@{get_subroutines_in_file($document)}, @{get_constants_in_file($document)});
 
-        # remove any references to this file
-        foreach my $key (keys %{$index->{subs}})
+        if (ref $index->{files}{$perl_file} eq 'ARRAY')
         {
-            @{$index->{subs}{$key}} = grep { $_->{file} ne $perl_file } @{$index->{subs}{$key}};
-        } ## end foreach my $key (keys %{$index...})
+            # remove any old references
+            my @subs_to_remove = grep { my $sub = $_; all { $_->{name} ne $sub } @subroutines } @{$index->{files}{$perl_file}};
+
+            foreach my $sub (@subs_to_remove)
+            {
+                @{$index->{subs}{$sub}} = grep { $_->{file} ne $perl_file } @{$index->{subs}{$sub}};
+                delete $index->{subs}{$sub} unless (scalar @{$index->{subs}{$sub}});
+            } ## end foreach my $key (keys %{$index...})
+
+            @{$index->{files}{$perl_file}} = ();
+        }
+        else
+        {
+            $index->{files}{$perl_file} = [];
+        }
 
         # add references for this file back in
         foreach my $subroutine (@subroutines)
@@ -314,10 +332,14 @@ sub index_subroutine_declarations
             {
                 $index->{subs}{$subroutine->{name}} = [\%sub_info];
             }
+
+            push @{$index->{files}{$perl_file}}, $subroutine->{name};
         } ## end foreach my $subroutine (keys...)
     } ## end foreach my $perl_file (@perl_files...)
 
     Storable::nstore($index, $index_file);
+    $PLS::Server::State::INDEX = $index;
+    $PLS::Server::State::INDEX_LAST_MTIME = (stat $index_file)->mtime;
 } ## end sub index_subroutine_declarations
 
 sub get_constants
