@@ -12,7 +12,6 @@ use JSON;
 use List::Util qw(all);
 use Perl::Critic::Utils ();
 use PPI;
-use PPI::Cache;
 use PPI::Find;
 use URI;
 use URI::file;
@@ -105,10 +104,20 @@ sub find_elements_at_location
 
 sub find_subroutine_at_location
 {
+    my ($line_number, $column_number);
+
+    if (ref $_[-2] eq 'SCALAR' and ref $_[-1] eq 'SCALAR')
+    {
+        $column_number = pop @_;
+        $line_number = pop @_;
+    }
+
     foreach my $element (@_)
     {
         next unless Perl::Critic::Utils::is_function_call($element);
         next unless $element->isa('PPI::Token::Word');
+        $$line_number = $element->line_number;
+        $$column_number = $element->column_number;
 
         if ($element->content =~ /::/)
         {
@@ -154,6 +163,27 @@ sub find_package_at_location
         if (my $name = is_package($element))
         {
             return $name;
+        }
+    }
+}
+
+sub find_variable_at_location
+{
+    my ($line_number, $column_number);
+
+    if (ref $_[-2] eq 'SCALAR' and ref $_[-1] eq 'SCALAR')
+    {
+        $column_number = pop @_;
+        $line_number = pop @_;
+    }
+
+    foreach my $element (@_)
+    {
+        if ($element->isa('PPI::Token::Symbol'))
+        {
+            $$line_number = $element->line_number;
+            $$column_number = $element->column_number;
+            return $element->symbol;
         }
     }
 }

@@ -5,7 +5,6 @@ use warnings;
 
 use PPI;
 use PPI::Find;
-use PPI::Cache;
 
 use PLS::Parser::GoToDefinition;
 

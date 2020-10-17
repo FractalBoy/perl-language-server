@@ -6,7 +6,6 @@ use AnyEvent;
 use Coro;
 use Coro::AnyEvent;
 use Coro::Handle;
-use Data::Dumper;
 use JSON;
 
 use PLS::Server::Request;
