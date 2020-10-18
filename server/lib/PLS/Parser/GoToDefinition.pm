@@ -51,14 +51,23 @@ sub go_to_definition
     ($line, $column) = ppi_location($line, $column);
     my @matches = find_elements_at_location($document, $line, $column);
 
-    if (my ($package, $subroutine) = find_subroutine_at_location(@matches))
+    if (my ($package, $subroutine, $element) = find_subroutine_at_location(@matches))
     {
-        if (length $package)
-        {
-            return search_for_package_subroutine($package, $subroutine);
-        }
+        my ($is_package, $is_subroutine) = cursor_on_function_or_package($element, $column);
 
-        return search_files_for_subroutine_declaration($subroutine);
+        if (length $is_subroutine)
+        {
+            if (length $package)
+            {
+                return search_for_package_subroutine($package, $subroutine);
+            }
+
+            return search_files_for_subroutine_declaration($subroutine);
+        }
+        if (length $is_package)
+        {
+            return search_for_package($package);
+        }
     } ## end if (my ($package, $subroutine...))
     if (my $method = find_method_calls_at_location(@matches))
     {
@@ -76,6 +85,29 @@ sub go_to_definition
 
     return;
 } ## end sub go_to_definition
+
+sub cursor_on_function_or_package
+{
+    my ($element, $column) = @_;
+
+    my $index         = $column - $element->column_number;
+    my @parts         = split '::', $element->content;
+    my $current_index = 1;
+
+    for (my $i = 0 ; $i <= $#parts ; $i++)
+    {
+        my $part = $parts[$i];
+
+        if ($index <= $current_index + length $part)
+        {
+            return ('',    $part) if ($i == $#parts);
+            pop @parts;
+            return ((join '::', @parts), '');
+        }
+
+        $current_index += length $part;
+    } ## end for (my $i = 0 ; $i <= ...)
+} ## end sub cursor_on_function_or_package
 
 sub find_elements_at_location
 {
@@ -99,7 +131,8 @@ sub find_elements_at_location
         push @matches, $match;
     }
 
-    @matches = sort { abs($column - $a->column_number) <=> abs($column - $b->column_number) } @matches;
+    @matches =
+      sort { abs($column - $a->column_number) <=> abs($column - $b->column_number) } @matches;
 
     return @matches;
 } ## end sub find_elements_at_location
@@ -126,11 +159,11 @@ sub find_subroutine_at_location
             my @parts      = split '::', $element->content;
             my $subroutine = pop @parts;
             my $package    = join '::', @parts;
-            return ($package, $subroutine);
+            return ($package, $subroutine, $element);
         } ## end if ($element->content ...)
         else
         {
-            return ('', $element->content);
+            return ('', $element->content, $element);
         }
     } ## end foreach my $element (@_)
 
