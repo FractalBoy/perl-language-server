@@ -99,6 +99,8 @@ sub find_elements_at_location
         push @matches, $match;
     }
 
+    @matches = sort { abs($column - $a->column_number) <=> abs($column - $b->column_number) } @matches;
+
     return @matches;
 } ## end sub find_elements_at_location
 
@@ -109,14 +111,14 @@ sub find_subroutine_at_location
     if (ref $_[-2] eq 'SCALAR' and ref $_[-1] eq 'SCALAR')
     {
         $column_number = pop @_;
-        $line_number = pop @_;
+        $line_number   = pop @_;
     }
 
     foreach my $element (@_)
     {
         next unless Perl::Critic::Utils::is_function_call($element);
         next unless $element->isa('PPI::Token::Word');
-        $$line_number = $element->line_number;
+        $$line_number   = $element->line_number;
         $$column_number = $element->column_number;
 
         if ($element->content =~ /::/)
@@ -150,7 +152,7 @@ sub find_class_calls_at_location
     if (ref $_[-2] eq 'SCALAR' and ref $_[-1] eq 'SCALAR')
     {
         $column_number = pop @_;
-        $line_number = pop @_;
+        $line_number   = pop @_;
     }
 
     foreach my $element (@_)
@@ -158,9 +160,9 @@ sub find_class_calls_at_location
         if (is_class_method_call($element))
         {
             $$column_number = $element->column_number;
-            $$line_number = $element->line_number;
+            $$line_number   = $element->line_number;
             return ($element->sprevious_sibling->sprevious_sibling->content, $element->content);
-        }
+        } ## end if (is_class_method_call...)
     } ## end foreach my $element (@_)
 
     return;
@@ -174,8 +176,8 @@ sub find_package_at_location
         {
             return $name;
         }
-    }
-}
+    } ## end foreach my $element (@_)
+} ## end sub find_package_at_location
 
 sub find_variable_at_location
 {
@@ -184,26 +186,28 @@ sub find_variable_at_location
     if (ref $_[-2] eq 'SCALAR' and ref $_[-1] eq 'SCALAR')
     {
         $column_number = pop @_;
-        $line_number = pop @_;
+        $line_number   = pop @_;
     }
 
     foreach my $element (@_)
     {
         if ($element->isa('PPI::Token::Symbol'))
         {
-            $$line_number = $element->line_number;
+            $$line_number   = $element->line_number;
             $$column_number = $element->column_number;
             return $element->symbol;
-        }
-    }
-}
+        } ## end if ($element->isa('PPI::Token::Symbol'...))
+    } ## end foreach my $element (@_)
+} ## end sub find_variable_at_location
 
 sub is_class_method_call
 {
     my ($element) = @_;
 
     return unless $element->isa('PPI::Token::Word');
-    return unless (ref $element->sprevious_sibling eq 'PPI::Token::Operator' and $element->sprevious_sibling eq '->');
+    return
+      unless (ref $element->sprevious_sibling eq 'PPI::Token::Operator'
+              and $element->sprevious_sibling eq '->');
     return (ref $element->sprevious_sibling->sprevious_sibling eq 'PPI::Token::Word');
 } ## end sub is_class_method_call
 
@@ -212,17 +216,36 @@ sub is_method_call
     my ($element) = @_;
 
     return unless $element->isa('PPI::Token::Word');
-    return unless (ref $element->sprevious_sibling eq 'PPI::Token::Operator' and $element->sprevious_sibling eq '->');
-    return (ref $element->sprevious_sibling->sprevious_sibling and ref $element->sprevious_sibling->sprevious_sibling ne 'PPI::Token::Word');
+    return
+      unless (ref $element->sprevious_sibling eq 'PPI::Token::Operator'
+              and $element->sprevious_sibling eq '->');
+    return (    ref $element->sprevious_sibling->sprevious_sibling
+            and ref $element->sprevious_sibling->sprevious_sibling ne 'PPI::Token::Word');
 } ## end sub is_method_call
 
 sub is_package
 {
     my ($element) = @_;
-    return $element->module if ($element->isa('PPI::Statement::Include') and $element->type eq 'use');
-    return $element->content if ($element->isa('PPI::Token::Word') and ref $element->snext_sibling eq 'PPI::Token::Operator' and $element->snext_sibling eq '->');
+
+    if (    $element->isa('PPI::Token::Quote::Literal')
+        and $element->parent->isa('PPI::Statement::Include')
+        and $element->parent->type eq 'use'
+        and $element->parent->module eq 'parent')
+    {
+        return $element->literal;
+    } ## end if ($element->isa('PPI::Token::Quote::Literal'...))
+    if ($element->isa('PPI::Statement::Include') and $element->type eq 'use')
+    {
+        return $element->module;
+    }
+    if (    $element->isa('PPI::Token::Word')
+        and ref $element->snext_sibling eq 'PPI::Token::Operator'
+        and $element->snext_sibling eq '->')
+    {
+        return $element->content;
+    } ## end if ($element->isa('PPI::Token::Word'...))
     return;
-}
+} ## end sub is_package
 
 sub search_for_package_subroutine
 {
@@ -254,8 +277,7 @@ sub search_for_package
 
     if (scalar @perl_files)
     {
-        @locations = grep
-        {
+        @locations = grep {
             my $location = $_;
             grep { $location->{file} eq $_ } @perl_files
         } @locations;
@@ -286,7 +308,7 @@ sub search_for_package
     } ## end foreach my $location (@locations...)
 
     return \@results;
-}
+} ## end sub search_for_package
 
 sub search_files_for_subroutine_declaration
 {
@@ -301,8 +323,7 @@ sub search_files_for_subroutine_declaration
 
     if (scalar @perl_files)
     {
-        @locations = grep
-        {
+        @locations = grep {
             my $location = $_;
             grep { $location->{file} eq $_ } @perl_files
         } @locations;
@@ -357,10 +378,12 @@ sub get_all_perl_files
             }
             open my $code, '<', $File::Find::name or return;
             my $first_line = <$code>;
-            push @perl_files, $File::Find::name if (length $first_line and $first_line =~ /^#!.*perl$/);
+            push @perl_files, $File::Find::name
+              if (length $first_line and $first_line =~ /^#!.*perl$/);
             close $code;
         },
-        $PLS::Server::State::ROOT_PATH, @include
+        $PLS::Server::State::ROOT_PATH,
+        @include
                     );
 
     return \@perl_files;
@@ -374,9 +397,9 @@ sub get_index
     $PLS::Server::State::INDEX_LAST_MTIME = 0 unless (length $PLS::Server::State::INDEX_LAST_MTIME);
     return $PLS::Server::State::INDEX if $mtime <= $PLS::Server::State::INDEX_LAST_MTIME;
     $PLS::Server::State::INDEX_LAST_MTIME = $mtime;
-    $PLS::Server::State::INDEX = Storable::retrieve($index_file);
+    $PLS::Server::State::INDEX            = Storable::retrieve($index_file);
     return $PLS::Server::State::INDEX;
-}
+} ## end sub get_index
 
 sub index_declarations
 {
@@ -410,9 +433,9 @@ sub index_declarations
     } ## end foreach my $perl_file (@perl_files...)
 
     Storable::nstore($index, $index_file);
-    $PLS::Server::State::INDEX = $index;
+    $PLS::Server::State::INDEX            = $index;
     $PLS::Server::State::INDEX_LAST_MTIME = (stat $index_file)->mtime;
-} ## end sub index_subroutine_declarations
+} ## end sub index_declarations
 
 sub update_index_for_subroutines
 {
@@ -428,7 +451,7 @@ sub update_index_for_subroutines
             delete $index->{subs}{$sub} unless (scalar @{$index->{subs}{$sub}});
         }
         @{$index->{files}{$perl_file}{subs}} = ();
-    }
+    } ## end if (ref $index->{files...})
     else
     {
         $index->{files}{$perl_file}{subs} = [];
@@ -449,8 +472,8 @@ sub update_index_for_subroutines
         }
 
         push @{$index->{files}{$perl_file}{subs}}, $subroutine->{name};
-    } ## end foreach my $subroutine (keys...)
-}
+    } ## end foreach my $subroutine (@subroutines...)
+} ## end sub update_index_for_subroutines
 
 sub update_index_for_packages
 {
@@ -463,24 +486,26 @@ sub update_index_for_packages
 
     while (my $match = $find->match)
     {
-        push @packages, {
-            name => $match->namespace,
+        push @packages,
+          {
+            name     => $match->namespace,
             location => {
-                line_number => $match->line_number,
-                column_number => $match->column_number
-            }
-        };
-    }
+                         line_number   => $match->line_number,
+                         column_number => $match->column_number
+                        }
+          };
+    } ## end while (my $match = $find->...)
 
     if (ref $index->{files}{$perl_file}{packages} eq 'ARRAY')
     {
         foreach my $pack (@{$index->{files}{$perl_file}{pakcages}})
         {
-            @{$index->{packages}{$pack}} = grep { $_->{file} ne $perl_file } @{$index->{packages}{$pack}};
+            @{$index->{packages}{$pack}} =
+              grep { $_->{file} ne $perl_file } @{$index->{packages}{$pack}};
             delete $index->{packages}{$pack} unless (scalar @{$index->{packages}{$pack}});
-        }
+        } ## end foreach my $pack (@{$index->...})
         @{$index->{files}{$perl_file}{packages}} = ();
-    }
+    } ## end if (ref $index->{files...})
     else
     {
         $index->{files}{$perl_file}{packages} = [];
@@ -493,15 +518,15 @@ sub update_index_for_packages
         if (ref $index->{packages}{$package->{name}} eq 'ARRAY')
         {
             push @{$index->{packages}{$package->{name}}}, \%package_info;
-        }    
+        }
         else
         {
-            $index->{packages}{$package->{name}} =  [\%package_info];
+            $index->{packages}{$package->{name}} = [\%package_info];
         }
 
         push @{$index->{files}{$perl_file}{packages}}, $package->{name};
-    }
-}
+    } ## end foreach my $package (@packages...)
+} ## end sub update_index_for_packages
 
 sub get_constants
 {
@@ -528,7 +553,7 @@ sub get_constants
         if (ref $constructor eq 'PPI::Structure::Constructor')
         {
             push @constants, grep { _is_constant($_) }
-              map  { $_->children }
+              map { $_->children }
               grep { $_->isa('PPI::Statement::Expression') } $constructor->children;
         } ## end if (ref $constructor eq...)
         else
@@ -538,20 +563,31 @@ sub get_constants
     } ## end while (my $match = $find->...)
 
     return \@constants;
-}
+} ## end sub get_constants
 
 sub get_constants_in_file
 {
     my $constants = get_constants(@_);
 
-    return [map { {name => $_->content, location => {line_number => $_->line_number, column_number => $_->column_number}} } @$constants];
+    return [
+        map {
+            {
+             name     => $_->content,
+             location => {line_number => $_->line_number, column_number => $_->column_number}
+            }
+          } @$constants
+    ];
 } ## end sub get_constants_in_file
 
 sub get_subroutines_in_file
 {
     my ($document) = @_;
 
-    my $find = PPI::Find->new(sub { $_[0]->isa('PPI::Statement::Sub') and not $_[0]->isa('PPI::Statement::Scheduled') });
+    my $find = PPI::Find->new(
+        sub {
+            $_[0]->isa('PPI::Statement::Sub') and not $_[0]->isa('PPI::Statement::Scheduled');
+        }
+    );
     return [] unless $find->start($document);
 
     my @subroutines;
@@ -561,7 +597,14 @@ sub get_subroutines_in_file
         push @subroutines, $match;
     }
 
-    return [map { {name => $_->name, location => {line_number => $_->line_number, column_number => $_->column_number}} } @subroutines];
+    return [
+        map {
+            {
+             name     => $_->name,
+             location => {line_number => $_->line_number, column_number => $_->column_number}
+            }
+          } @subroutines
+    ];
 } ## end sub get_subroutines_in_file
 
 sub _is_constant
