@@ -422,15 +422,11 @@ sub update_index_for_subroutines
 
     if (ref $index->{files}{$perl_file}{subs} eq 'ARRAY')
     {
-        # remove any old references
-        my @subs_to_remove = grep { my $sub = $_; all { $_->{name} ne $sub } @subroutines } @{$index->{files}{$perl_file}{subs}};
-
-        foreach my $sub (@subs_to_remove)
+        foreach my $sub (@{$index->{files}{$perl_file}{subs}})
         {
             @{$index->{subs}{$sub}} = grep { $_->{file} ne $perl_file } @{$index->{subs}{$sub}};
             delete $index->{subs}{$sub} unless (scalar @{$index->{subs}{$sub}});
-        } ## end foreach my $key (keys %{$index...})
-
+        }
         @{$index->{files}{$perl_file}{subs}} = ();
     }
     else
@@ -478,15 +474,11 @@ sub update_index_for_packages
 
     if (ref $index->{files}{$perl_file}{packages} eq 'ARRAY')
     {
-        # remove any old references
-        my @packages_to_remove = grep { my $pack = $_; all { $_->{name} ne $pack } @packages } @{$index->{files}{$perl_file}{subs}};
-
-        foreach my $pack (@packages_to_remove)
+        foreach my $pack (@{$index->{files}{$perl_file}{pakcages}})
         {
             @{$index->{packages}{$pack}} = grep { $_->{file} ne $perl_file } @{$index->{packages}{$pack}};
             delete $index->{packages}{$pack} unless (scalar @{$index->{packages}{$pack}});
-        } ## end foreach my $key (keys %{$index...})
-
+        }
         @{$index->{files}{$perl_file}{packages}} = ();
     }
     else
