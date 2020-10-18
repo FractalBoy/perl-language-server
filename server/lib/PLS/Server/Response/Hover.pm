@@ -5,6 +5,8 @@ use strict;
 use warnings;
 
 use PLS::Parser::BuiltIns;
+use Pod::Find;
+use Pod::Markdown;
 
 sub new
 {
@@ -19,20 +21,75 @@ sub new
       PLS::Parser::GoToDefinition::find_elements_at_location($document, $line, $column);
 
     my ($ok, $name, $markdown, $line_number, $column_number);
-
-    if (
-        my ($package, $subroutine) =
-        PLS::Parser::GoToDefinition::find_subroutine_at_location(
-                                                           @elements, \$line_number, \$column_number
-                                                                )
-       )
+    my ($package, $subroutine) =
+      PLS::Parser::GoToDefinition::find_subroutine_at_location(@elements, \$line_number,
+                                                               \$column_number);
+    my $is_class_call = 0;
+    unless (length $subroutine)
     {
-        unless (length $package)
+        ($package, $subroutine) =
+          PLS::Parser::GoToDefinition::find_class_calls_at_location(@elements, \$line_number,
+                                                                    \$column_number);
+        $is_class_call = 1 if (length $subroutine);
+    } ## end unless (length $subroutine...)
+
+    if (length $subroutine)
+    {
+        if (length $package)
+        {
+            $name = $is_class_call ? "${package}->${subroutine}" : "${package}::${subroutine}";
+            my $path = Pod::Find::pod_where({-inc => 1}, $package);
+
+            if (length $path)
+            {
+                open my $fh, '<', $path;
+                my @lines;
+                my $start = '';
+
+                while (my $line = <$fh>)
+                {
+                    if ($line =~ /^=(head\d|item).*\b$subroutine\b.*$/)
+                    {
+                        $start = $1;
+                        push @lines, $line;
+                        next;
+                    } ## end if ($line =~ /^=(head\d|item).*\b$subroutine\b.*$/...)
+
+                    if (length $start)
+                    {
+                        push @lines, $line;
+
+                        if (   $start eq 'item' and $line =~ /^=item/
+                            or $start =~ /head/ and $line =~ /^=head/
+                            or $line =~ /^=cut/)
+                        {
+                            last;
+                        }
+                    } ## end if (length $start)
+                } ## end while (my $line = <$fh>)
+
+                close $fh;
+
+                # we don't want the last line - it's a start of a new section.
+                pop @lines;
+
+                if (scalar @lines)
+                {
+                    my $parser = Pod::Markdown->new();
+
+                    $parser->output_string(\$markdown);
+                    $parser->no_whining(1);
+                    $parser->parse_lines(@lines, undef);
+                    $ok = $parser->content_seen;
+                } ## end if (scalar @lines)
+            } ## end if (length $path)
+        } ## end if (length $package)
+        else
         {
             $name = $subroutine;
             $ok =
               PLS::Parser::BuiltIns::get_builtin_function_documentation($subroutine, \$markdown);
-        } ## end unless (length $package)
+        } ## end else [ if (length $package) ]
     } ## end if (my ($package, $subroutine...))
 
     unless ($ok)

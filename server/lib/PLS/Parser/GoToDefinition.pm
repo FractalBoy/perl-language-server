@@ -145,10 +145,20 @@ sub find_method_calls_at_location
 
 sub find_class_calls_at_location
 {
+    my ($line_number, $column_number);
+
+    if (ref $_[-2] eq 'SCALAR' and ref $_[-1] eq 'SCALAR')
+    {
+        $column_number = pop @_;
+        $line_number = pop @_;
+    }
+
     foreach my $element (@_)
     {
         if (is_class_method_call($element))
         {
+            $$column_number = $element->column_number;
+            $$line_number = $element->line_number;
             return ($element->sprevious_sibling->sprevious_sibling->content, $element->content);
         }
     } ## end foreach my $element (@_)
