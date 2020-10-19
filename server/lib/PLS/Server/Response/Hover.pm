@@ -59,9 +59,18 @@ sub new
 
                 if (ref $results eq 'ARRAY' and scalar @$results)
                 {
-                    my $result = $results->[0];
-                    $ok = get_pod_for_subroutine(URI->new($result->{uri})->file,
-                                                 $subroutine, \$markdown);
+                    my @markdown_parts;
+
+                    foreach my $result (@$results)
+                    {
+                        my $markdown_part;
+                        my $result_ok = get_pod_for_subroutine(URI->new($result->{uri})->file,
+                                                    $subroutine, \$markdown_part);
+                        push @markdown_parts, $markdown_part;
+                        $ok = 1 if $result_ok; 
+                    }
+
+                    $markdown = join "\n---\n", @markdown_parts if $ok;
                 } ## end if (ref $results eq 'ARRAY'...)
             } ## end unless ($ok)
         } ## end else [ if (length $package) ]
@@ -110,17 +119,9 @@ sub new
     return bless \%self, $class;
 } ## end sub new
 
-=head2 get_pod_for_subroutine
-
-get pod for a subroutine
-
-=cut
-
 sub get_pod_for_subroutine
 {
     my ($path, $subroutine, $markdown) = @_;
-
-    warn "path: $path, subroutine: $subroutine";
 
     open my $fh, '<', $path or return 0;
     my @lines;
