@@ -11,9 +11,15 @@ sub new {
         result => {
             capabilities => {
                 definitionProvider => \1,
-                documentFormattingProvider => \1,
                 documentSymbolProvider => \1,
-                hoverProvider => \1
+                hoverProvider => \1,
+                signatureHelpProvider => {
+                    triggerCharacters => ['(']
+                },
+                textDocumentSync => {
+                    openClose => \1,
+                    change => 1
+                }
             }
         }
     );

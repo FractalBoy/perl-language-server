@@ -2,11 +2,10 @@ package PLS::Server;
 
 use strict;
 
-use AnyEvent;
 use Coro;
-use Coro::AnyEvent;
 use Coro::Handle;
 use JSON;
+use Scalar::Util;
 
 use PLS::Server::Request;
 use PLS::Server::Response;
@@ -76,7 +75,7 @@ sub run {
         # check for requests and service them
         while (my $request = $requests->get) {
             my $response = $request->service($self);
-            next unless defined $response;
+            next unless Scalar::Util::blessed($response);
             $responses->put($response);
         }
     };
@@ -92,6 +91,7 @@ sub run {
     while (1) {
         # check for requests and drop them on the channel to be serviced by existing threads
         my $request = $self->recv;
+        next unless Scalar::Util::blessed($request);
         $requests->put($request);
     }
 }
