@@ -51,29 +51,37 @@ sub new
             $name = $subroutine;
             $ok =
               PLS::Parser::BuiltIns::get_builtin_function_documentation($subroutine, \$markdown);
+        }
 
-            unless ($ok)
+        if (not $ok)
+        {
+            my $results;
+
+            if (length $package)
             {
-                my $results =
-                  PLS::Parser::GoToDefinition::search_files_for_subroutine_declaration($subroutine);
+                $results = PLS::Parser::GoToDefinition::search_for_package_subroutine($package, $subroutine);
+            }
+            else
+            {
+                $results = PLS::Parser::GoToDefinition::search_files_for_subroutine_declaration($subroutine);
+            }
 
-                if (ref $results eq 'ARRAY' and scalar @$results)
+            if (ref $results eq 'ARRAY' and scalar @$results)
+            {
+                my @markdown_parts;
+
+                foreach my $result (@$results)
                 {
-                    my @markdown_parts;
+                    my $markdown_part;
+                    my $result_ok = get_pod_for_subroutine(URI->new($result->{uri})->file,
+                                                           $subroutine, \$markdown_part);
+                    push @markdown_parts, $markdown_part;
+                    $ok = 1 if $result_ok;
+                } ## end foreach my $result (@$results...)
 
-                    foreach my $result (@$results)
-                    {
-                        my $markdown_part;
-                        my $result_ok = get_pod_for_subroutine(URI->new($result->{uri})->file,
-                                                               $subroutine, \$markdown_part);
-                        push @markdown_parts, $markdown_part;
-                        $ok = 1 if $result_ok;
-                    } ## end foreach my $result (@$results...)
-
-                    $markdown = join "\n---\n", @markdown_parts if $ok;
-                } ## end if (ref $results eq 'ARRAY'...)
-            } ## end unless ($ok)
-        } ## end else [ if (length $package) ]
+                $markdown = join "\n---\n", @markdown_parts if $ok;
+            } ## end if (ref $results eq 'ARRAY'...)
+        } ## end unless ($ok)
     } ## end if (length $subroutine...)
 
     unless ($ok)
@@ -153,12 +161,6 @@ sub get_pod_for_subroutine
 
     # we don't want the last line - it's a start of a new section.
     pop @lines;
-
-    if ($subroutine eq 'splitpath')
-    {
-        use Data::Dumper;
-        warn Dumper \@lines;
-    }
 
     if (scalar @lines)
     {
