@@ -77,14 +77,16 @@ sub go_to_definition
 
         return search_files_for_subroutine_declaration($subroutine);
     } ## end if (my ($package, $subroutine...))
-    if (my $method = find_method_calls_at_location(@matches))
-    {
-        my $subroutine = $method->content =~ s/SUPER:://r;
-        return search_files_for_subroutine_declaration($subroutine);
-    }
     if (my ($class, $method) = find_class_calls_at_location(@matches))
     {
-        return search_for_package_subroutine($class, $method);
+        my $results = search_for_package_subroutine($class, $method);
+        # fall back to method calls if class call not found
+        return $results if (ref $results eq 'ARRAY' and scalar @$results);
+    }
+    if (my $method = find_method_calls_at_location(@matches))
+    {
+        my $subroutine = $method =~ s/SUPER:://r;
+        return search_files_for_subroutine_declaration($subroutine);
     }
     if (my $package = find_package_at_location(@matches))
     {
@@ -180,9 +182,22 @@ sub find_subroutine_at_location
 
 sub find_method_calls_at_location
 {
+    my ($line_number, $column_number);
+
+    if (ref $_[-2] eq 'SCALAR' and ref $_[-1] eq 'SCALAR')
+    {
+        $column_number = pop @_;
+        $line_number   = pop @_;
+    }
+
     foreach my $element (@_)
     {
-        return $element if is_method_call($element);
+        if (is_method_call($element))
+        {
+            $$line_number = $element->line_number;
+            $$column_number = $element->column_number;
+            return $element->content;
+        }
     }
 } ## end sub find_method_calls_at_location
 
@@ -211,10 +226,20 @@ sub find_class_calls_at_location
 
 sub find_package_at_location
 {
+    my ($line_number, $column_number);
+
+    if (ref $_[-2] eq 'SCALAR' and ref $_[-1] eq 'SCALAR')
+    {
+        $column_number = pop @_;
+        $line_number   = pop @_;
+    }
+
     foreach my $element (@_)
     {
         if (my $name = is_package($element))
         {
+            $$line_number = $element->line_number;
+            $$column_number = $element->column_number;
             return $name;
         }
     } ## end foreach my $element (@_)
@@ -257,11 +282,8 @@ sub is_method_call
     my ($element) = @_;
 
     return unless $element->isa('PPI::Token::Word');
-    return
-      unless (ref $element->sprevious_sibling eq 'PPI::Token::Operator'
+    return  (ref $element->sprevious_sibling eq 'PPI::Token::Operator'
               and $element->sprevious_sibling eq '->');
-    return (    ref $element->sprevious_sibling->sprevious_sibling
-            and ref $element->sprevious_sibling->sprevious_sibling ne 'PPI::Token::Word');
 } ## end sub is_method_call
 
 sub is_package

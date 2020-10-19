@@ -34,6 +34,11 @@ sub new
         $is_class_call = 1 if (length $subroutine);
     } ## end unless (length $subroutine...)
 
+    unless (length $subroutine)
+    {
+        $subroutine = PLS::Parser::GoToDefinition::find_method_calls_at_location(@elements, \$line_number, \$column_number);
+    }
+
     if (length $subroutine)
     {
         if (length $package)
@@ -61,7 +66,8 @@ sub new
             {
                 $results = PLS::Parser::GoToDefinition::search_for_package_subroutine($package, $subroutine);
             }
-            else
+
+            unless (ref $results eq 'ARRAY' and scalar @$results)
             {
                 $results = PLS::Parser::GoToDefinition::search_files_for_subroutine_declaration($subroutine);
             }
@@ -73,9 +79,14 @@ sub new
                 foreach my $result (@$results)
                 {
                     my $markdown_part;
-                    my $result_ok = get_pod_for_subroutine(URI->new($result->{uri})->file,
-                                                           $subroutine, \$markdown_part);
-                    push @markdown_parts, $markdown_part;
+                    my $path = URI->new($result->{uri})->file;
+                    my $result_ok = get_pod_for_subroutine($path, $subroutine, \$markdown_part);
+
+                    if (length $markdown_part)
+                    {
+                        $markdown_part = "*(From $path)*\n" . $markdown_part;
+                        push @markdown_parts, $markdown_part;
+                    }
                     $ok = 1 if $result_ok;
                 } ## end foreach my $result (@$results...)
 
@@ -97,6 +108,15 @@ sub new
             $ok = PLS::Parser::BuiltIns::get_builtin_variable_documentation($variable, \$markdown);
         } ## end if (my $variable = PLS::Parser::GoToDefinition::find_variable_at_location...)
     } ## end unless ($ok)
+
+    unless ($ok)
+    {
+        if (my $package = PLS::Parser::GoToDefinition::find_package_at_location(@elements, \$line_number, \$column_number))
+        {
+            $name = $package;
+            $ok = PLS::Parser::BuiltIns::_run_perldoc_command(\$markdown, '-Tu', $package);
+        }
+    }
 
     my $result;
 
