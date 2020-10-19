@@ -240,7 +240,6 @@ sub get_all_perl_files
     my ($self) = @_;
 
     return unless (length $self->{root});
-    my @include = grep { not /\Q$FindBin::RealBin\E/ and -d } @INC;
 
     my @perl_files;
 
@@ -263,9 +262,7 @@ sub get_all_perl_files
               if (length $first_line and $first_line =~ /^#!.*perl$/);
             close $code;
         },
-        $self->{root},
-        @include
-                    );
+        $self->{root});
 
     return \@perl_files;
 } ## end sub get_all_perl_files
