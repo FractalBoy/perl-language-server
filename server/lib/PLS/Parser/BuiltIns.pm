@@ -40,6 +40,9 @@ sub _run_perldoc_command
     $parser->output_string($markdown);
     $parser->parse_string_document($pod);
 
+    # remove first extra space to avoid markdown from being displayed inappropriately as code
+    $$markdown =~ s/\n\n/\n/;
+
     return 1;
 }
 
