@@ -65,10 +65,10 @@ sub new
                     {
                         my $markdown_part;
                         my $result_ok = get_pod_for_subroutine(URI->new($result->{uri})->file,
-                                                    $subroutine, \$markdown_part);
+                                                               $subroutine, \$markdown_part);
                         push @markdown_parts, $markdown_part;
-                        $ok = 1 if $result_ok; 
-                    }
+                        $ok = 1 if $result_ok;
+                    } ## end foreach my $result (@$results...)
 
                     $markdown = join "\n---\n", @markdown_parts if $ok;
                 } ## end if (ref $results eq 'ARRAY'...)
@@ -154,6 +154,12 @@ sub get_pod_for_subroutine
     # we don't want the last line - it's a start of a new section.
     pop @lines;
 
+    if ($subroutine eq 'splitpath')
+    {
+        use Data::Dumper;
+        warn Dumper \@lines;
+    }
+
     if (scalar @lines)
     {
         my $parser = Pod::Markdown->new();
@@ -161,6 +167,9 @@ sub get_pod_for_subroutine
         $parser->output_string($markdown);
         $parser->no_whining(1);
         $parser->parse_lines(@lines, undef);
+
+        # remove first extra space to avoid markdown from being displayed inappropriately as code
+        $$markdown =~ s/\n\n/\n/;
         return $parser->content_seen;
     } ## end if (scalar @lines)
 
