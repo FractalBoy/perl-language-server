@@ -2,9 +2,9 @@ package PLS::Server::Response::Location;
 use parent q(PLS::Server::Response);
 
 use strict;
+use warnings;
 
 use PLS::Parser::GoToDefinition;
-use JSON;
 
 sub new {
     my ($class, $request) = @_;
@@ -15,6 +15,11 @@ sub new {
         $request->{params}{position}{line},
         $request->{params}{position}{character}
     );
+
+    foreach my $result (@$results)
+    {
+        delete $result->{signature};
+    }
 
     my %self = (
         id => $request->{id},

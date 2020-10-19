@@ -22,8 +22,18 @@ sub document_from_uri
 {
     my ($uri) = @_;
 
-    my $file     = URI->new($uri);
-    my $document = PPI::Document->new($file->file);
+    my $document;
+
+    if (ref $PLS::Server::State::FILES->{$uri} eq 'HASH')
+    {
+        $document = PPI::Document->new(\($PLS::Server::State::FILES->{$uri}{text}));
+    }
+    else
+    {
+        my $file = URI->new($uri);
+        $document = PPI::Document->new($file->file);
+    }
+
     $document->index_locations;
 
     return $document;
@@ -55,19 +65,17 @@ sub go_to_definition
     {
         my ($is_package, $is_subroutine) = cursor_on_function_or_package($element, $column);
 
-        if (length $is_subroutine)
-        {
-            if (length $package)
-            {
-                return search_for_package_subroutine($package, $subroutine);
-            }
-
-            return search_files_for_subroutine_declaration($subroutine);
-        }
         if (length $is_package)
         {
             return search_for_package($package);
         }
+
+        if (length $package)
+        {
+            return search_for_package_subroutine($package, $subroutine);
+        }
+
+        return search_files_for_subroutine_declaration($subroutine);
     } ## end if (my ($package, $subroutine...))
     if (my $method = find_method_calls_at_location(@matches))
     {
@@ -100,10 +108,10 @@ sub cursor_on_function_or_package
 
         if ($index <= $current_index + length $part)
         {
-            return ('',    $part) if ($i == $#parts);
+            return ('', $part) if ($i == $#parts);
             pop @parts;
             return ((join '::', @parts), '');
-        }
+        } ## end if ($index <= $current_index...)
 
         $current_index += length $part;
     } ## end for (my $i = 0 ; $i <= ...)
@@ -382,7 +390,8 @@ sub search_files_for_subroutine_declaration
                               line      => $line_number,
                               character => ($column_number + length('sub ') + length($subroutine))
                              }
-                     }
+                     },
+            signature => $location->{signature}
           };
     } ## end foreach my $location (@locations...)
 
@@ -493,7 +502,11 @@ sub update_index_for_subroutines
     # add references for this file back in
     foreach my $subroutine (@subroutines)
     {
-        my %sub_info = (file => $perl_file, location => $subroutine->{location});
+        my %sub_info = (
+                        file      => $perl_file,
+                        location  => $subroutine->{location},
+                        signature => $subroutine->{signature}
+                       );
 
         if (ref $index->{subs}{$subroutine->{name}} eq 'ARRAY')
         {
@@ -627,18 +640,40 @@ sub get_subroutines_in_file
 
     while (my $match = $find->match)
     {
-        push @subroutines, $match;
-    }
+        my $declaration = {
+                     name     => $match->name,
+                     location =>
+                       {line_number => $match->line_number, column_number => $match->column_number},
+        };
+        my $signature = find_signature_for_subroutine($match);
+        $declaration->{signature} = $signature if (ref $signature eq 'HASH');
+        push @subroutines, $declaration;
+    } ## end while (my $match = $find->...)
 
-    return [
-        map {
-            {
-             name     => $_->name,
-             location => {line_number => $_->line_number, column_number => $_->column_number}
-            }
-          } @subroutines
-    ];
+    return \@subroutines;
 } ## end sub get_subroutines_in_file
+
+sub find_signature_for_subroutine
+{
+    my ($subroutine) = @_;
+
+    my $block = $subroutine->block;
+    return unless (ref $block eq 'PPI::Structure::Block');
+
+    # only looking at first variable statement, for performance sake.
+    foreach my $child ($block->children)
+    {
+        next   unless $child->isa('PPI::Statement::Variable');
+        return unless $child->type eq 'my';
+        return
+          unless scalar grep { $_->isa('PPI::Token::Magic') and $_->content eq '@_' }
+          $child->children;
+        return unless scalar $child->variables;
+        return {label => $child->content, parameters => [map { {label => $_} } $child->variables]};
+    } ## end foreach my $child ($block->...)
+
+    return '';
+} ## end sub find_signature_for_subroutine
 
 sub _is_constant
 {
