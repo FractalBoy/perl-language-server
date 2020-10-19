@@ -4,17 +4,26 @@ use parent q(PLS::Server::Response);
 use strict;
 use warnings;
 
-use PLS::Parser::GoToDefinition;
+use PLS::Parser::Document;
+use PLS::Parser::Index;
+use PLS::Server::State;
 
-sub new {
+sub new
+{
     my ($class, $request) = @_;
 
-    my $document = PLS::Parser::GoToDefinition::document_from_uri($request->{params}{textDocument}{uri});
-    my $results = PLS::Parser::GoToDefinition::go_to_definition(
-        $document,
-        $request->{params}{position}{line},
-        $request->{params}{position}{character}
-    );
+    my $self = {
+                id     => $request->{id},
+                result => undef
+               };
+
+    bless $self, $class;
+
+    my $document = PLS::Parser::Document->new(uri => $request->{params}{textDocument}{uri});
+
+    return $self unless (ref $document eq 'PLS::Parser::Document');
+
+    my $results = $document->go_to_definition(@{$request->{params}{position}}{qw(line character)});
 
     if (ref $results eq 'ARRAY')
     {
@@ -22,14 +31,10 @@ sub new {
         {
             delete $result->{signature};
         }
-    }
+    } ## end if (ref $results eq 'ARRAY'...)
 
-    my %self = (
-        id => $request->{id},
-        result => $results
-    );
-
-    return bless \%self, $class;
-}
+    $self->{result} = $results;
+    return $self;
+} ## end sub new
 
 1;

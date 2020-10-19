@@ -12,17 +12,17 @@ sub get_builtin_function_documentation
 {
     my ($function, $markdown) = @_;
 
-    return _run_perldoc_command($markdown, '-Tuf', $function);
+    return run_perldoc_command($markdown, '-Tuf', $function);
 }
 
 sub get_builtin_variable_documentation
 {
     my ($variable, $markdown) = @_;
 
-    return _run_perldoc_command($markdown, '-Tuv', $variable);
+    return run_perldoc_command($markdown, '-Tuv', $variable);
 }
 
-sub _run_perldoc_command
+sub run_perldoc_command
 {
     my ($markdown, @command) = @_;
 

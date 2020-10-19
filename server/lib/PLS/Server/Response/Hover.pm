@@ -4,127 +4,32 @@ use parent q(PLS::Server::Response);
 use strict;
 use warnings;
 
-use PLS::Parser::BuiltIns;
 use Pod::Find;
 use Pod::Markdown;
 use URI;
+
+use PLS::Parser::BuiltIns;
+use PLS::Parser::Document;
+use PLS::Parser::Index;
+use PLS::Server::State;
 
 sub new
 {
     my ($class, $request) = @_;
 
-    my $document =
-      PLS::Parser::GoToDefinition::document_from_uri($request->{params}{textDocument}{uri});
-    my ($line, $column) =
-      PLS::Parser::GoToDefinition::ppi_location($request->{params}{position}{line},
-                                                $request->{params}{position}{character});
-    my @elements =
-      PLS::Parser::GoToDefinition::find_elements_at_location($document, $line, $column);
+    my $self = {
+                id     => $request->{id},
+                result => undef
+               };
 
-    my ($ok, $name, $markdown, $line_number, $column_number);
-    my ($package, $subroutine) =
-      PLS::Parser::GoToDefinition::find_subroutine_at_location(@elements, \$line_number,
-                                                               \$column_number);
-    my $is_class_call = 0;
-    unless (length $subroutine)
-    {
-        ($package, $subroutine) =
-          PLS::Parser::GoToDefinition::find_class_calls_at_location(@elements, \$line_number,
-                                                                    \$column_number);
-        $is_class_call = 1 if (length $subroutine);
-    } ## end unless (length $subroutine...)
+    bless $self, $class;
 
-    unless (length $subroutine)
-    {
-        $subroutine = PLS::Parser::GoToDefinition::find_method_calls_at_location(@elements, \$line_number, \$column_number);
-    }
-
-    if (length $subroutine)
-    {
-        if (length $package)
-        {
-            $name = $is_class_call ? "${package}->${subroutine}" : "${package}::${subroutine}";
-            my $path = Pod::Find::pod_where({-inc => 1}, $package);
-
-            if (length $path)
-            {
-                $ok = get_pod_for_subroutine($path, $subroutine, \$markdown);
-            }
-        } ## end if (length $package)
-        else
-        {
-            $name = $subroutine;
-            $ok =
-              PLS::Parser::BuiltIns::get_builtin_function_documentation($subroutine, \$markdown);
-        }
-
-        if (not $ok)
-        {
-            my $results;
-
-            if (length $package)
-            {
-                $results = PLS::Parser::GoToDefinition::search_for_package_subroutine($package, $subroutine);
-            }
-
-            unless (ref $results eq 'ARRAY' and scalar @$results)
-            {
-                $results = PLS::Parser::GoToDefinition::search_files_for_subroutine_declaration($subroutine);
-            }
-
-            if (ref $results eq 'ARRAY' and scalar @$results)
-            {
-                my @markdown_parts;
-
-                foreach my $result (@$results)
-                {
-                    my $markdown_part;
-                    my $path = URI->new($result->{uri})->file;
-                    my $result_ok = get_pod_for_subroutine($path, $subroutine, \$markdown_part);
-
-                    if (length $markdown_part)
-                    {
-                        $markdown_part = "*(From $path)*\n" . $markdown_part;
-                        push @markdown_parts, $markdown_part;
-                    }
-                    $ok = 1 if $result_ok;
-                } ## end foreach my $result (@$results...)
-
-                $markdown = join "\n---\n", @markdown_parts if $ok;
-            } ## end if (ref $results eq 'ARRAY'...)
-        } ## end unless ($ok)
-    } ## end if (length $subroutine...)
-
-    unless ($ok)
-    {
-        if (
-            my $variable =
-            PLS::Parser::GoToDefinition::find_variable_at_location(
-                                                           @elements, \$line_number, \$column_number
-                                                                  )
-           )
-        {
-            $name = $variable;
-            $ok = PLS::Parser::BuiltIns::get_builtin_variable_documentation($variable, \$markdown);
-        } ## end if (my $variable = PLS::Parser::GoToDefinition::find_variable_at_location...)
-    } ## end unless ($ok)
-
-    unless ($ok)
-    {
-        if (my $package = PLS::Parser::GoToDefinition::find_package_at_location(@elements, \$line_number, \$column_number))
-        {
-            $name = $package;
-            $ok = PLS::Parser::BuiltIns::_run_perldoc_command(\$markdown, '-Tu', $package);
-        }
-    }
-
-    my $result;
+    my $markdown;
+    my ($ok, $name, $line_number, $column_number) = find_pod($request->{params}{textDocument}{uri}, @{$request->{params}{position}}{qw(line character)}, \$markdown);
 
     if ($ok)
     {
-        $line_number--;
-        $column_number--;
-        $result = {
+        $self->{result} = {
                    contents => {kind => 'markdown', value => $markdown},
                    range    => {
                              start => {
@@ -139,12 +44,7 @@ sub new
                   };
     } ## end if ($ok)
 
-    my %self = (
-                id     => $request->{id},
-                result => $result
-               );
-
-    return bless \%self, $class;
+    return $self;
 } ## end sub new
 
 sub get_pod_for_subroutine
@@ -152,6 +52,7 @@ sub get_pod_for_subroutine
     my ($path, $subroutine, $markdown) = @_;
 
     open my $fh, '<', $path or return 0;
+
     my @lines;
     my $start = '';
 
@@ -169,8 +70,8 @@ sub get_pod_for_subroutine
             push @lines, $line;
 
             if (   $start eq 'item' and $line =~ /^=item/
-                or $start =~ /head/ and $line =~ /^=head/
-                or $line =~ /^=cut/)
+                or $start =~ /head/ and $line eq $start
+                or $line  =~ /^=cut/)
             {
                 last;
             } ## end if ($start eq 'item' and...)
@@ -197,5 +98,114 @@ sub get_pod_for_subroutine
 
     return 0;
 } ## end sub get_pod_for_subroutine
+
+sub find_pod
+{
+    my ($uri, $line, $character, $markdown) = @_;
+
+    my $document = PLS::Parser::Document->new(uri => $uri);
+    return 0 unless (ref $document eq 'PLS::Parser::Document');
+    my @elements = $document->find_elements_at_location($line, $character);
+
+    foreach my $element (@elements)
+    {
+        my ($package, $subroutine, $variable);
+
+        if (($package, $subroutine) = $element->subroutine_package_and_name())
+        {
+            my $ok = get_pod($document, $package, $subroutine, $markdown);
+            return (1, length $package ? "${package}::${subroutine}" : $subroutine, $element->lsp_line_number, $element->lsp_column_number) if $ok;
+        }
+        if (($package, $subroutine) = $element->class_method_package_and_name())
+        {
+            my $ok = get_pod($document, $package, $subroutine, $markdown);
+            return (1, "${package}->${subroutine}", $element->lsp_line_number, $element->lsp_column_number) if $ok;
+        }
+        if ($subroutine = $element->method_name())
+        {
+            my $ok = get_pod($document, '', $subroutine, $markdown);
+            return (1, $subroutine, $element->lsp_line_number, $element->lsp_column_number) if $ok;
+        }
+        if ($package = $element->package_name())
+        {
+            my $ok = PLS::Parser::BuiltIns::run_perldoc_command($markdown, '-Tu', $package);
+            return (1, $package, $element->lsp_line_number, $element->lsp_column_number) if $ok;
+            return 0;
+        }
+        if ($variable = $element->variable_name())
+        {
+            my $ok = PLS::Parser::BuiltIns::get_builtin_variable_documentation($variable, $markdown);
+            return (1, $variable, $element->lsp_line_number, $element->lsp_column_number) if $ok;
+            return 0;
+        }
+    } ## end foreach my $element (@elements...)
+
+    return 0;
+} ## end sub find_pod
+
+sub get_pod_for_definitions
+{
+    my ($subroutine, $definitions, $markdown) = @_;
+
+    return 0 unless (ref $definitions eq 'ARRAY' and scalar @$definitions);
+
+    my $ok;
+    my @markdown_parts;
+
+    foreach my $definition (@$definitions)
+    {
+        my $markdown_part;
+        my $path      = URI->new($definition->{uri})->file;
+        my $result_ok = get_pod_for_subroutine($path, $subroutine, \$markdown_part);
+
+        if (length $markdown_part)
+        {
+            $markdown_part = "*(From $path)*\n" . $markdown_part;
+            push @markdown_parts, $markdown_part;
+        }
+
+        $ok = 1 if $result_ok;
+    } ## end foreach my $definition (@$definitions...)
+
+    return 0 unless $ok;
+    $$markdown = join "\n---\n", @markdown_parts;
+    return 1;
+} ## end sub get_pod_for_definitions
+
+sub get_pod
+{
+    my ($document, $package, $subroutine, $markdown) = @_;
+
+    my $definitions;
+
+    if (length $package)
+    {
+        my $path = Pod::Find::pod_where({-inc => 1}, $package);
+
+        if (length $path)
+        {
+            my $ok = get_pod_for_subroutine($path, $subroutine, $markdown);
+            return 1 if $ok;
+        }
+
+        $definitions = $document->{index}->find_package_subroutine($package, $subroutine);
+    } ## end if (length $package)
+
+    unless (ref $definitions eq 'ARRAY' and scalar @$definitions)
+    {
+        $definitions = $document->{index}->find_subroutine($subroutine);
+    } ## end unless (ref $definitions eq...)
+
+    my $ok = get_pod_for_definitions($subroutine, $definitions, $markdown);
+    return 1 if $ok;
+
+    # see if it's a built-in
+    $ok = PLS::Parser::BuiltIns::get_builtin_function_documentation($subroutine, $markdown);
+    return 1 if $ok;
+
+    # if all else fails, show documentation for the entire package
+    return PLS::Parser::BuiltIns::run_perldoc_command($markdown, '-Tu', $package) if (length $package);
+    return 0;
+} ## end sub get_pod
 
 1;
