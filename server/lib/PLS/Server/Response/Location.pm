@@ -16,9 +16,12 @@ sub new {
         $request->{params}{position}{character}
     );
 
-    foreach my $result (@$results)
+    if (ref $results eq 'ARRAY')
     {
-        delete $result->{signature};
+        foreach my $result (@$results)
+        {
+            delete $result->{signature};
+        }
     }
 
     my %self = (
