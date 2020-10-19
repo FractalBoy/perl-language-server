@@ -5,17 +5,18 @@ use strict;
 
 use PLS::Parser::DocumentSymbols;
 
-sub new {
+sub new
+{
     my ($class, $request) = @_;
 
     my $results = PLS::Parser::DocumentSymbols::get_all_document_symbols($request->{params}{textDocument}{uri});
 
     my %self = (
-        id => $request->{id},
-        result => $results
-    );
+                id     => $request->{id},
+                result => $results
+               );
 
     return bless \%self, $class;
-}
+} ## end sub new
 
 1;

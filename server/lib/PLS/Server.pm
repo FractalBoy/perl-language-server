@@ -30,7 +30,7 @@ sub recv {
 
     my %headers;
     my $readfh = $self->{readfh};
-    my $line; 
+    my $line;
 
     while ($readfh->readable && $readfh->sysread(my $buffer, 1)) {
         $line .= $buffer;
@@ -57,7 +57,7 @@ sub send {
     my ($self, $response) = @_;
 
     my $json = $response->serialize;
-    my $size = length($json);
+    my $size = length $json;
 
     $self->{writefh}->syswrite("Content-Length: $size\r\n\r\n") if $self->{writefh}->writable;
     $self->{writefh}->syswrite($json) if $self->{writefh}->writable;

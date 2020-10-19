@@ -9,9 +9,9 @@ use JSON;
 use PPI::Document;
 use URI;
 
-use PLS::Parser::GoToDefinition;
 use PLS::Server::Response::InitializeResult;
 use PLS::Server::State;
+use PLS::Parser::Index;
 
 sub service {
     my ($self) = @_;
@@ -20,7 +20,8 @@ sub service {
     my $path = URI->new($root_uri);
     $PLS::Server::State::ROOT_PATH = $path->file;
 
-    PLS::Parser::GoToDefinition::index_declarations();
+    my $index = PLS::Parser::Index->new(root => $path->file);
+    $index->index_files();
     return PLS::Server::Response::InitializeResult->new($self);
 }
 
