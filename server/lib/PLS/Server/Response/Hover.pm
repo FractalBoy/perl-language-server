@@ -7,6 +7,7 @@ use warnings;
 use PLS::Parser::BuiltIns;
 use Pod::Find;
 use Pod::Markdown;
+use URI;
 
 sub new
 {
@@ -42,55 +43,29 @@ sub new
 
             if (length $path)
             {
-                open my $fh, '<', $path;
-                my @lines;
-                my $start = '';
-
-                while (my $line = <$fh>)
-                {
-                    if ($line =~ /^=(head\d|item).*\b$subroutine\b.*$/)
-                    {
-                        $start = $1;
-                        push @lines, $line;
-                        next;
-                    } ## end if ($line =~ /^=(head\d|item).*\b$subroutine\b.*$/...)
-
-                    if (length $start)
-                    {
-                        push @lines, $line;
-
-                        if (   $start eq 'item' and $line =~ /^=item/
-                            or $start =~ /head/ and $line =~ /^=head/
-                            or $line =~ /^=cut/)
-                        {
-                            last;
-                        }
-                    } ## end if (length $start)
-                } ## end while (my $line = <$fh>)
-
-                close $fh;
-
-                # we don't want the last line - it's a start of a new section.
-                pop @lines;
-
-                if (scalar @lines)
-                {
-                    my $parser = Pod::Markdown->new();
-
-                    $parser->output_string(\$markdown);
-                    $parser->no_whining(1);
-                    $parser->parse_lines(@lines, undef);
-                    $ok = $parser->content_seen;
-                } ## end if (scalar @lines)
-            } ## end if (length $path)
+                $ok = get_pod_for_subroutine($path, $subroutine, \$markdown);
+            }
         } ## end if (length $package)
         else
         {
             $name = $subroutine;
             $ok =
               PLS::Parser::BuiltIns::get_builtin_function_documentation($subroutine, \$markdown);
+
+            unless ($ok)
+            {
+                my $results =
+                  PLS::Parser::GoToDefinition::search_files_for_subroutine_declaration($subroutine);
+
+                if (ref $results eq 'ARRAY' and scalar @$results)
+                {
+                    my $result = $results->[0];
+                    $ok = get_pod_for_subroutine(URI->new($result->{uri})->file,
+                                                 $subroutine, \$markdown);
+                } ## end if (ref $results eq 'ARRAY'...)
+            } ## end unless ($ok)
         } ## end else [ if (length $package) ]
-    } ## end if (my ($package, $subroutine...))
+    } ## end if (length $subroutine...)
 
     unless ($ok)
     {
@@ -134,5 +109,61 @@ sub new
 
     return bless \%self, $class;
 } ## end sub new
+
+=head2 get_pod_for_subroutine
+
+get pod for a subroutine
+
+=cut
+
+sub get_pod_for_subroutine
+{
+    my ($path, $subroutine, $markdown) = @_;
+
+    warn "path: $path, subroutine: $subroutine";
+
+    open my $fh, '<', $path or return 0;
+    my @lines;
+    my $start = '';
+
+    while (my $line = <$fh>)
+    {
+        if ($line =~ /^=(head\d|item).*\b$subroutine\b.*$/)
+        {
+            $start = $1;
+            push @lines, $line;
+            next;
+        } ## end if ($line =~ /^=(head\d|item).*\b$subroutine\b.*$/...)
+
+        if (length $start)
+        {
+            push @lines, $line;
+
+            if (   $start eq 'item' and $line =~ /^=item/
+                or $start =~ /head/ and $line =~ /^=head/
+                or $line =~ /^=cut/)
+            {
+                last;
+            } ## end if ($start eq 'item' and...)
+        } ## end if (length $start)
+    } ## end while (my $line = <$fh>)
+
+    close $fh;
+
+    # we don't want the last line - it's a start of a new section.
+    pop @lines;
+
+    if (scalar @lines)
+    {
+        my $parser = Pod::Markdown->new();
+
+        $parser->output_string($markdown);
+        $parser->no_whining(1);
+        $parser->parse_lines(@lines, undef);
+        return $parser->content_seen;
+    } ## end if (scalar @lines)
+
+    return 0;
+} ## end sub get_pod_for_subroutine
 
 1;
