@@ -46,7 +46,7 @@ sub index_files
 
         # return existing index if all files are older than index
         return $index if (all { $_ <= $self->{last_mtime} } @mtimes);
-        @files = map { $_->{file} } grep { $_->{mtime} > $self->{last_mtime} } @files;
+        @files = map { $_->{file} } grep { $_->{mtime} > $self->{last_mtime} } @mtimes;
     } ## end if (-f $self->{location...})
 
     my $total   = scalar @files;
@@ -222,12 +222,12 @@ sub find_package
              uri   => URI::file->new($_->{file})->as_string,
              range => {
                        start => {
-                                 line      => $_->{line_number},
-                                 character => $_->{column_number}
+                                 line      => $_->{location}{line_number},
+                                 character => $_->{location}{column_number}
                                 },
                        end => {
-                               line      => $_->{line_number},
-                               character => ($_->{column_number} + length $package)
+                               line      => $_->{location}{line_number},
+                               character => ($_->{location}{column_number} + length $package)
                               }
                       }
             }

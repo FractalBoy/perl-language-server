@@ -13,6 +13,11 @@ use PLS::Parser::Element::Constant;
 use PLS::Parser::Element::Package;
 use PLS::Parser::Element::Subroutine;
 use PLS::Parser::Element::VariableStatement;
+use PLS::Parser::Pod::ClassMethod;
+use PLS::Parser::Pod::Method;
+use PLS::Parser::Pod::Package;
+use PLS::Parser::Pod::Subroutine;
+use PLS::Parser::Pod::Variable;
 
 my %FILES;
 my $INDEX;
@@ -92,6 +97,51 @@ sub go_to_definition
 
     return;
 } ## end sub go_to_definition
+
+sub find_pod
+{
+    my ($self, $line_number, $column_number) = @_;
+
+    my @elements = $self->find_elements_at_location($line_number, $column_number);
+
+    foreach my $element (@elements)
+    {
+        my ($package, $subroutine, $variable);
+
+        if (($package, $subroutine) = $element->subroutine_package_and_name())
+        {
+            my $pod = PLS::Parser::Pod::Subroutine->new(document => $self, element => $element, package => $package, subroutine => $subroutine);
+            my $ok = $pod->find();
+            return (1, $pod) if $ok;
+        }
+        if (($package, $subroutine) = $element->class_method_package_and_name())
+        {
+            my $pod = PLS::Parser::Pod::ClassMethod->new(document => $self, element => $element, package => $package, subroutine => $subroutine);
+            my $ok = $pod->find();
+            return (1, $pod) if $ok;
+        }
+        if ($subroutine = $element->method_name())
+        {
+            my $pod = PLS::Parser::Pod::Method->new(document => $self, element => $element, subroutine => $subroutine);
+            my $ok = $pod->find();
+            return (1, $pod) if $ok;
+        }
+        if ($package = $element->package_name())
+        {
+            my $pod = PLS::Parser::Pod::Package->new(document => $self, element => $element, package => $package);
+            my $ok = $pod->find();
+            return (1, $pod) if $ok;
+        }
+        if ($variable = $element->variable_name())
+        {
+            my $pod = PLS::Parser::Pod::Variable->new(document => $self->{document}, element => $element, variable => $variable);
+            my $ok = $pod->find();
+            return (1, $pod) if $ok;
+        }
+    } ## end foreach my $element (@elements...)
+
+    return 0;
+}
 
 sub find_elements_at_location
 {
