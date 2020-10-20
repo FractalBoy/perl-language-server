@@ -51,6 +51,8 @@ sub get_pod_for_subroutine
 {
     my ($path, $subroutine, $markdown) = @_;
 
+    $$markdown = '';
+
     open my $fh, '<', $path or return 0;
 
     my @lines;

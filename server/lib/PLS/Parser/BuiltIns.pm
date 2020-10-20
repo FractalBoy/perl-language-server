@@ -26,6 +26,8 @@ sub run_perldoc_command
 {
     my ($markdown, @command) = @_;
 
+    $$markdown = '';
+
     my $err = gensym;
     my $pid = open3(my $in, my $out, $err, get_perldoc_location(), @command);
 
