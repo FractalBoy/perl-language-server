@@ -48,7 +48,7 @@ sub new
               };
 
             # add other variable forms to the list for arrays and hashes
-            if ($variable->name =~ /^\@/ or $variable->name =~ /^\%/)
+            if ($variable->name =~ /^[\@\%]/)
             {
                 my $name = $variable->name =~ s/^[\@\%]/\$/r;
                 push @results,
