@@ -47,6 +47,7 @@ sub new
                 kind  => 6
               };
 
+            # add other variable forms to the list for arrays and hashes
             if ($variable->name =~ /^\@/ or $variable->name =~ /^\%/)
             {
                 my $name = $variable->name =~ s/^[\@\%]/\$/r;
