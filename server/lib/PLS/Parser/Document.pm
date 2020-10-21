@@ -46,13 +46,16 @@ sub new
     $INDEX = PLS::Parser::Index->new(root => $PLS::Server::State::ROOT_PATH)
       unless (ref $INDEX eq 'PLS::Parser::Index');
 
+    my ($document, $text) = _document_from_uri($uri);
+
+    return unless (ref $document eq 'PPI::Document');
+
     my %self = (
                 path     => $path,
-                document => _document_from_uri($uri),
+                document => $document,
+                text     => $text,
                 index    => $INDEX
                );
-
-    return unless (ref $self{document} eq 'PPI::Document');
 
     return bless \%self, $class;
 } ## end sub new
@@ -306,14 +309,27 @@ sub get_variable_statements
 
 sub format_range
 {
-    my ($self, $range) = @_;
+    my ($self, @args) = @_;
 
-    my @lines = split /\r?\n/, $self->{document}->serialize;
+    my %args = @args;
+    $args{formatting_options} = {} unless (ref $args{formatting_options} eq 'HASH');
+    my $range = $args{range};
+
+    if (not ref $self->{text} eq 'SCALAR' or not length ${$self->{text}})
+    {
+        return (0, {code => -32700, message => 'Could not get document text.'});
+    }
+
+    my @lines = split /\n/, ${$self->{text}};
+    # the amount of padding on the first line that is not part of the selection
+    my $first_line_padding = '';
 
     if (ref $range eq 'HASH')
     {
         @lines     = @lines[$range->{start}{line} .. $range->{end}{line}];
-        $lines[0]  = substr $lines[0],  $range->{start}{character};
+        ($first_line_padding) = (substr $lines[0], 0, $range->{start}{character}) =~ /^(\s+)/;
+        $first_line_padding = '' unless (length $first_line_padding);
+        $lines[0]  = substr $lines[0], $range->{start}{character};
         $lines[-1] = substr $lines[-1], 0, $range->{end}{character};
     } ## end if (ref $range eq 'HASH'...)
     else
@@ -331,9 +347,30 @@ sub format_range
     } ## end else [ if (ref $range eq 'HASH'...)]
 
     my $selection = join "\n", @lines;
-    my $formatted;
+    # add padding to selection to keep indentation consistent
+    $selection = $first_line_padding . $selection;
+
+    my $formatted = '';
     my $stderr;
-    my $error = Perl::Tidy::perltidy(source => \$selection, destination => \$formatted, stderr => \$stderr, perltidyrc => glob('~/.perltidyrc'));
+    my $argv = '-se';
+    $argv .= ' -i=' . $args{formatting_options}{tabSize} if (length $args{formatting_options}{tabSize});
+    $argv .= ' -t' unless ($args{formatting_options}{insertSpaces});
+    $argv .= ' -en=' . $args{formatting_options}{tabSize} if (length $args{formatting_options}{tabSize} and $args{formatting_options}{insertSpaces});
+    my $error = Perl::Tidy::perltidy(source => \$selection, destination => \$formatted, stderr => \$stderr, perltidyrc => glob('~/.perltidyrc'), argv => '-se');
+
+    # remove padding added for consistent formatting
+    $formatted = substr $formatted, (length $first_line_padding);
+
+    $formatted =~ s/\s+$//gm if ($args{formatting_options}{trimTrailingWhitespace});
+
+    if ($args{formatting_options}{insertFinalNewline})
+    {
+        $formatted .= "\n" unless ($formatted =~ /\n$/);
+    }
+    elsif ($args{formatting_options}{trimFinalNewlines})
+    {
+        $formatted =~ s/\n+$//;
+    }
 
     if ($error == 1)
     {
@@ -364,10 +401,10 @@ sub format_range
 
 sub format
 {
-    my ($self) = @_;
+    my ($self, $formatting_options) = @_;
 
     return unless $self->{document}->complete;
-    return $self->format_range();
+    return $self->format_range(formatting_options => $formatting_options);
 } ## end sub format
 
 sub _ppi_location
@@ -381,21 +418,24 @@ sub _document_from_uri
 {
     my ($uri) = @_;
 
-    my $document;
+    my ($document, $text);
 
     if (ref $FILES{$uri} eq 'HASH')
     {
-        $document = PPI::Document->new(\($FILES{$uri}{text}));
+        $text = $FILES{$uri}{text};
+        $document = PPI::Document->new(\$text);
     }
     else
     {
         my $file = URI->new($uri);
+        open my $fh, '<', $file->file or return ('', \'');
+        $text = do { local $/; <$fh> };
         $document = PPI::Document->new($file->file);
     }
 
     return '' unless (ref $document eq 'PPI::Document');
     $document->index_locations;
-    return $document;
+    return ($document, \$text);
 } ## end sub _document_from_uri
 
 sub _is_constant

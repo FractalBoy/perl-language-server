@@ -10,7 +10,15 @@ sub new
     my ($class, $request) = @_;
 
     my $document = PLS::Parser::Document->new(uri => $request->{params}{textDocument}{uri});
-    my ($ok, $formatted) = $document->format_range($request->{params}{textDocument}{range});
+
+    if (ref $request->{params}{options} eq 'HASH')
+    {
+        # these options aren't really valid for range formatting
+        delete $request->{params}{options}{trimFinalNewlines};
+        delete $request->{params}{options}{insertFinalNewline};
+    }
+
+    my ($ok, $formatted) = $document->format_range(range => $request->{params}{range}, formatting_options => $request->{params}{options});
 
     my %self = (id => $request->{id}, result => undef);
 

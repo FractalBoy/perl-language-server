@@ -10,7 +10,7 @@ sub new
     my ($class, $request) = @_;
 
     my $document = PLS::Parser::Document->new(uri => $request->{params}{textDocument}{uri});
-    my ($ok, $formatted) = $document->format();
+    my ($ok, $formatted) = $document->format(formatting_options => $request->{params}{options});
 
     my %self = (id => $request->{id}, result => undef);
 
