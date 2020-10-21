@@ -4,6 +4,7 @@ use strict;
 use warnings;
 
 use Perl::Critic::Utils;
+use Perl::Tidy;
 use PPI;
 use PPI::Find;
 use URI;
@@ -42,12 +43,13 @@ sub new
     }
 
     return unless (length $path and length $uri);
-    $INDEX = PLS::Parser::Index->new(root => $PLS::Server::State::ROOT_PATH) unless (ref $INDEX eq 'PLS::Parser::Index');
+    $INDEX = PLS::Parser::Index->new(root => $PLS::Server::State::ROOT_PATH)
+      unless (ref $INDEX eq 'PLS::Parser::Index');
 
     my %self = (
                 path     => $path,
                 document => _document_from_uri($uri),
-                index => $INDEX
+                index    => $INDEX
                );
 
     return unless (ref $self{document} eq 'PPI::Document');
@@ -110,38 +112,65 @@ sub find_pod
 
         if (($package, $subroutine) = $element->subroutine_package_and_name())
         {
-            my $pod = PLS::Parser::Pod::Subroutine->new(document => $self, element => $element, package => $package, subroutine => $subroutine);
+            my $pod =
+              PLS::Parser::Pod::Subroutine->new(
+                                                document   => $self,
+                                                element    => $element,
+                                                package    => $package,
+                                                subroutine => $subroutine
+                                               );
             my $ok = $pod->find();
             return (1, $pod) if $ok;
-        }
+        } ## end if (($package, $subroutine...))
         if (($package, $subroutine) = $element->class_method_package_and_name())
         {
-            my $pod = PLS::Parser::Pod::ClassMethod->new(document => $self, element => $element, package => $package, subroutine => $subroutine);
+            my $pod =
+              PLS::Parser::Pod::ClassMethod->new(
+                                                 document   => $self,
+                                                 element    => $element,
+                                                 package    => $package,
+                                                 subroutine => $subroutine
+                                                );
             my $ok = $pod->find();
             return (1, $pod) if $ok;
-        }
+        } ## end if (($package, $subroutine...))
         if ($subroutine = $element->method_name())
         {
-            my $pod = PLS::Parser::Pod::Method->new(document => $self, element => $element, subroutine => $subroutine);
+            my $pod =
+              PLS::Parser::Pod::Method->new(
+                                            document   => $self,
+                                            element    => $element,
+                                            subroutine => $subroutine
+                                           );
             my $ok = $pod->find();
             return (1, $pod) if $ok;
-        }
+        } ## end if ($subroutine = $element...)
         if ($package = $element->package_name())
         {
-            my $pod = PLS::Parser::Pod::Package->new(document => $self, element => $element, package => $package);
+            my $pod =
+              PLS::Parser::Pod::Package->new(
+                                             document => $self,
+                                             element  => $element,
+                                             package  => $package
+                                            );
             my $ok = $pod->find();
             return (1, $pod) if $ok;
-        }
+        } ## end if ($package = $element...)
         if ($variable = $element->variable_name())
         {
-            my $pod = PLS::Parser::Pod::Variable->new(document => $self->{document}, element => $element, variable => $variable);
+            my $pod =
+              PLS::Parser::Pod::Variable->new(
+                                              document => $self->{document},
+                                              element  => $element,
+                                              variable => $variable
+                                             );
             my $ok = $pod->find();
             return (1, $pod) if $ok;
-        }
+        } ## end if ($variable = $element...)
     } ## end foreach my $element (@elements...)
 
     return 0;
-}
+} ## end sub find_pod
 
 sub find_elements_at_location
 {
@@ -161,8 +190,9 @@ sub find_elements_at_location
     );
 
     my @matches = $find->in($self->{document});
-    @matches = sort { (abs $column_number - $a->column_number) <=> (abs $column_number - $b->column_number) } @matches;
-    @matches = map  { PLS::Parser::Element->new(document => $self->{document}, element => $_, file => $self->{path}) } @matches;
+    @matches =
+      sort { (abs $column_number - $a->column_number) <=> (abs $column_number - $b->column_number) } @matches;
+    @matches = map { PLS::Parser::Element->new(document => $self->{document}, element => $_, file => $self->{path}) } @matches;
     return @matches;
 } ## end sub find_elements_at_location
 
@@ -207,7 +237,11 @@ sub get_subroutines
 {
     my ($self) = @_;
 
-    my $find = PPI::Find->new(sub { $_[0]->isa('PPI::Statement::Sub') and not $_[0]->isa('PPI::Statement::Scheduled') });
+    my $find = PPI::Find->new(
+        sub {
+            $_[0]->isa('PPI::Statement::Sub') and not $_[0]->isa('PPI::Statement::Scheduled');
+        }
+    );
     return [map { PLS::Parser::Element::Subroutine->new(document => $self->{document}, element => $_, file => $self->{path}) } $find->in($self->{document})];
 } ## end sub get_subroutines
 
@@ -235,7 +269,7 @@ sub get_constants
         if (ref $constructor eq 'PPI::Structure::Constructor')
         {
             push @constants, grep { _is_constant($_) }
-              map  { $_->children }
+              map { $_->children }
               grep { $_->isa('PPI::Statement::Expression') } $constructor->children;
         } ## end if (ref $constructor eq...)
         else
@@ -261,7 +295,73 @@ sub get_variable_statements
 
     my $find = PPI::Find->new(sub { $_[0]->isa('PPI::Statement::Variable') });
     return [map { PLS::Parser::Element::VariableStatement->new(document => $self->{document}, element => $_, file => $self->{path}) } $find->in($self->{document})];
-}
+} ## end sub get_variable_statements
+
+sub format_range
+{
+    my ($self, $range) = @_;
+
+    my @lines = split /\r?\n/, $self->{document}->serialize;
+
+    if (ref $range eq 'HASH')
+    {
+        @lines     = @lines[$range->{start}{line} .. $range->{end}{line}];
+        $lines[0]  = substr $lines[0],  $range->{start}{character};
+        $lines[-1] = substr $lines[-1], 0, $range->{end}{character};
+    } ## end if (ref $range eq 'HASH'...)
+    else
+    {
+        $range = {
+                  start => {
+                            line      => 0,
+                            character => 0
+                           },
+                  end => {
+                          line      => scalar @lines,
+                          character => 0
+                         }
+                 };
+    } ## end else [ if (ref $range eq 'HASH'...)]
+
+    my $selection = join "\n", @lines;
+    my $formatted;
+    my $stderr;
+    my $error = Perl::Tidy::perltidy(source => \$selection, destination => \$formatted, stderr => \$stderr, perltidyrc => glob('~/.perltidyrc'));
+
+    if ($error == 1)
+    {
+        return (0, {code => -32700, message => 'Perltidy failed to format the text.', data => $stderr});
+    }
+    if ($error == 2)
+    {
+        return (
+                0,
+                {
+                 code    => -32700,
+                 message => 'There were warnings or errors when running Perltidy. Formatting aborted.',
+                 data    => $stderr
+                }
+               );
+    } ## end if ($error == 2)
+
+    return (
+            1,
+            [
+             {
+              range   => $range,
+              newText => $formatted
+             }
+            ]
+           );
+} ## end sub format_range
+
+sub format
+{
+    my ($self) = @_;
+
+    return unless $self->{document}->complete;
+    return $self->format_range();
+} ## end sub format
 
 sub _ppi_location
 {

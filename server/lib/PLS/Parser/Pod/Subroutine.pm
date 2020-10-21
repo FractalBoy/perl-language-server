@@ -71,7 +71,7 @@ sub find
 
     # if all else fails, show documentation for the entire package
     ($ok, $markdown) = $self->run_perldoc_command('-Tu', $self->{package}) if (length $self->{package});
-    $self->{markdown} = \$markdown if $ok;
+    $self->{markdown} = $markdown if $ok;
     return $ok;
 }
 

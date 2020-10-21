@@ -15,8 +15,6 @@ sub new
                                               $request->{params}{position}{line},
                                               $request->{params}{position}{character} - 1    # we want the word before the open paren
                                              );
-    use Data::Dumper;
-    warn Dumper $results;
 
     my @signatures = map { $_->{signature} } @$results;
 
