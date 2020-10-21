@@ -8,6 +8,7 @@ use PLS::Server::Request::TextDocument::Hover;
 use PLS::Server::Request::TextDocument::SignatureHelp;
 use PLS::Server::Request::TextDocument::Formatting;
 use PLS::Server::Request::TextDocument::RangeFormatting;
+use PLS::Server::Request::TextDocument::Completion;
 use PLS::Parser::Document;
 
 sub get_request
@@ -57,6 +58,10 @@ sub get_request
     if ($method eq 'rangeFormatting')
     {
         return PLS::Server::Request::TextDocument::RangeFormatting->new($request);
+    }
+    if ($method eq 'completion')
+    {
+        return PLS::Server::Request::TextDocument::Completion->new($request);
     }
 } ## end sub get_request
 

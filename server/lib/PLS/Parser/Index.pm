@@ -11,6 +11,8 @@ use FindBin;
 use List::Util qw(all);
 use Storable;
 
+use Trie;
+
 use constant {INDEX_LOCATION => File::Spec->catfile('.pls_cache', 'index')};
 
 sub new
@@ -104,13 +106,24 @@ sub cleanup_index
 {
     my ($self, $index, $type, $file) = @_;
 
+    $index->{"${type}_trie"} = Trie->new() unless (ref $index->{"${type}_trie"} eq 'Trie');
+    my $trie = $index->{"${type}_trie"};
+
     if (ref $index->{files}{$file}{$type} eq 'ARRAY')
     {
         foreach my $ref (@{$index->{files}{$file}{$type}})
         {
             @{$index->{$type}{$ref}} = grep { $_->{file} ne $file } @{$index->{$type}{$ref}};
             delete $index->{$type}{$ref} unless (scalar @{$index->{$type}{$ref}});
-        }
+
+            # decrement in trie, then remove if it was the last reference.
+            my $node = $trie->find_node($ref);
+            if (ref $node eq 'Node')
+            {
+                $node->{value}--;
+                $trie->delete($ref) unless $node->{value};
+            }
+        } ## end foreach my $ref (@{$index->...})
 
         @{$index->{files}{$file}{$type}} = ();
     } ## end if (ref $index->{files...})
@@ -124,6 +137,9 @@ sub update_index
 {
     my ($self, $index, $type, @references) = @_;
 
+    $index->{"${type}_trie"} = Trie->new() unless (ref $index->{"${type}_trie"} eq 'Trie');
+    my $trie = $index->{"${type}_trie"};
+
     foreach my $reference (@references)
     {
         my $info = $reference->location_info();
@@ -131,10 +147,22 @@ sub update_index
         if (ref $index->{$type}{$reference->name} eq 'ARRAY')
         {
             push @{$index->{$type}{$reference->name}}, $info;
+
         }
         else
         {
             $index->{$type}{$reference->name} = [$info];
+        }
+
+        # if it already exists in the trie, increment, otherwise insert with a value of 1.
+        my $node = $trie->find_node($reference->name);
+        if (ref $node eq 'Node')
+        {
+            $node->{value}++;
+        }
+        else
+        {
+            $trie->insert($reference->name, 1);
         }
     } ## end foreach my $reference (@references...)
 } ## end sub update_index
@@ -143,7 +171,7 @@ sub find_package_subroutine
 {
     my ($self, $package, $subroutine) = @_;
 
-    my @path         = split '::', $package;
+    my @path = split '::', $package;
     my $package_path = File::Spec->join(@path) . '.pm';
 
     $self->index_files();
@@ -263,7 +291,8 @@ sub get_all_perl_files
               if (length $first_line and $first_line =~ /^#!.*perl$/);
             close $code;
         },
-        $self->{root});
+        $self->{root}
+                    );
 
     return \@perl_files;
 } ## end sub get_all_perl_files

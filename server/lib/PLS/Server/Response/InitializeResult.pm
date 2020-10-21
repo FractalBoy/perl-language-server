@@ -21,7 +21,10 @@ sub new {
                     change => 1
                 },
                 documentFormattingProvider => \1,
-                documentRangeFormattingProvider => \1
+                documentRangeFormattingProvider => \1,
+                completionProvider => {
+                    triggerCharacters => ['>', ':']
+                }
             }
         }
     );

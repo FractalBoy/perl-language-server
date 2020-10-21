@@ -77,9 +77,17 @@ sub _get_node
     return $node;
 } ## end sub find
 
-sub insert
+sub find_node
 {
     my ($self, $key) = @_;
+
+    my @chars = split //, $key;
+    return $self->_get_node(\@chars);
+}
+
+sub insert
+{
+    my ($self, $key, $value) = @_;
 
     my $node = $self->{root};
 
@@ -93,7 +101,7 @@ sub insert
         $node = $node->{children}{$char};
     } ## end foreach my $char (split //,...)
 
-    $node->{value} = $key;
+    $node->{value} = $value;
 } ## end sub insert
 
 sub delete

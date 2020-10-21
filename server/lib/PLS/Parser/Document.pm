@@ -57,6 +57,13 @@ sub new
     return bless \%self, $class;
 } ## end sub new
 
+sub set_index
+{
+    my ($class, $index) = @_;
+
+    $INDEX = $index;
+}
+
 sub go_to_definition
 {
     my ($self, $line_number, $column_number) = @_;

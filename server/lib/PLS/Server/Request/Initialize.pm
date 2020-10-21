@@ -12,6 +12,7 @@ use URI;
 use PLS::Server::Response::InitializeResult;
 use PLS::Server::State;
 use PLS::Parser::Index;
+use PLS::Parser::Document;
 
 sub service {
     my ($self) = @_;
@@ -22,6 +23,7 @@ sub service {
 
     my $index = PLS::Parser::Index->new(root => $path->file);
     $index->index_files();
+    PLS::Parser::Document->set_index($index);
     return PLS::Server::Response::InitializeResult->new($self);
 }
 
