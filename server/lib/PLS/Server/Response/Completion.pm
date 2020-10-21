@@ -55,7 +55,7 @@ sub new
                   {
                     label  => $name,
                     kind   => 6,
-                    append => $variable->name =~ /^@/ ? '[' : '{'
+                    append => $variable->name =~ /^\@/ ? '[' : '{'
                   };
             } ## end if ($variable->name =~...)
         } ## end foreach my $variable (@{$statement...})
