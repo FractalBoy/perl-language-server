@@ -23,7 +23,7 @@ sub new {
                 documentFormattingProvider => \1,
                 documentRangeFormattingProvider => \1,
                 completionProvider => {
-                    triggerCharacters => ['>', ':']
+                    triggerCharacters => ['>', ':', '$', '@', '%']
                 }
             }
         }

@@ -20,9 +20,10 @@ sub get_all_document_symbols
     my ($uri) = @_;
 
     my $document = PLS::Parser::Document->new(uri => $uri);
+    return [] unless (ref $document eq 'PLS::Parser::Document');
 
     return [@{get_all_packages($document)}, @{get_all_subroutines($document)}, @{get_all_variables($document)}, @{get_all_constants($document)}];
-} ## end sub get_all_document_symbols
+}
 
 sub get_all_packages
 {
@@ -42,7 +43,7 @@ sub get_all_packages
             range          => $range,
             selectionRange => $range
           };
-    } ## end while (my $match = $find->...)
+    } ## end foreach my $match (@$packages...)
 
     return \@results;
 } ## end sub get_all_packages
@@ -58,7 +59,7 @@ sub get_all_variables
     {
         foreach my $symbol (@{$statement->{symbols}})
         {
-			my $range = $symbol->range;
+            my $range = $symbol->range;
 
             push @results,
               {
@@ -67,8 +68,8 @@ sub get_all_variables
                 range          => $range,
                 selectionRange => $range
               };
-        } ## end foreach my $symbol ($match->...)
-    } ## end while (my $match = $find->...)
+        } ## end foreach my $symbol (@{$statement...})
+    } ## end foreach my $statement (@$statements...)
 
     return \@results;
 } ## end sub get_all_variables
@@ -91,7 +92,7 @@ sub get_all_subroutines
             range          => $range,
             selectionRange => $range
           };
-    } ## end while (my $match = $find->...)
+    } ## end foreach my $match (@$subroutines...)
 
     return \@results;
 } ## end sub get_all_subroutines

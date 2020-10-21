@@ -17,19 +17,81 @@ sub new
 
     return $self unless (ref $word eq 'PLS::Parser::Element');
 
-    my $name     = $word->name;
-    my $subs     = $document->{index}{cache}{subs_trie}->find($name);
-    my $packages = $document->{index}{cache}{packages_trie}->find($name);
+    my @results;
 
-    $subs     = [] unless (ref $subs eq 'ARRAY');
-    $packages = [] unless (ref $packages eq 'ARRAY');
-    return $self if (not scalar @$subs and not scalar @$packages);
-
-    $self->{result} = [(map { {label => $_, kind => 3} } @$subs), (map { {label => $_, kind => 7} } @$packages)];
-    @{$self->{result}} = map
+    foreach my $sub (@{$document->get_subroutines()})
     {
-        { %$_, textEdit => {newText => $_->{label}, range => $word->range} }
-    } @{$self->{result}};
+        push @results,
+          {
+            label => $sub->name,
+            kind  => 3
+          };
+    } ## end foreach my $sub (@{$document...})
+
+    foreach my $constant (@{$document->get_constants()})
+    {
+        push @results,
+          {
+            label => $constant->name,
+            kind  => 21
+          };
+    } ## end foreach my $constant (@{$document...})
+
+    foreach my $statement (@{$document->get_variable_statements()})
+    {
+        foreach my $variable (@{$statement->{symbols}})
+        {
+            push @results,
+              {
+                label => $variable->name,
+                kind  => 6
+              };
+
+            if ($variable->name =~ /^\@/ or $variable->name =~ /^\%/)
+            {
+                my $name = $variable->name =~ s/^[\@\%]/\$/r;
+                push @results,
+                  {
+                    label  => $name,
+                    kind   => 6,
+                    append => $variable->name =~ /^@/ ? '[' : '{'
+                  };
+            } ## end if ($variable->name =~...)
+        } ## end foreach my $variable (@{$statement...})
+    } ## end foreach my $statement (@{$document...})
+
+    foreach my $package (@{$document->get_packages()})
+    {
+        push @results,
+          {
+            label => $package->name,
+            kind  => 7
+          };
+    } ## end foreach my $package (@{$document...})
+
+    foreach my $sub (keys %{$document->{index}{cache}{subs}})
+    {
+        push @results,
+          {
+            label => $sub,
+            kind  => 3
+          };
+    } ## end foreach my $sub (keys %{$document...})
+
+    foreach my $package (keys %{$document->{index}{cache}{packages}})
+    {
+        push @results,
+          {
+            label => $package,
+            kind  => 7
+          };
+    } ## end foreach my $package (keys %...)
+
+    $self->{result} = [
+        map {
+            { %$_, textEdit => {newText => $_->{label} . $_->{append}, range => $word->range} }
+          } @results
+    ];
 
     return $self;
 } ## end sub new

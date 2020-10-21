@@ -12,7 +12,7 @@ sub new
     my $document = PLS::Parser::Document->new(uri => $request->{params}{textDocument}{uri});
     my ($ok, $formatted) = $document->format();
 
-    my %self = (id => $request->{id});
+    my %self = (id => $request->{id}, result => undef);
 
     if ($ok)
     {
@@ -20,6 +20,7 @@ sub new
     }
     else
     {
+        delete $self{result};
         $self{error} = $formatted;
     }
 
