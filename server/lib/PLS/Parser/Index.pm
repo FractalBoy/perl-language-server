@@ -9,6 +9,7 @@ use File::stat;
 use File::Spec;
 use FindBin;
 use List::Util qw(all);
+use Time::Piece;
 use Storable;
 
 use constant {INDEX_LOCATION => File::Spec->catfile('.pls_cache', 'index')};
@@ -54,6 +55,10 @@ sub index_files
 
     foreach my $file (@files)
     {
+        $current++;
+        my $time = Time::Piece->new;
+        $time = $time->ymd . ' ' . $time->hms;
+        warn "[$time] Indexing $file ($current/$total)...\n";
         my $document = PLS::Parser::Document->new(path => $file);
         next unless (ref $document eq 'PLS::Parser::Document');
 
