@@ -4,6 +4,7 @@ use parent q(PLS::Server::Response);
 use strict;
 
 use PLS::Parser::Document;
+use Trie;
 
 sub new
 {
@@ -16,6 +17,9 @@ sub new
     my ($word)   = sort { length $a->name <=> length $b->name } grep { $_->{ppi_element}->significant } @elements;
 
     return $self unless (ref $word eq 'PLS::Parser::Element');
+
+    my $subs = $document->{index}{subs_trie}->find($word->name);
+    my $packages = $document->{index}{packages_trie}->find($word->name);
 
     my @results;
 
@@ -70,23 +74,13 @@ sub new
           };
     } ## end foreach my $package (@{$document...})
 
-    foreach my $sub (keys %{$document->{index}{cache}{subs}})
-    {
-        push @results,
-          {
-            label => $sub,
-            kind  => 3
-          };
-    } ## end foreach my $sub (keys %{$document...})
+    $subs = [] unless (ref $subs eq 'ARRAY');
+    $packages = [] unless (ref $packages eq 'ARRAY');
 
-    foreach my $package (keys %{$document->{index}{cache}{packages}})
-    {
-        push @results,
-          {
-            label => $package,
-            kind  => 7
-          };
-    } ## end foreach my $package (keys %...)
+    @$subs = map { {label => $_, kind => 3} } @$subs;
+    @$packages = map { {label => $_, kind => 7} } @$packages;
+
+    @results = (@results, @$subs, @$packages);
 
     $self->{result} = [
         map {

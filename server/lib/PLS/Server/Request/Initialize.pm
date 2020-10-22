@@ -23,6 +23,7 @@ sub service {
 
     my $index = PLS::Parser::Index->new(root => $path->file);
     $index->index_files();
+    $index->load_trie();
     PLS::Parser::Document->set_index($index);
     return PLS::Server::Response::InitializeResult->new($self);
 }

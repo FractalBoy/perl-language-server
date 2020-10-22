@@ -12,6 +12,8 @@ use List::Util qw(all);
 use Time::Piece;
 use Storable;
 
+use Trie;
+
 use constant {INDEX_LOCATION => File::Spec->catfile('.pls_cache', 'index')};
 
 sub new
@@ -24,11 +26,32 @@ sub new
                 root       => $args{root},
                 location   => File::Spec->catfile($args{root}, INDEX_LOCATION),
                 cache      => {},
+                subs_trie  => Trie->new(),
+                packages_trie => Trie->new(),
                 last_mtime => 0
                );
 
     return bless \%self, $class;
 } ## end sub new
+
+sub load_trie
+{
+    my ($self) = @_;
+
+    my $index = $self->index();
+
+    foreach my $sub (keys %{$index->{subs}})
+    {
+        my $count = scalar @{$index->{subs}{$sub}};
+        $self->{subs_trie}->insert($sub, 1);
+    }
+
+    foreach my $package (keys %{$index->{packages}})
+    {
+        my $count = scalar @{$index->{packages}{$package}};
+        $self->{packages_trie}->insert($package, 1);
+    }
+}
 
 sub index_files
 {
@@ -109,12 +132,21 @@ sub cleanup_index
 {
     my ($self, $index, $type, $file) = @_;
 
+    my $trie = $self->{"${type}_trie"};
+
     if (ref $index->{files}{$file}{$type} eq 'ARRAY')
     {
         foreach my $ref (@{$index->{files}{$file}{$type}})
         {
             @{$index->{$type}{$ref}} = grep { $_->{file} ne $file } @{$index->{$type}{$ref}};
             delete $index->{$type}{$ref} unless (scalar @{$index->{$type}{$ref}});
+
+            my $node = $trie->find_node($ref);
+            if (ref $node eq 'Node')
+            {
+                $node->{value}--;
+                $trie->delete($ref) unless ($node->{value});
+            }
         } ## end foreach my $ref (@{$index->...})
 
         @{$index->{files}{$file}{$type}} = ();
@@ -129,6 +161,8 @@ sub update_index
 {
     my ($self, $index, $type, @references) = @_;
 
+    my $trie = $self->{"${type}_trie"};
+
     foreach my $reference (@references)
     {
         my $info = $reference->location_info();
@@ -137,6 +171,16 @@ sub update_index
         {
             push @{$index->{$type}{$reference->name}}, $info;
 
+            my $node = $trie->find_node($reference->name);
+
+            if (ref $node eq 'Node')
+            {
+                $node->{value}++;
+            }
+            else
+            {
+                $trie->insert($reference->name, 1);
+            }
         }
         else
         {
