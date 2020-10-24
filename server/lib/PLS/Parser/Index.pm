@@ -92,9 +92,10 @@ sub index_files
         push @coros, async {
             my ($index, $file, $current) = @_;
             open my $fh, '<', $file or return;
+            my $size = (stat $fh)->size;
             my $coro_fh = Coro::Handle->new_from_fh($fh);
-            my $text;
-            while (my $line = $coro_fh->readline()) { $text .= $line; }
+            $coro_fh->read(my $text, $size) if $coro_fh->readable;
+            return unless (length $text == $size);
             my $document = PLS::Parser::Document->new(path => $file, text => \$text);
             return unless (ref $document eq 'PLS::Parser::Document');
 
