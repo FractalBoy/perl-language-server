@@ -5,6 +5,8 @@ use warnings;
 
 use parent q(PLS::Server::Response);
 
+use Pod::Functions;
+
 use PLS::Parser::Document;
 use Trie;
 
@@ -25,6 +27,21 @@ sub new
     my $packages = $document->{index}{packages_trie}->find($word->name);
 
     my @results;
+    my %seen_subs;
+
+    foreach my $family (keys %Pod::Functions::Kinds)
+    {
+        foreach my $sub (@{$Pod::Functions::Kinds{$family}})
+        {
+            next if $sub =~ /\s+/;
+            next if $seen_subs{$sub}++;
+            push @results,
+              {
+                label => $sub,
+                kind  => 3
+              };
+        } ## end foreach my $sub (@{$Pod::Functions::Kinds...})
+    } ## end foreach my $family (keys %Pod::Functions::Kinds...)
 
     foreach my $sub (@{$document->get_subroutines()})
     {
