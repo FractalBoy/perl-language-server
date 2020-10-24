@@ -8,7 +8,7 @@ import { LanguageClient, LanguageClientOptions, ServerOptions } from 'vscode-lan
 // your extension is activated the very first time the command is executed
 export function activate(context: vscode.ExtensionContext) {
 	const perl = vscode.workspace.getConfiguration('perl');
-	const serverCmd = perl.get<string>('path') ?? 'pls';
+	const serverCmd = perl.get<string>('pls') ?? 'pls';
 
 	const serverOptions: ServerOptions = {
 		run: { command: serverCmd },

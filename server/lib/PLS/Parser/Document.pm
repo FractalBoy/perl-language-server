@@ -51,7 +51,7 @@ sub new
     if (ref $args{text} eq 'SCALAR')
     {
         $document = PPI::Document->new($args{text});
-        $text = $args{text};
+        $text     = $args{text};
     }
     else
     {
@@ -275,7 +275,7 @@ sub get_constants
 
             return 0 unless $element->isa('PPI::Statement::Include');
             return   unless $element->type eq 'use';
-            return $element->module eq 'constant';
+            return (length $element->module and $element->module eq 'constant');
         }
     );
 
@@ -331,16 +331,17 @@ sub format_range
     }
 
     my @lines = split /\n/, ${$self->{text}};
+
     # the amount of padding on the first line that is not part of the selection
     my $first_line_padding = '';
 
     if (ref $range eq 'HASH')
     {
-        @lines     = @lines[$range->{start}{line} .. $range->{end}{line}];
+        @lines = @lines[$range->{start}{line} .. $range->{end}{line}];
         ($first_line_padding) = (substr $lines[0], 0, $range->{start}{character}) =~ /^(\s+)/;
         $first_line_padding = '' unless (length $first_line_padding);
-        $lines[0]  = substr $lines[0], $range->{start}{character};
-        $lines[-1] = substr $lines[-1], 0, $range->{end}{character};
+        $lines[0]           = substr $lines[0],  $range->{start}{character};
+        $lines[-1]          = substr $lines[-1], 0, $range->{end}{character};
     } ## end if (ref $range eq 'HASH'...)
     else
     {
@@ -357,6 +358,7 @@ sub format_range
     } ## end else [ if (ref $range eq 'HASH'...)]
 
     my $selection = join "\n", @lines;
+
     # add padding to selection to keep indentation consistent
     $selection = $first_line_padding . $selection;
 
@@ -367,7 +369,7 @@ sub format_range
     $argv .= ' -t' unless ($args{formatting_options}{insertSpaces});
     $argv .= ' -en=' . $args{formatting_options}{tabSize} if (length $args{formatting_options}{tabSize} and $args{formatting_options}{insertSpaces});
     my $perltidyrc = glob($PLS::Server::State::CONFIG{perltidyrc} // '~/.perltidyrc');
-    my $error = Perl::Tidy::perltidy(source => \$selection, destination => \$formatted, stderr => \$stderr, perltidyrc => glob('~/.perltidyrc'), argv => '-se');
+    my $error      = Perl::Tidy::perltidy(source => \$selection, destination => \$formatted, stderr => \$stderr, perltidyrc => glob('~/.perltidyrc'), argv => '-se');
 
     # remove padding added for consistent formatting
     $formatted = substr $formatted, (length $first_line_padding);
@@ -433,16 +435,16 @@ sub _document_from_uri
 
     if (ref $FILES{$uri} eq 'HASH')
     {
-        $text = $FILES{$uri}{text};
+        $text     = $FILES{$uri}{text};
         $document = PPI::Document->new(\$text);
     }
     else
     {
         my $file = URI->new($uri);
         open my $fh, '<', $file->file or return ('', \'');
-        $text = do { local $/; <$fh> };
+        $text     = do { local $/; <$fh> };
         $document = PPI::Document->new($file->file);
-    }
+    } ## end else [ if (ref $FILES{$uri} eq...)]
 
     return '' unless (ref $document eq 'PPI::Document');
     $document->index_locations;

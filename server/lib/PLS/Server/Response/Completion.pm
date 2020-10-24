@@ -87,7 +87,7 @@ sub new
 
     $self->{result} = [
         map {
-            { %$_, textEdit => {newText => $_->{label} . ($_->{append} // ''), range => $word->range} }
+            { %$_, textEdit => {newText => $_->{label} . ($_->{append} // ''), range => $word->range}, data => $request->{params}{textDocument}{uri} }
           } @results
     ];
 

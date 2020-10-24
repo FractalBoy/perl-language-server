@@ -5,6 +5,7 @@ use warnings;
 
 use parent 'PLS::Server::Message';
 
+use PLS::Server::Method::CompletionItem;
 use PLS::Server::Method::TextDocument;
 use PLS::Server::Method::Workspace;
 use PLS::Server::Request::Base;
@@ -45,6 +46,10 @@ sub new
     elsif ($method[0] eq 'workspace')
     {
         return PLS::Server::Method::Workspace::get_request($request);
+    }
+    elsif ($method[0] eq 'completionItem')
+    {
+        return PLS::Server::Method::CompletionItem::get_request($request);
     }
 
     return PLS::Server::Request::Base->new($request);
