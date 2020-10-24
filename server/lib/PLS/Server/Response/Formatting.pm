@@ -1,7 +1,9 @@
 package PLS::Server::Response::Formatting;
-use parent q(PLS::Server::Response);
 
 use strict;
+use warnings;
+
+use parent q(PLS::Server::Response);
 
 use PLS::Parser::Document;
 

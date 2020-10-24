@@ -1,6 +1,7 @@
 package PLS::Server::Method::TextDocument;
 
 use strict;
+use warnings;
 
 use PLS::Server::Request::TextDocument::Definition;
 use PLS::Server::Request::TextDocument::DocumentSymbol;

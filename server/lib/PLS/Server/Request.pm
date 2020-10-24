@@ -1,11 +1,12 @@
 package PLS::Server::Request;
 
-use parent 'PLS::Server::Message';
-
 use strict;
 use warnings;
 
-use PLS::Server::Method;
+use parent 'PLS::Server::Message';
+
+use PLS::Server::Method::TextDocument;
+use PLS::Server::Method::Workspace;
 use PLS::Server::Request::Base;
 use PLS::Server::Request::Initialize;
 use PLS::Server::Request::Initialized;

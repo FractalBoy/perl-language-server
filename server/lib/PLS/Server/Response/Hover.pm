@@ -1,12 +1,9 @@
 package PLS::Server::Response::Hover;
-use parent q(PLS::Server::Response);
 
 use strict;
 use warnings;
 
-use Pod::Find;
-use Pod::Markdown;
-use URI;
+use parent q(PLS::Server::Response);
 
 use PLS::Parser::Document;
 

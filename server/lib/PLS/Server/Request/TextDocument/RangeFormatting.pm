@@ -1,11 +1,14 @@
 package PLS::Server::Request::TextDocument::RangeFormatting;
-use parent q(PLS::Server::Request::Base);
 
 use strict;
+use warnings;
+
+use parent q(PLS::Server::Request::Base);
 
 use PLS::Server::Response::RangeFormatting;
 
-sub service {
+sub service
+{
     my ($self) = @_;
 
     return PLS::Server::Response::RangeFormatting->new($self);

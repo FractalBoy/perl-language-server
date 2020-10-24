@@ -1,7 +1,9 @@
 package PLS::Server::Request::Workspace::DidChangeConfiguration;
-use parent q(PLS::Server::Request::Base);
 
 use strict;
+use warnings;
+
+use parent q(PLS::Server::Request::Base);
 
 sub service
 {

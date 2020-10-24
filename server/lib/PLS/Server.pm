@@ -1,22 +1,23 @@
 package PLS::Server;
 
 use strict;
+use warnings;
 
 use Coro;
+use Coro::Channel;
 use Coro::Handle;
 use JSON;
 use Scalar::Util;
 
 use PLS::Server::Request;
 use PLS::Server::Response;
-use PLS::Server::State;
 
 sub new
 {
     my ($class, $readfh, $writefh) = @_;
 
-    my $readfh  = $readfh  || \*STDIN;
-    my $writefh = $writefh || \*STDOUT;
+    $readfh  = $readfh  || \*STDIN;
+    $writefh = $writefh || \*STDOUT;
 
     my %self = (
                 readfh  => Coro::Handle->new_from_fh($readfh),
