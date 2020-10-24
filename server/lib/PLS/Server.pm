@@ -2,11 +2,7 @@ package PLS::Server;
 
 use strict;
 
-use AnyEvent;
-use AnyEvent::Loop;
 use Coro;
-use Coro::AnyEvent;
-use Coro::Debug;
 use Coro::Handle;
 use JSON;
 use Scalar::Util;
@@ -14,8 +10,6 @@ use Scalar::Util;
 use PLS::Server::Request;
 use PLS::Server::Response;
 use PLS::Server::State;
-
-our $unix_server = Coro::Debug->new_unix_server('/tmp/coro.sock');
 
 sub new
 {
@@ -88,8 +82,8 @@ sub run
     my $server_requests  = Coro::Channel->new;
     my $client_responses = Coro::Channel->new;
 
-    $self->{server_requests}  = $server_requests;
-    my $last_request_id  = 0;
+    $self->{server_requests} = $server_requests;
+    my $last_request_id = 0;
     my @pending_requests;
 
     my $stderr = Coro::Handle->new_from_fh(\*STDERR);
@@ -103,7 +97,7 @@ sub run
             next unless Scalar::Util::blessed($response);
             $responses->put($response);
         } ## end while (my $request = $requests...)
-    } ## end async
+    };
 
     async
     {
@@ -133,7 +127,7 @@ sub run
             @pending_requests = grep { $_->{id} != $response->{id} } @pending_requests;
             $request->handle_response($response);
         } ## end while (my $response = $client_responses...)
-    };    ## end async
+    };
 
     # main loop
     while (1)
