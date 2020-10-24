@@ -13,12 +13,13 @@ sub new
     my $self = bless {id => $request->{id}, result => undef};
 
     my $document = PLS::Parser::Document->new(uri => $request->{params}{textDocument}{uri});
-    my @elements = $document->find_elements_at_location(@{$request->{params}{position}}{qw(line character)});
-    my ($word)   = sort { length $a->name <=> length $b->name } grep { $_->{ppi_element}->significant } @elements;
+    return $self unless (ref $document eq 'PLS::Parser::Document');
 
+    my @elements = $document->find_elements_at_location(@{$request->{params}{position}}{qw(line character)});
+    my ($word) = sort { length $a->name <=> length $b->name } grep { $_->{ppi_element}->significant } @elements;
     return $self unless (ref $word eq 'PLS::Parser::Element');
 
-    my $subs = $document->{index}{subs_trie}->find($word->name);
+    my $subs     = $document->{index}{subs_trie}->find($word->name);
     my $packages = $document->{index}{packages_trie}->find($word->name);
 
     my @results;
@@ -74,10 +75,10 @@ sub new
           };
     } ## end foreach my $package (@{$document...})
 
-    $subs = [] unless (ref $subs eq 'ARRAY');
+    $subs     = [] unless (ref $subs eq 'ARRAY');
     $packages = [] unless (ref $packages eq 'ARRAY');
 
-    @$subs = map { {label => $_, kind => 3} } @$subs;
+    @$subs     = map { {label => $_, kind => 3} } @$subs;
     @$packages = map { {label => $_, kind => 7} } @$packages;
 
     @results = (@results, @$subs, @$packages);

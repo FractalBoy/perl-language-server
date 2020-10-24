@@ -9,7 +9,9 @@ sub new {
 }
 
 sub service {
-    return undef;
+    my ($self) = @_;
+
+    return;
 }
 
 sub isa {

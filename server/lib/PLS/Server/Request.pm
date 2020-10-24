@@ -3,9 +3,7 @@ package PLS::Server::Request;
 use parent 'PLS::Server::Message';
 
 use strict;
-
-use JSON;
-use List::Util;
+use warnings;
 
 use PLS::Server::Method;
 use PLS::Server::Request::Base;
@@ -13,34 +11,49 @@ use PLS::Server::Request::Initialize;
 use PLS::Server::Request::Initialized;
 use PLS::Server::Request::CancelRequest;
 
-sub new {
+sub new
+{
     my ($class, $request) = @_;
 
     my $method = $request->{method};
 
-    if ($method eq 'initialize') {
+    if ($method eq 'initialize')
+    {
         return PLS::Server::Request::Initialize->new($request);
-    } elsif ($method eq 'initialized') {
+    }
+    elsif ($method eq 'initialized')
+    {
         return PLS::Server::Request::Initialized->new($request);
     }
 
     return PLS::Server::Response::ServerNotInitialized->new($request)
-        unless $PLS::Server::State::INITIALIZED;
+      unless $PLS::Server::State::INITIALIZED;
 
-    if ($method eq '$/cancelRequest') {
+    if ($method eq '$/cancelRequest')
+    {
         return PLS::Server::Request::CancelRequest->new($request);
     }
 
     # create and return request classes here
     my @method = split '/', $method;
 
-    if ($method[0] eq 'textDocument') {
+    if ($method[0] eq 'textDocument')
+    {
         return PLS::Server::Method::TextDocument::get_request($request);
-    } elsif ($method[0] eq 'workspace') {
+    }
+    elsif ($method[0] eq 'workspace')
+    {
         return PLS::Server::Method::Workspace::get_request($request);
     }
 
     return PLS::Server::Request::Base->new($request);
+} ## end sub new
+
+sub handle_response
+{
+    my ($self);
+
+    return;
 }
 
 1;
