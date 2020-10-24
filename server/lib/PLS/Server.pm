@@ -77,32 +77,31 @@ sub run
 {
     my ($self) = @_;
 
-    my $requests         = Coro::Channel->new;
-    my $responses        = Coro::Channel->new;
+    my $client_requests  = Coro::Channel->new;
+    my $server_responses = Coro::Channel->new;
     my $server_requests  = Coro::Channel->new;
     my $client_responses = Coro::Channel->new;
 
     $self->{server_requests} = $server_requests;
+
     my $last_request_id = 0;
     my @pending_requests;
-
-    my $stderr = Coro::Handle->new_from_fh(\*STDERR);
 
     async
     {
         # check for requests and service them
-        while (my $request = $requests->get)
+        while (my $request = $client_requests->get)
         {
             my $response = $request->service($self);
             next unless Scalar::Util::blessed($response);
-            $responses->put($response);
-        } ## end while (my $request = $requests...)
+            $server_responses->put($response);
+        } ## end while (my $request = $client_requests...)
     };
 
     async
     {
         # check for responses and send them
-        while (my $response = $responses->get)
+        while (my $response = $server_responses->get)
         {
             $self->send($response);
         }
@@ -132,13 +131,14 @@ sub run
     # main loop
     while (1)
     {
-        # check for requests and drop them on the channel to be serviced by existing threads
+        # check for messages from the client and drop them on the
+        # appropriate channel to be serviced by existing threads
         my $message = $self->recv;
         next unless Scalar::Util::blessed($message);
 
         if ($message->isa('PLS::Server::Request'))
         {
-            $requests->put($message);
+            $client_requests->put($message);
         }
         if ($message->isa('PLS::Server::Response'))
         {
