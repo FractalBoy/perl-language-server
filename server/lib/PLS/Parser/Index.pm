@@ -60,9 +60,14 @@ sub index_files
     my (undef, $parent_dir) = File::Spec->splitpath($self->{location});
     File::Path::make_path($parent_dir);
 
-    @files = @{$self->get_all_perl_files()} unless (scalar @files);
-
     my $index = $self->index();
+
+    unless (scalar @files)
+    {
+        @files = @{$self->get_all_perl_files()};
+        $self->cleanup_old_files($index);
+
+    } ## end unless (scalar @files)
 
     if (-f $self->{location})
     {
@@ -79,9 +84,7 @@ sub index_files
     foreach my $file (@files)
     {
         $current++;
-        my $time = Time::Piece->new;
-        $time = $time->ymd . ' ' . $time->hms;
-        print {\*STDERR} "[$time] Indexing $file ($current/$total)...\n";
+        $self->log("Indexing $file ($current/$total)...");
         my $document = PLS::Parser::Document->new(path => $file);
         next unless (ref $document eq 'PLS::Parser::Document');
 
@@ -188,6 +191,42 @@ sub update_index
         }
     } ## end foreach my $reference (@references...)
 } ## end sub update_index
+
+sub cleanup_old_files
+{
+    my ($self, $index) = @_;
+
+    if (ref $index->{files} eq 'HASH')
+    {
+        foreach my $file (keys %{$index->{files}})
+        {
+            next if -f $file;
+            $self->log("Cleaning up $file from index...");
+
+            if (ref $index->{subs} eq 'HASH')
+            {
+                foreach my $sub (@{$index->{files}{$file}{subs}})
+                {
+                    next unless (ref $index->{subs}{$sub} eq 'ARRAY');
+                    @{$index->{subs}{$sub}} = grep { $_->{file} eq $file } @{$index->{subs}{$sub}};
+                    delete $index->{subs}{$sub} unless (scalar @{$index->{subs}{$sub}});
+                }
+            } ## end if (ref $index->{subs}...)
+
+            if (ref $index->{packages} eq 'HASH')
+            {
+                foreach my $package (@{$index->{files}{$file}{packages}})
+                {
+                    next unless (ref $index->{packages}{$package} eq 'ARRAY');
+                    @{$index->{packages}{$package}} = grep { $_->{file} eq $file } @{$index->{packages}{$package}};
+                    delete $index->{packages}{$package} unless (scalar @{$index->{packages}{$package}});
+                }
+            } ## end if (ref $index->{packages...})
+
+            delete $index->{files}{$file};
+        } ## end foreach my $file (keys %{$index...})
+    } ## end if (ref $index->{files...})
+} ## end sub cleanup_old_files
 
 sub find_package_subroutine
 {
@@ -318,5 +357,14 @@ sub get_all_perl_files
 
     return \@perl_files;
 } ## end sub get_all_perl_files
+
+sub log
+{
+    my (undef, $message) = @_;
+
+    my $time = Time::Piece->new;
+    $time = $time->ymd . ' ' . $time->hms;
+    print {\*STDERR} "[$time] $message\n";
+}
 
 1;
