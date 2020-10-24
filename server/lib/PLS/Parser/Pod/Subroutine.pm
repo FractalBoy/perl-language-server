@@ -5,6 +5,9 @@ use warnings;
 
 use parent 'PLS::Parser::Pod';
 
+use Pod::Find;
+use Pod::Markdown;
+
 use PLS::Server::State;
 
 sub new
