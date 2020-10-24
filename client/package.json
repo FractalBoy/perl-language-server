@@ -16,6 +16,28 @@
 		"onLanguage:perl"
 	],
 	"main": "./out/extension",
+	"contributes": {
+		"configuration": {
+			"title": "Perl Language Server (PLS)",
+			"properties": {
+				"perl.inc": {
+					"type": "array",
+					"default": [],
+					"description": "Paths to add to @INC."
+				},
+				"perl.pls": {
+					"type": "string",
+					"default": "pls",
+					"description": "Path to the pls executable script"
+				},
+				"perl.perltidyrc": {
+					"type": "string",
+					"default": "~/.perltidyrc",
+					"description": "Path to .perltidyrc"
+				}
+			}
+		}
+	},
 	"scripts": {
 		"vscode:prepublish": "webpack --mode production",
 		"webpack": "webpack --mode development",
