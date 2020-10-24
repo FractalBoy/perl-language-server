@@ -12,4 +12,11 @@ sub service {
     return undef;
 }
 
+sub isa {
+    my ($self, $class) = @_;
+
+    return 1 if $self->SUPER::isa($class);
+    return $class eq 'PLS::Server::Request';
+}
+
 1;

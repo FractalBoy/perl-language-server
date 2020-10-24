@@ -1,5 +1,7 @@
 package PLS::Server::Request;
 
+use parent 'PLS::Server::Message';
+
 use strict;
 
 use JSON;
