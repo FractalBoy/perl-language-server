@@ -3,6 +3,8 @@ package PLS::Parser::Index;
 use strict;
 use warnings;
 
+use Coro;
+use Coro::Handle;
 use File::Find;
 use File::Path;
 use File::stat;
@@ -80,17 +82,34 @@ sub index_files
 
     my $total   = scalar @files;
     my $current = 0;
+    my $semaphore = Coro::Semaphore->new;
+    my @coros;
 
     foreach my $file (@files)
     {
         $current++;
-        $self->log("Indexing $file ($current/$total)...");
-        my $document = PLS::Parser::Document->new(path => $file);
-        next unless (ref $document eq 'PLS::Parser::Document');
 
-        $self->update_subroutines($index, $document);
-        $self->update_packages($index, $document);
+        push @coros, async {
+            my ($index, $file, $current) = @_;
+            open my $fh, '<', $file or return;
+            my $coro_fh = Coro::Handle->new_from_fh($fh);
+            my $text;
+            while (my $line = $coro_fh->readline()) { $text .= $line; }
+            my $document = PLS::Parser::Document->new(path => $file, text => \$text);
+            return unless (ref $document eq 'PLS::Parser::Document');
+
+            $semaphore->down;
+            $self->log("Indexing $file ($current/$total)...");
+            $self->update_subroutines($index, $document);
+            $self->update_packages($index, $document);
+            $semaphore->up;
+        } $index, $file, $current;
     } ## end foreach my $file (@files)
+
+    foreach my $coro (@coros)
+    {
+        $coro->join;
+    }
 
     Storable::nstore($index, $self->{location});
     $self->{cache}      = $index;
@@ -117,7 +136,7 @@ sub update_subroutines
     my $constants   = $document->get_constants();
 
     $self->cleanup_index($index, 'subs', $document->{path});
-    $self->update_index($index, 'subs', @$subroutines, @$constants);
+    $self->update_index($index, 'subs', $document->{path}, @$subroutines, @$constants);
 } ## end sub update_subroutines
 
 sub update_packages
@@ -128,7 +147,7 @@ sub update_packages
 
     $self->cleanup_index($index, 'packages', $document->{path});
     return unless (ref $packages eq 'ARRAY');
-    $self->update_index($index, 'packages', @$packages);
+    $self->update_index($index, 'packages', $document->{path}, @$packages);
 } ## end sub update_packages
 
 sub cleanup_index
@@ -162,7 +181,7 @@ sub cleanup_index
 
 sub update_index
 {
-    my ($self, $index, $type, @references) = @_;
+    my ($self, $index, $type, $file, @references) = @_;
 
     my $trie = $self->{"${type}_trie"};
 
@@ -189,6 +208,8 @@ sub update_index
         {
             $index->{$type}{$reference->name} = [$info];
         }
+
+        push @{$index->{files}{$file}{$type}}, $reference->name;
     } ## end foreach my $reference (@references...)
 } ## end sub update_index
 

@@ -46,7 +46,17 @@ sub new
     $INDEX = PLS::Parser::Index->new(root => $PLS::Server::State::ROOT_PATH)
       unless (ref $INDEX eq 'PLS::Parser::Index');
 
-    my ($document, $text) = _document_from_uri($uri);
+    my ($document, $text);
+
+    if (ref $args{text} eq 'SCALAR')
+    {
+        $document = PPI::Document->new($args{text});
+        $text = $args{text};
+    }
+    else
+    {
+        ($document, $text) = _document_from_uri($uri);
+    }
 
     return unless (ref $document eq 'PPI::Document');
 
