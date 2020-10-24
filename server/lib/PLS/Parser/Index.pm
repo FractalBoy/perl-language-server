@@ -23,12 +23,12 @@ sub new
     my %args = @args;
 
     my %self = (
-                root       => $args{root},
-                location   => File::Spec->catfile($args{root}, INDEX_LOCATION),
-                cache      => {},
-                subs_trie  => Trie->new(),
+                root          => $args{root},
+                location      => File::Spec->catfile($args{root}, INDEX_LOCATION),
+                cache         => {},
+                subs_trie     => Trie->new(),
                 packages_trie => Trie->new(),
-                last_mtime => 0
+                last_mtime    => 0
                );
 
     return bless \%self, $class;
@@ -51,7 +51,7 @@ sub load_trie
         my $count = scalar @{$index->{packages}{$package}};
         $self->{packages_trie}->insert($package, 1);
     }
-}
+} ## end sub load_trie
 
 sub index_files
 {
@@ -81,7 +81,7 @@ sub index_files
         $current++;
         my $time = Time::Piece->new;
         $time = $time->ymd . ' ' . $time->hms;
-        warn "[$time] Indexing $file ($current/$total)...\n";
+        print {\*STDERR} "[$time] Indexing $file ($current/$total)...\n";
         my $document = PLS::Parser::Document->new(path => $file);
         next unless (ref $document eq 'PLS::Parser::Document');
 
@@ -181,7 +181,7 @@ sub update_index
             {
                 $trie->insert($reference->name, 1);
             }
-        }
+        } ## end if (ref $index->{$type...})
         else
         {
             $index->{$type}{$reference->name} = [$info];

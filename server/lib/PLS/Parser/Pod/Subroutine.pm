@@ -5,6 +5,8 @@ use warnings;
 
 use parent 'PLS::Parser::Pod';
 
+use PLS::Server::State;
+
 sub new
 {
     my ($class, @args) = @_;
@@ -34,7 +36,26 @@ sub find
 
     if (length $self->{package})
     {
-        my $path = Pod::Find::pod_where({-inc => 1}, $self->{package});
+        # default to including everything except PLS code in search.
+        my @include = grep { not /\Q$FindBin::RealBin\E/ } @INC;
+
+        # try to get a clean @INC from the perl we're using
+        if (open my $perl, '-|', $^X, '-e', q{$, = "\n"; print @INC; print "\n"})
+        {
+            @include = ();
+
+            while (my $line = <$perl>)
+            {
+                chomp $line;
+                next unless (length $line);
+                push @include, $line;
+            } ## end while (my $line = <$perl>...)
+        } ## end if (open my $perl, $^X...)
+
+        unshift @include, @{$PLS::Server::State::CONFIG{inc}} if (ref $PLS::Server::State::CONFIG{inc} eq 'ARRAY');
+        unshift @include, $PLS::Server::State::ROOT_PATH;
+
+        my $path = Pod::Find::pod_where({-dirs => \@include}, $self->{package});
 
         if (length $path)
         {
@@ -44,15 +65,15 @@ sub find
                 $self->{markdown} = $markdown;
                 return 1;
             }
-        }
+        } ## end if (length $path)
 
         $definitions = $self->{document}{index}->find_package_subroutine($self->{package}, $self->{subroutine});
-    } ## end if (length $package)
+    } ## end if (length $self->{package...})
 
     unless (ref $definitions eq 'ARRAY' and scalar @$definitions)
     {
         $definitions = $self->{document}{index}->find_subroutine($self->{subroutine});
-    } ## end unless (ref $definitions eq...)
+    }
 
     my @markdown;
 
@@ -62,7 +83,7 @@ sub find
     # see if it's a built-in
     ($ok, $markdown) = $self->run_perldoc_command('-Tuf', $self->{subroutine});
     push @markdown, $$markdown if $ok;
-    
+
     if (scalar @markdown)
     {
         $self->{markdown} = \($self->combine_markdown(@markdown));
@@ -73,7 +94,7 @@ sub find
     ($ok, $markdown) = $self->run_perldoc_command('-Tu', $self->{package}) if (length $self->{package});
     $self->{markdown} = $markdown if $ok;
     return $ok;
-}
+} ## end sub find
 
 sub find_pod_in_definitions
 {
@@ -86,7 +107,7 @@ sub find_pod_in_definitions
 
     foreach my $definition (@$definitions)
     {
-        my $path      = URI->new($definition->{uri})->file;
+        my $path = URI->new($definition->{uri})->file;
         my ($found, $markdown_part) = $self->find_pod_in_file($path);
         next unless $found;
 
@@ -102,7 +123,7 @@ sub find_pod_in_definitions
     return 0 unless $ok;
     my $markdown = $self->combine_markdown(@markdown_parts);
     return 1, \$markdown;
-}
+} ## end sub find_pod_in_definitions
 
 sub find_pod_in_file
 {
@@ -120,7 +141,7 @@ sub find_pod_in_file
             $start = $1;
             push @lines, $line;
             next;
-        } ## end if ($line =~ /^=(head\d|item).*\b$subroutine\b.*$/...)
+        } ## end if ($line =~ /^=(head\d|item).*\b$self->{subroutine}\b.*$/...)
 
         if (length $start)
         {

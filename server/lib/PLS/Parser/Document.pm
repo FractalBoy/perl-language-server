@@ -356,6 +356,7 @@ sub format_range
     $argv .= ' -i=' . $args{formatting_options}{tabSize} if (length $args{formatting_options}{tabSize});
     $argv .= ' -t' unless ($args{formatting_options}{insertSpaces});
     $argv .= ' -en=' . $args{formatting_options}{tabSize} if (length $args{formatting_options}{tabSize} and $args{formatting_options}{insertSpaces});
+    my $perltidyrc = glob($PLS::Server::State::CONFIG{perltidyrc} // '~/.perltidyrc');
     my $error = Perl::Tidy::perltidy(source => \$selection, destination => \$formatted, stderr => \$stderr, perltidyrc => glob('~/.perltidyrc'), argv => '-se');
 
     # remove padding added for consistent formatting
