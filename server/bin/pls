@@ -5,8 +5,8 @@ BEGIN {
     use lib "$FindBin::Bin/../lib";
 }
 
-use warnings;
 use strict;
+use warnings;
 
 use PLS;
 

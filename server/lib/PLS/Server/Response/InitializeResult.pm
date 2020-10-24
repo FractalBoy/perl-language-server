@@ -1,35 +1,38 @@
 package PLS::Server::Response::InitializeResult;
-use parent q(PLS::Server::Response);
 
 use strict;
+use warnings;
 
-sub new {
+use parent q(PLS::Server::Response);
+
+sub new
+{
     my ($class, $request) = @_;
 
-    my %self = ( 
-        id => $request->{id},
-        result => {
-            capabilities => {
-                definitionProvider => \1,
-                documentSymbolProvider => \1,
-                hoverProvider => \1,
-                signatureHelpProvider => {
-                    triggerCharacters => ['(']
-                },
-                textDocumentSync => {
-                    openClose => \1,
-                    change => 1
-                },
-                documentFormattingProvider => \1,
-                documentRangeFormattingProvider => \1,
-                completionProvider => {
-                    triggerCharacters => ['>', ':', '$', '@', '%']
-                }
-            }
-        }
-    );
+    my %self = (
+                id     => $request->{id},
+                result => {
+                           capabilities => {
+                                            definitionProvider     => \1,
+                                            documentSymbolProvider => \1,
+                                            hoverProvider          => \1,
+                                            signatureHelpProvider  => {
+                                                                      triggerCharacters => ['(']
+                                                                     },
+                                            textDocumentSync => {
+                                                                 openClose => \1,
+                                                                 change    => 1
+                                                                },
+                                            documentFormattingProvider      => \1,
+                                            documentRangeFormattingProvider => \1,
+                                            completionProvider              => {
+                                                                   triggerCharacters => ['>', ':', '$', '@', '%']
+                                                                  }
+                                           }
+                          }
+               );
 
     return bless \%self, $class;
-}
+} ## end sub new
 
 1;

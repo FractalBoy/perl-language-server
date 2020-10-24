@@ -1,12 +1,11 @@
 package PLS::Server::Response::Location;
-use parent q(PLS::Server::Response);
 
 use strict;
 use warnings;
 
+use parent q(PLS::Server::Response);
+
 use PLS::Parser::Document;
-use PLS::Parser::Index;
-use PLS::Server::State;
 
 sub new
 {
