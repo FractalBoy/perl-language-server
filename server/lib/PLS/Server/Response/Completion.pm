@@ -6,6 +6,8 @@ use warnings;
 use parent q(PLS::Server::Response);
 
 use Pod::Functions;
+use Module::CoreList;
+use ExtUtils::Installed;
 
 use PLS::Parser::Document;
 use Trie;
@@ -42,6 +44,26 @@ sub new
               };
         } ## end foreach my $sub (@{$Pod::Functions::Kinds...})
     } ## end foreach my $family (keys %Pod::Functions::Kinds...)
+
+    foreach my $module (Module::CoreList->find_modules())
+    {
+        push @results,
+          {
+            label => $module,
+            kind  => 7
+          };
+    } ## end foreach my $module (Module::CoreList...)
+
+    my $extutils = ExtUtils::Installed->new(skip_cwd => 1);
+
+    foreach my $module ($extutils->modules)
+    {
+        push @results,
+          {
+            label => $module,
+            kind  => 7
+          };
+    } ## end foreach my $module ($extutils...)
 
     foreach my $sub (@{$document->get_subroutines()})
     {
