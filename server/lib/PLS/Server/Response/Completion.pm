@@ -122,7 +122,7 @@ sub new
         local $SIG{__WARN__} = sub { };
 
         # check to see if we can import it
-        eval 'require ' . $package;
+        eval "require $package";
     }
 
     unless (length $@)
@@ -138,9 +138,9 @@ sub new
                 {
                     push @results,
                       {
-                        label      => $sub->name,
-                        sortText   => join($arrow ? '->' : '::', $package, $sub->name),
-                        kind       => 3
+                        label    => $sub->name,
+                        sortText => join($arrow ? '->' : '::', $package, $sub->name),
+                        kind     => 3
                       };
                 } ## end foreach my $sub (@{$doc->get_subroutines...})
             } ## end if (ref $doc eq 'PLS::Parser::Document'...)
