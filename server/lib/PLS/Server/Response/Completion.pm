@@ -57,7 +57,7 @@ sub new
         } ## end foreach my $sub (@{$Pod::Functions::Kinds...})
     } ## end foreach my $family (keys %Pod::Functions::Kinds...)
 
-    foreach my $module (Module::CoreList->find_modules())
+    foreach my $module (Module::CoreList->find_modules(qr//, $]))
     {
         push @results,
           {
