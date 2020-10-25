@@ -151,7 +151,7 @@ sub find_pod_in_file
             push @lines, $line;
 
             if (   $start eq 'item' and $line =~ /^=item/
-                or $start =~ /head/ and $line eq $start
+                or $start =~ /head/ and $line =~ /^=$start/
                 or $line  =~ /^=cut/)
             {
                 last;

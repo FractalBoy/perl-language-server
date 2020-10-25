@@ -470,6 +470,13 @@ sub find_word_under_cursor
     @elements = grep { $_->{ppi_element}->significant } @elements;
     my $element = $elements[0];
 
+    my $previous_sibling = $element->previous_sibling;
+
+    if (ref $element eq 'PLS::Parser::Element' and ref $previous_sibling eq 'PLS::Parser::Element' and $previous_sibling->name eq '->')
+    {
+        $element = $element->previous_sibling;
+    }
+
     if (ref $element eq 'PLS::Parser::Element' and $element->name eq '->')
     {
         $element = $element->previous_sibling;

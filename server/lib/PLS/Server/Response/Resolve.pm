@@ -34,16 +34,16 @@ sub new
     {
         my ($package, $subroutine);
 
-        if ($request->{params}{label} =~ /::/)
+        if ($request->{params}{label} =~ /->/)
+        {
+            ($package, $subroutine) = split /->/, $request->{params}{label};
+        }
+        elsif ($request->{params}{label} =~ /::/)
         {
             my @parts = split /::/, $request->{params}{label};
             $subroutine = pop @parts;
             $package    = join '::', @parts;
-        } ## end if ($request->{params}...)
-        elsif ($request->{params}{label} =~ /->/)
-        {
-            ($package, $subroutine) = split /->/, $request->{params}{label};
-        }
+        } ## end elsif ($request->{params}...)
         else
         {
             $subroutine = $request->{params}{label};

@@ -28,6 +28,18 @@ sub new
     my $subs     = $document->{index}{subs_trie}->find($word->name);
     my $packages = $document->{index}{packages_trie}->find($word->name);
 
+    # if we're on an arrow but the token before the arrow isn't actually a package,
+    # then we really should be looking at the node after the arrow
+    if ($arrow and ref $packages ne 'ARRAY' and ref $word->next_sibling eq 'PLS::Parser::Element')
+    {
+        # if there's no node after the arrow, we don't have anything to go on yet.
+        return $self unless (ref $word->next_sibling->next_sibling eq 'PLS::Parser::Element');
+        $word = $word->next_sibling->next_sibling;
+
+        $subs     = $document->{index}{subs_trie}->find($word->name);
+        $packages = $document->{index}{packages_trie}->find($word->name);
+    }
+
     my @results;
     my %seen_subs;
 
@@ -118,7 +130,7 @@ sub new
 
     # check to see if we can import it
     eval 'require ' . $word->name;
-    
+
     unless ($@)
     {
         my $potential_package = Module::Metadata->new_from_module($word->name);

@@ -200,8 +200,14 @@ sub previous_sibling
 {
     my ($self) = @_;
 
-    my $previous_sibling = PLS::Parser::Element->new(file => $self->{file}, element => $self->{ppi_element}->sprevious_sibling);
-    return $previous_sibling;
+    return PLS::Parser::Element->new(file => $self->{file}, element => $self->{ppi_element}->sprevious_sibling);
+} ## end sub previous_sibling
+
+sub next_sibling
+{
+    my ($self) = @_;
+
+    return PLS::Parser::Element->new(file => $self->{file}, element => $self->{ppi_element}->snext_sibling);
 } ## end sub previous_sibling
 
 sub children
