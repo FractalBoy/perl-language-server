@@ -9,6 +9,9 @@ use Pod::Markdown;
 use Symbol qw(gensym);
 
 use PLS::Parser::Document;
+use PLS::Server::State;
+
+my @include;
 
 sub new
 {
@@ -71,6 +74,18 @@ sub run_perldoc_command
     return $class->get_markdown_from_text(\$pod);
 }
 
+sub get_markdown_for_package
+{
+    my ($class, $package) = @_;
+
+    my $include = $class->get_clean_inc();
+    my $path = Pod::Find::pod_where({-dirs => $include}, $package);
+    return unless (length $path);
+    open my $fh, '<', $path or return;
+    my $text = do { local $/; <$fh> };
+    return $class->get_markdown_from_text(\$text);
+}
+
 sub get_markdown_from_lines
 {
     my ($class, $lines) = @_;
@@ -120,6 +135,30 @@ sub combine_markdown
     my ($class, @markdown_parts) =@_;
 
     return join "\n---\n", @markdown_parts;
+}
+
+sub get_clean_inc
+{
+    return \@include if (scalar @include);
+    # default to including everything except PLS code in search.
+    @include = grep { not /\Q$FindBin::RealBin\E/ } @INC;
+
+    # try to get a clean @INC from the perl we're using
+    if (open my $perl, '-|', $^X, '-e', q{$, = "\n"; print @INC; print "\n"})
+    {
+        @include = ();
+
+        while (my $line = <$perl>)
+        {
+            chomp $line;
+            next unless (length $line);
+            push @include, $line;
+        } ## end while (my $line = <$perl>...)
+    } ## end if (open my $perl, $^X...)
+
+    unshift @include, @{$PLS::Server::State::CONFIG{inc}} if (ref $PLS::Server::State::CONFIG{inc} eq 'ARRAY');
+    unshift @include, $PLS::Server::State::ROOT_PATH;
+    return \@include;
 }
 
 1;

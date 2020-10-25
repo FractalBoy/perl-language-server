@@ -11,6 +11,7 @@ use Module::Metadata;
 use ExtUtils::Installed;
 
 use PLS::Parser::Document;
+use PLS::Parser::Pod;
 use Trie;
 
 sub new
@@ -66,7 +67,8 @@ sub new
           };
     } ## end foreach my $module (Module::CoreList...)
 
-    my $extutils = ExtUtils::Installed->new(skip_cwd => 1);
+    my $include = PLS::Parser::Pod->get_clean_inc();
+    my $extutils = ExtUtils::Installed->new(inc_override => $include);
 
     foreach my $module ($extutils->modules)
     {
@@ -131,7 +133,7 @@ sub new
     # check to see if we can import it
     eval 'require ' . $word->name;
 
-    unless ($@)
+    unless (length $@)
     {
         my $potential_package = Module::Metadata->new_from_module($word->name);
         if (ref $potential_package eq 'Module::Metadata')

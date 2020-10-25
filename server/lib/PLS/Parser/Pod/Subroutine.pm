@@ -39,26 +39,8 @@ sub find
 
     if (length $self->{package})
     {
-        # default to including everything except PLS code in search.
-        my @include = grep { not /\Q$FindBin::RealBin\E/ } @INC;
-
-        # try to get a clean @INC from the perl we're using
-        if (open my $perl, '-|', $^X, '-e', q{$, = "\n"; print @INC; print "\n"})
-        {
-            @include = ();
-
-            while (my $line = <$perl>)
-            {
-                chomp $line;
-                next unless (length $line);
-                push @include, $line;
-            } ## end while (my $line = <$perl>...)
-        } ## end if (open my $perl, $^X...)
-
-        unshift @include, @{$PLS::Server::State::CONFIG{inc}} if (ref $PLS::Server::State::CONFIG{inc} eq 'ARRAY');
-        unshift @include, $PLS::Server::State::ROOT_PATH;
-
-        my $path = Pod::Find::pod_where({-dirs => \@include}, $self->{package});
+        my $include = $self->get_clean_inc();
+        my $path = Pod::Find::pod_where({-dirs => $include}, $self->{package});
 
         if (length $path)
         {
@@ -94,7 +76,17 @@ sub find
     }
 
     # if all else fails, show documentation for the entire package
-    ($ok, $markdown) = $self->run_perldoc_command('-Tu', $self->{package}) if (length $self->{package});
+    if (length $self->{package})
+    {
+        ($ok, $markdown) = $self->get_markdown_for_package($self->{package}) if (length $self->{package});
+
+        unless ($ok)
+        {
+            my $package = join '::', $self->{package}, $self->{subroutine};
+            ($ok, $markdown) = $self->get_markdown_for_package($package);
+        }
+    }
+
     $self->{markdown} = $markdown if $ok;
     return $ok;
 } ## end sub find

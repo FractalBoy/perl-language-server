@@ -68,7 +68,6 @@ sub index_files
     {
         @files = @{$self->get_all_perl_files()};
         $self->cleanup_old_files($index);
-
     } ## end unless (scalar @files)
 
     if (-f $self->{location})
@@ -361,6 +360,7 @@ sub get_all_perl_files
     {
         while (my $line = <$plsignore>)
         {
+            chomp $line;
             push @ignore_files, glob(File::Spec->catfile($self->{root}, $line));
         }
     } ## end if (open my $plsignore...)
@@ -372,7 +372,7 @@ sub get_all_perl_files
              return grep
              {
                  my $file = $_;
-                 grep { $_ eq $file } @ignore_files
+                 grep { $_ ne $file } @ignore_files
              } @_;
          },
          wanted => sub {

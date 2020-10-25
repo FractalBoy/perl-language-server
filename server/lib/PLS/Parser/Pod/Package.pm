@@ -45,8 +45,9 @@ sub find
         }
     }
 
-    my ($ok, $markdown) = $self->run_perldoc_command('-Tu', $self->{package});
+    my ($ok, $markdown) = $self->get_markdown_for_package($self->{package});
     $self->{markdown} = $markdown if $ok;
+
     return $ok;
 }
 
