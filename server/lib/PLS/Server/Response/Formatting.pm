@@ -11,22 +11,20 @@ sub new
 {
     my ($class, $request) = @_;
 
+    my $self     = bless {id => $request->{id}}, $class;
     my $document = PLS::Parser::Document->new(uri => $request->{params}{textDocument}{uri});
     my ($ok, $formatted) = $document->format(formatting_options => $request->{params}{options});
 
-    my %self = (id => $request->{id}, result => undef);
-
     if ($ok)
     {
-        $self{result} = $formatted;
+        $self->{result} = $formatted;
     }
     else
     {
-        delete $self{result};
-        $self{error} = $formatted;
+        $self->{error} = $formatted;
     }
 
-    return bless \%self, $class;
+    return $self;
 } ## end sub new
 
 1;

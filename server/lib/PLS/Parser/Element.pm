@@ -201,14 +201,14 @@ sub previous_sibling
     my ($self) = @_;
 
     return PLS::Parser::Element->new(file => $self->{file}, element => $self->{ppi_element}->sprevious_sibling);
-} ## end sub previous_sibling
+}
 
 sub next_sibling
 {
     my ($self) = @_;
 
     return PLS::Parser::Element->new(file => $self->{file}, element => $self->{ppi_element}->snext_sibling);
-} ## end sub previous_sibling
+}
 
 sub children
 {
@@ -217,5 +217,12 @@ sub children
     return unless $self->{ppi_element}->can('children');
     return map { PLS::Parser::Element->new(file => $self->{file}, element => $_) } $self->{ppi_element}->children;
 } ## end sub children
+
+sub tokens
+{
+    my ($self) = @_;
+
+    return map { PLS::Parser::Element->new(file => $self->{file}, element => $_) } $self->{ppi_element}->tokens;
+}
 
 1;

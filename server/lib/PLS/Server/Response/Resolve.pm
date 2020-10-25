@@ -39,9 +39,10 @@ sub new
             my $label = $request->{params}{label} =~ /->/ ? $request->{params}{label} : $request->{params}{sortText};
             ($package, $subroutine) = split /->/, $label;
         }
-        elsif ($request->{params}{label} =~ /::/)
+        elsif ($request->{params}{label} =~ /::/ or ($request->{params}{filterText} // '') =~ /::/)
         {
-            my @parts = split /::/, $request->{params}{label};
+            my $label = $request->{params}{label} =~ /::/ ? $request->{params}{label} : $request->{params}{filterText};
+            my @parts = split /::/, $label;
             $subroutine = pop @parts;
             $package    = join '::', @parts;
         } ## end elsif ($request->{params}...)

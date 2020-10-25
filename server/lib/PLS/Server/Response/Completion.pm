@@ -25,6 +25,7 @@ sub new
 
     my ($range, $arrow, $package, $filter) = $document->find_word_under_cursor(@{$request->{params}{position}}{qw(line character)});
     return $self unless (ref $range eq 'HASH');
+    $package =~ s/::$// if (length $package);
 
     my $subs     = $document->{index}{subs_trie}->find($filter);
     my $packages = $document->{index}{packages_trie}->find($filter);
@@ -120,7 +121,6 @@ sub new
 
     if (length $package)
     {
-        $package =~ s/::$//;
         local $SIG{__WARN__} = sub { };
 
         # check to see if we can import it
@@ -134,7 +134,7 @@ sub new
         } ## end if (length $@)
     } ## end if (length $package)
 
-    unless (length $@)
+    if (length $package and not length $@)
     {
         my $potential_package = Module::Metadata->new_from_module($package);
 
@@ -145,17 +145,23 @@ sub new
             {
                 foreach my $sub (@{$doc->get_subroutines()})
                 {
+                    my $separator = $arrow ? '->' : '::';
+                    my $fully_qualified = join $separator, $package, $sub->name;
                     my $result = {
                                   label    => $sub->name,
                                   sortText => join($arrow ? '->' : '::', $package, $sub->name),
-                                  kind     => 3
+                                  kind     => 3,
                                  };
-                    $result->{filterText} = join('::', $package, $sub->name) unless $arrow;
+                    unless ($arrow)
+                    {
+                        $result->{filterText} = $fully_qualified;
+                        $result->{insertText} = $fully_qualified;
+                    }
                     push @results, $result;
                 } ## end foreach my $sub (@{$doc->get_subroutines...})
             } ## end if (ref $doc eq 'PLS::Parser::Document'...)
         } ## end if (ref $potential_package...)
-    } ## end unless (length $@)
+    } ## end if (length $package and...)
 
     $subs     = [] unless (ref $subs eq 'ARRAY');
     $packages = [] unless (ref $packages eq 'ARRAY');
@@ -165,11 +171,20 @@ sub new
 
     @results = (@results, @$subs, @$packages);
 
-    $self->{result} = [
-        map {
-            { %$_, textEdit => {newText => $_->{label} . ($_->{append} // ''), range => $range}, data => $request->{params}{textDocument}{uri} }
-          } @results
-    ];
+    foreach my $result (@results)
+    {
+        my $new_text = $result->{label};
+        $new_text .= $result->{append}    if (length $result->{append});
+        $new_text = $result->{insertText} if (length $result->{insertText});
+        delete $result->{insertText};
+
+        push @{$self->{result}},
+          {
+            %$result,
+            textEdit => {newText => $new_text, range => $range},
+            data     => $request->{params}{textDocument}{uri}
+          };
+    } ## end foreach my $result (@results...)
 
     return $self;
 } ## end sub new

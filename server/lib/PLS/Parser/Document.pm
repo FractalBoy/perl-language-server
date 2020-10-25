@@ -8,12 +8,14 @@ use Perl::Tidy;
 use PPI;
 use PPI::Find;
 use URI;
+use URI::file;
 
 use PLS::Parser::Element;
 use PLS::Parser::Element::Constant;
 use PLS::Parser::Element::Package;
 use PLS::Parser::Element::Subroutine;
 use PLS::Parser::Element::VariableStatement;
+use PLS::Parser::Index;
 use PLS::Parser::Pod::ClassMethod;
 use PLS::Parser::Pod::Method;
 use PLS::Parser::Pod::Package;
@@ -416,7 +418,7 @@ sub format
 {
     my ($self, $formatting_options) = @_;
 
-    return unless $self->{document}->complete;
+    return (0, {code => -32700, message => 'Could not parse document for formatting. Please check code syntax.'}) unless $self->{document}->complete;
     return $self->format_range(formatting_options => $formatting_options);
 } ## end sub format
 
@@ -465,8 +467,7 @@ sub find_word_under_cursor
     my ($self, $line, $character) = @_;
 
     my @elements = $self->find_elements_at_location($line, $character);
-    @elements = grep { $_->{ppi_element}->isa('PPI::Token::Word') or $_->{ppi_element}->isa('PPI::Statement') or $_->{ppi_element}->isa('PPI::Token::Operator') and $_->name eq '->' } @elements;
-    @elements = map  { my @children = $_->children; scalar @children ? @children : $_ } @elements;
+    @elements = map  { $_->tokens } @elements;
     @elements = grep { $_->{ppi_element}->significant } @elements;
     my $element = $elements[0];
     return unless (ref $element eq 'PLS::Parser::Element');
@@ -515,7 +516,11 @@ sub find_word_under_cursor
     my $range = $element->range;
     $range->{end}{character} = $character;
 
-    return $range, 0, $element->name, $element->name;
+    # look at labels as well, because a label looks like a package name before the second colon.
+    my $package = ($element->{ppi_element}->isa('PPI::Token::Word') or $element->{ppi_element}->isa('PPI::Token::Label')) ? $element->name : '';
+    my $name    = $element->name;
+
+    return $range, 0, $package, $name;
 } ## end sub find_word_under_cursor
 
 1;
