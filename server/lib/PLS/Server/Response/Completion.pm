@@ -145,12 +145,11 @@ sub new
 
     @results = (@results, @$subs, @$packages);
 
-    $self->{result}{items} = [
+    $self->{result} = [
         map {
             { %$_, textEdit => {newText => $_->{label} . ($_->{append} // ''), range => $word->range}, data => $request->{params}{textDocument}{uri} }
           } @results
     ];
-    $self->{result}{isIncomplete} = \1;
 
     return $self;
 } ## end sub new

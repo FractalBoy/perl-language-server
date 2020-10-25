@@ -204,4 +204,12 @@ sub previous_sibling
     return $previous_sibling;
 } ## end sub previous_sibling
 
+sub children
+{
+    my ($self) = @_;
+
+    return unless $self->{ppi_element}->can('children');
+    return map { PLS::Parser::Element->new(file => $self->{file}, element => $_) } $self->{ppi_element}->children;
+} ## end sub children
+
 1;

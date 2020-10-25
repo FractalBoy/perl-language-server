@@ -465,9 +465,11 @@ sub find_word_under_cursor
     my ($self, $line, $character) = @_;
 
     my @elements = $self->find_elements_at_location($line, $character);
+    @elements = grep { $_->{ppi_element}->isa('PPI::Token::Word') or $_->{ppi_element}->isa('PPI::Statement') or $_->{ppi_element}->isa('PPI::Token::Operator') and $_->name eq '->' } @elements;
+    @elements = map { my @children = $_->children; scalar @children ? @children : $_ } @elements;
     @elements = grep { $_->{ppi_element}->significant } @elements;
-    @elements = grep { $_->{ppi_element}->isa('PPI::Token::Word') or $_->{ppi_element}->isa('PPI::Token::Variable') or $_->{ppi_element}->isa('PPI::Token::Operator') and $_->name eq '->' } @elements;
     my $element = $elements[0];
+
     if (ref $element eq 'PLS::Parser::Element' and $element->name eq '->')
     {
         $element = $element->previous_sibling;
