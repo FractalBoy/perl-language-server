@@ -34,9 +34,9 @@ sub new
     {
         my ($package, $subroutine);
 
-        if ($request->{params}{label} =~ /->/ or $request->{params}{sortText} =~ /->/)
+        if ($request->{params}{label} =~ /->/ or ($request->{params}{sortText} // '') =~ /->/)
         {
-            my $label = $request->{params}{label} =~ /->/ ? $request->{params}{label} : $request->{params}{sortText}; 
+            my $label = $request->{params}{label} =~ /->/ ? $request->{params}{label} : $request->{params}{sortText};
             ($package, $subroutine) = split /->/, $label;
         }
         elsif ($request->{params}{label} =~ /::/)

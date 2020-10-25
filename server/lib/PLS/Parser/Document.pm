@@ -511,7 +511,11 @@ sub find_word_under_cursor
         return $range, 1, $package, $filter;
     } ## end if ($element->name eq ...)
 
-    return $element->range, 0, $element->name, $element->name;
+    # modify the range so we don't overwrite anything after the cursor.
+    my $range = $element->range;
+    $range->{end}{character} = $character;
+
+    return $range, 0, $element->name, $element->name;
 } ## end sub find_word_under_cursor
 
 1;
