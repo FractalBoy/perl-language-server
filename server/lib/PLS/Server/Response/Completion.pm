@@ -23,23 +23,11 @@ sub new
     my $document = PLS::Parser::Document->new(uri => $request->{params}{textDocument}{uri});
     return $self unless (ref $document eq 'PLS::Parser::Document');
 
-    my ($word, $arrow) = $document->find_word_under_cursor(@{$request->{params}{position}}{qw(line character)});
-    return $self unless (ref $word eq 'PLS::Parser::Element');
+    my ($range, $arrow, $package, $filter) = $document->find_word_under_cursor(@{$request->{params}{position}}{qw(line character)});
+    return $self unless (ref $range eq 'HASH');
 
-    my $subs     = $document->{index}{subs_trie}->find($word->name);
-    my $packages = $document->{index}{packages_trie}->find($word->name);
-
-    # if we're on an arrow but the token before the arrow isn't actually a package,
-    # then we really should be looking at the node after the arrow
-    if ($arrow and ref $packages ne 'ARRAY' and ref $word->next_sibling eq 'PLS::Parser::Element')
-    {
-        # if there's no node after the arrow, we don't have anything to go on yet.
-        return $self unless (ref $word->next_sibling->next_sibling eq 'PLS::Parser::Element');
-        $word = $word->next_sibling->next_sibling;
-
-        $subs     = $document->{index}{subs_trie}->find($word->name);
-        $packages = $document->{index}{packages_trie}->find($word->name);
-    }
+    my $subs     = $document->{index}{subs_trie}->find($filter);
+    my $packages = $document->{index}{packages_trie}->find($filter);
 
     my @results;
     my %seen_subs;
@@ -67,7 +55,7 @@ sub new
           };
     } ## end foreach my $module (Module::CoreList...)
 
-    my $include = PLS::Parser::Pod->get_clean_inc();
+    my $include  = PLS::Parser::Pod->get_clean_inc();
     my $extutils = ExtUtils::Installed->new(inc_override => $include);
 
     foreach my $module ($extutils->modules)
@@ -121,35 +109,43 @@ sub new
         } ## end foreach my $variable (@{$statement...})
     } ## end foreach my $statement (@{$document...})
 
-    foreach my $package (@{$document->get_packages()})
+    foreach my $pack (@{$document->get_packages()})
     {
         push @results,
           {
-            label => $package->name,
+            label => $pack->name,
             kind  => 7
           };
-    } ## end foreach my $package (@{$document...})
+    } ## end foreach my $pack (@{$document...})
 
-    # check to see if we can import it
-    eval 'require ' . $word->name;
+    {
+        local $SIG{__WARN__} = sub { };
+
+        # check to see if we can import it
+        eval 'require ' . $package;
+    }
 
     unless (length $@)
     {
-        my $potential_package = Module::Metadata->new_from_module($word->name);
+        my $potential_package = Module::Metadata->new_from_module($package);
+
         if (ref $potential_package eq 'Module::Metadata')
         {
             my $doc = PLS::Parser::Document->new(path => $potential_package->filename);
-            next unless (ref $doc eq 'PLS::Parser::Document');
-            foreach my $sub (@{$doc->get_subroutines()})
+            if (ref $doc eq 'PLS::Parser::Document')
             {
-                push @results,
-                  {
-                    label => $word->name . ($arrow ? '->' : '') . $sub->name,
-                    kind  => 3
-                  };
-            } ## end foreach my $sub (@{$doc->get_subroutines...})
+                foreach my $sub (@{$doc->get_subroutines()})
+                {
+                    push @results,
+                      {
+                        label      => $sub->name,
+                        sortText   => join($arrow ? '->' : '::', $package, $sub->name),
+                        kind       => 3
+                      };
+                } ## end foreach my $sub (@{$doc->get_subroutines...})
+            } ## end if (ref $doc eq 'PLS::Parser::Document'...)
         } ## end if (ref $potential_package...)
-    } ## end unless ($@)
+    } ## end unless (length $@)
 
     $subs     = [] unless (ref $subs eq 'ARRAY');
     $packages = [] unless (ref $packages eq 'ARRAY');
@@ -161,7 +157,7 @@ sub new
 
     $self->{result} = [
         map {
-            { %$_, textEdit => {newText => $_->{label} . ($_->{append} // ''), range => $word->range}, data => $request->{params}{textDocument}{uri} }
+            { %$_, textEdit => {newText => $_->{label} . ($_->{append} // ''), range => $range}, data => $request->{params}{textDocument}{uri} }
           } @results
     ];
 
