@@ -365,7 +365,7 @@ sub format_range
     $selection = $first_line_padding . $selection;
 
     my $formatted = '';
-    my $stderr;
+    my $stderr = '';
     my $argv = '-se';
     $argv .= ' -i=' . $args{formatting_options}{tabSize} if (length $args{formatting_options}{tabSize});
     $argv .= ' -t' unless ($args{formatting_options}{insertSpaces});
@@ -387,6 +387,11 @@ sub format_range
         $formatted =~ s/\n+$//;
     }
 
+    $stderr =~ s/^<source_stream>:\s*//gm;
+    $stderr =~ s/^Begin Error Output Stream.*$//m;
+    $stderr =~ s/^.*To save a full \.LOG file.*$//m;
+    $stderr =~ s/^\s*$//gm;
+
     if ($error == 1)
     {
         return (0, {code => -32700, message => 'Perltidy failed to format the text.', data => $stderr});
@@ -402,6 +407,17 @@ sub format_range
                 }
                );
     } ## end if ($error == 2)
+    if (length $stderr)
+    {
+        return (
+                0,
+                {
+                 code    => -32001,
+                 message => 'Unknown error. View the details below to determine the source of the error.',
+                 data    => $stderr
+                }
+               );
+    }
 
     return (
             1,
@@ -418,7 +434,6 @@ sub format
 {
     my ($self, $formatting_options) = @_;
 
-    return (0, {code => -32700, message => 'Could not parse document for formatting. Please check code syntax.'}) unless $self->{document}->complete;
     return $self->format_range(formatting_options => $formatting_options);
 } ## end sub format
 
