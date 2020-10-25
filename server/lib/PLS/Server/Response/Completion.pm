@@ -118,12 +118,21 @@ sub new
           };
     } ## end foreach my $pack (@{$document...})
 
+    if (length $package)
     {
+        $package =~ s/::$//;
         local $SIG{__WARN__} = sub { };
 
         # check to see if we can import it
         eval "require $package";
-    }
+
+        if (length $@)
+        {
+            my @parts = split /::/, $package;
+            $package = join '::', @parts[0 .. $#parts - 1];
+            eval "require $package";
+        } ## end if (length $@)
+    } ## end if (length $package)
 
     unless (length $@)
     {
@@ -136,12 +145,13 @@ sub new
             {
                 foreach my $sub (@{$doc->get_subroutines()})
                 {
-                    push @results,
-                      {
-                        label    => $sub->name,
-                        sortText => join($arrow ? '->' : '::', $package, $sub->name),
-                        kind     => 3
-                      };
+                    my $result = {
+                                  label    => $sub->name,
+                                  sortText => join($arrow ? '->' : '::', $package, $sub->name),
+                                  kind     => 3
+                                 };
+                    $result->{filterText} = join('::', $package, $sub->name) unless $arrow;
+                    push @results, $result;
                 } ## end foreach my $sub (@{$doc->get_subroutines...})
             } ## end if (ref $doc eq 'PLS::Parser::Document'...)
         } ## end if (ref $potential_package...)
