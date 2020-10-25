@@ -7,6 +7,7 @@ use parent q(PLS::Server::Response);
 
 use Pod::Functions;
 use Module::CoreList;
+use Module::Metadata;
 use ExtUtils::Installed;
 
 use PLS::Parser::Document;
@@ -21,8 +22,7 @@ sub new
     my $document = PLS::Parser::Document->new(uri => $request->{params}{textDocument}{uri});
     return $self unless (ref $document eq 'PLS::Parser::Document');
 
-    my @elements = $document->find_elements_at_location(@{$request->{params}{position}}{qw(line character)});
-    my ($word) = sort { length $a->name <=> length $b->name } grep { $_->{ppi_element}->significant } @elements;
+    my ($word, $arrow) = $document->find_word_under_cursor(@{$request->{params}{position}}{qw(line character)});
     return $self unless (ref $word eq 'PLS::Parser::Element');
 
     my $subs     = $document->{index}{subs_trie}->find($word->name);
@@ -116,6 +116,27 @@ sub new
           };
     } ## end foreach my $package (@{$document...})
 
+    # check to see if we can import it
+    eval 'require ' . $word->name;
+    
+    unless ($@)
+    {
+        my $potential_package = Module::Metadata->new_from_module($word->name);
+        if (ref $potential_package eq 'Module::Metadata')
+        {
+            my $doc = PLS::Parser::Document->new(path => $potential_package->filename);
+            next unless (ref $doc eq 'PLS::Parser::Document');
+            foreach my $sub (@{$doc->get_subroutines()})
+            {
+                push @results,
+                  {
+                    label => $word->name . ($arrow ? '->' : '') . $sub->name,
+                    kind  => 3
+                  };
+            } ## end foreach my $sub (@{$doc->get_subroutines...})
+        } ## end if (ref $potential_package...)
+    } ## end unless ($@)
+
     $subs     = [] unless (ref $subs eq 'ARRAY');
     $packages = [] unless (ref $packages eq 'ARRAY');
 
@@ -124,11 +145,12 @@ sub new
 
     @results = (@results, @$subs, @$packages);
 
-    $self->{result} = [
+    $self->{result}{items} = [
         map {
             { %$_, textEdit => {newText => $_->{label} . ($_->{append} // ''), range => $word->range}, data => $request->{params}{textDocument}{uri} }
           } @results
     ];
+    $self->{result}{isIncomplete} = \1;
 
     return $self;
 } ## end sub new

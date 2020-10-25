@@ -80,8 +80,8 @@ sub index_files
         @files = map { $_->{file} } grep { $_->{mtime} > $self->{last_mtime} } @mtimes;
     } ## end if (-f $self->{location...})
 
-    my $total   = scalar @files;
-    my $current = 0;
+    my $total     = scalar @files;
+    my $current   = 0;
     my $semaphore = Coro::Semaphore->new;
     my @coros;
 
@@ -89,10 +89,11 @@ sub index_files
     {
         $current++;
 
-        push @coros, async {
+        push @coros, async
+        {
             my ($index, $file, $current) = @_;
             open my $fh, '<', $file or return;
-            my $size = (stat $fh)->size;
+            my $size    = (stat $fh)->size;
             my $coro_fh = Coro::Handle->new_from_fh($fh);
             $coro_fh->read(my $text, $size) if $coro_fh->readable;
             return unless (length $text == $size);
@@ -104,7 +105,8 @@ sub index_files
             $self->update_subroutines($index, $document);
             $self->update_packages($index, $document);
             $semaphore->up;
-        } $index, $file, $current;
+        } ## end async
+        $index, $file, $current;
     } ## end foreach my $file (@files)
 
     foreach my $coro (@coros)
@@ -232,7 +234,7 @@ sub cleanup_old_files
                     next unless (ref $index->{subs}{$sub} eq 'ARRAY');
                     @{$index->{subs}{$sub}} = grep { $_->{file} eq $file } @{$index->{subs}{$sub}};
                     delete $index->{subs}{$sub} unless (scalar @{$index->{subs}{$sub}});
-                }
+                } ## end foreach my $sub (@{$index->...})
             } ## end if (ref $index->{subs}...)
 
             if (ref $index->{packages} eq 'HASH')
@@ -242,7 +244,7 @@ sub cleanup_old_files
                     next unless (ref $index->{packages}{$package} eq 'ARRAY');
                     @{$index->{packages}{$package}} = grep { $_->{file} eq $file } @{$index->{packages}{$package}};
                     delete $index->{packages}{$package} unless (scalar @{$index->{packages}{$package}});
-                }
+                } ## end foreach my $package (@{$index...})
             } ## end if (ref $index->{packages...})
 
             delete $index->{files}{$file};
@@ -353,26 +355,45 @@ sub get_all_perl_files
     return unless (length $self->{root});
 
     my @perl_files;
+    my @ignore_files;
+
+    if (open my $plsignore, '<', File::Spec->catfile($self->{root}, '.plsignore'))
+    {
+        while (my $line = <$plsignore>)
+        {
+            push @ignore_files, glob(File::Spec->catfile($self->{root}, $line));
+        }
+    } ## end if (open my $plsignore...)
 
     File::Find::find(
-        sub {
-            return unless -f;
-            return if -l;
-            return if /\.t$/;
-            my @pieces = File::Spec->splitdir($File::Find::name);
+        {
+         preprocess => sub {
+             return () if grep { $File::Find::dir eq $_ } @ignore_files;
+             return grep
+             {
+                 my $file = $_;
+                 grep { $_ eq $file } @ignore_files
+             } @_;
+         },
+         wanted => sub {
+             return unless -f;
+             return if -l;
+             return if /\.t$/;
+             my @pieces = File::Spec->splitdir($File::Find::name);
 
-            # exclude hidden files and files in hidden directories
-            return if grep { /^\./ } @pieces;
-            if (/\.p[ml]$/)
-            {
-                push @perl_files, $File::Find::name;
-                return;
-            }
-            open my $code, '<', $File::Find::name or return;
-            my $first_line = <$code>;
-            push @perl_files, $File::Find::name
-              if (length $first_line and $first_line =~ /^#!.*perl$/);
-            close $code;
+             # exclude hidden files and files in hidden directories
+             return if grep { /^\./ } @pieces;
+             if (/\.p[ml]$/)
+             {
+                 push @perl_files, $File::Find::name;
+                 return;
+             }
+             open my $code, '<', $File::Find::name or return;
+             my $first_line = <$code>;
+             push @perl_files, $File::Find::name
+               if (length $first_line and $first_line =~ /^#!.*perl$/);
+             close $code;
+         }
         },
         $self->{root}
                     );
@@ -387,6 +408,6 @@ sub log
     my $time = Time::Piece->new;
     $time = $time->ymd . ' ' . $time->hms;
     print {\*STDERR} "[$time] $message\n";
-}
+} ## end sub log
 
 1;

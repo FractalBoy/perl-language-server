@@ -3,6 +3,8 @@ package PLS::Parser::Element;
 use strict;
 use warnings;
 
+use Scalar::Util;
+
 sub new
 {
     my ($class, @args) = @_;
@@ -10,6 +12,7 @@ sub new
     my %args = @args;
 
     my %self = (ppi_element => $args{element}, file => $args{file});
+    return unless (Scalar::Util::blessed($args{element}) and $args{element}->isa('PPI::Element'));
     return bless \%self, $class;
 } ## end sub new
 
@@ -184,5 +187,21 @@ sub range
                    }
            };
 } ## end sub range
+
+sub parent
+{
+    my ($self) = @_;
+
+    my $parent = PLS::Parser::Element->new(file => $self->{file}, element => $self->{ppi_element}->parent);
+    return $parent;
+} ## end sub parent
+
+sub previous_sibling
+{
+    my ($self) = @_;
+
+    my $previous_sibling = PLS::Parser::Element->new(file => $self->{file}, element => $self->{ppi_element}->sprevious_sibling);
+    return $previous_sibling;
+} ## end sub previous_sibling
 
 1;

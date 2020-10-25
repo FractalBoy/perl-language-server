@@ -22,14 +22,14 @@ sub new
     if ($kind == 7)
     {
         my $pod = PLS::Parser::Pod::Package->new(document => $document, package => $request->{params}{label});
-        my $ok = $pod->find();
+        my $ok  = $pod->find();
 
         if ($ok)
         {
             $self->{result} = $request->{params};
-            $self->{result}{documentation} = { kind => 'markdown', value => ${$pod->{markdown}}};
+            $self->{result}{documentation} = {kind => 'markdown', value => ${$pod->{markdown}}};
         }
-    }
+    } ## end if ($kind == 7)
     elsif ($kind == 3 or $kind == 21)
     {
         my ($package, $subroutine);
@@ -38,7 +38,11 @@ sub new
         {
             my @parts = split /::/, $request->{params}{label};
             $subroutine = pop @parts;
-            $package = join '::', @parts; 
+            $package    = join '::', @parts;
+        } ## end if ($request->{params}...)
+        elsif ($request->{params}{label} =~ /->/)
+        {
+            ($package, $subroutine) = split /->/, $request->{params}{label};
         }
         else
         {
@@ -46,14 +50,14 @@ sub new
         }
 
         my $pod = PLS::Parser::Pod::Subroutine->new(document => $document, package => $package, subroutine => $subroutine);
-        my $ok = $pod->find();
+        my $ok  = $pod->find();
 
         if ($ok)
         {
             $self->{result} = $request->{params};
-            $self->{result}{documentation} = { kind => 'markdown', value => ${$pod->{markdown}}};
+            $self->{result}{documentation} = {kind => 'markdown', value => ${$pod->{markdown}}};
         }
-    } ## end elsif ($kind == 7 or $kind...)
+    } ## end elsif ($kind == 3 or $kind...)
 
     return $self;
 } ## end sub new
