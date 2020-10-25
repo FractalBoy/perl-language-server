@@ -471,6 +471,12 @@ sub find_word_under_cursor
     my $element = $elements[0];
     return unless (ref $element eq 'PLS::Parser::Element');
 
+    # if the cursor is on the word after an arrow, back up to the arrow so we can use any package information before it.
+    if ($element->{ppi_element}->isa('PPI::Token::Word') and ref $element->previous_sibling eq 'PLS::Parser::Element' and $element->previous_sibling->name eq '->')
+    {
+        $element = $element->previous_sibling;
+    }
+
     if ($element->name eq '->')
     {
         # default to inserting after the arrow
