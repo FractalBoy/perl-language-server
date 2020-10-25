@@ -336,6 +336,7 @@ sub format_range
 
     # the amount of padding on the first line that is not part of the selection
     my $first_line_padding = '';
+    my $whole_file         = 0;
 
     if (ref $range eq 'HASH')
     {
@@ -357,17 +358,18 @@ sub format_range
                           character => 0
                          }
                  };
+        $whole_file = 1;
     } ## end else [ if (ref $range eq 'HASH'...)]
 
     my $selection = join "\n", @lines;
-    my ($newlines_at_end) = $selection =~ /(\n+)$/ms;
+    my ($newlines_at_end) = $selection =~ /(\n+)$/;
 
     # add padding to selection to keep indentation consistent
     $selection = $first_line_padding . $selection;
 
     my $formatted = '';
-    my $stderr = '';
-    my $argv = '-se';
+    my $stderr    = '';
+    my $argv      = '-se';
     $argv .= ' -i=' . $args{formatting_options}{tabSize} if (length $args{formatting_options}{tabSize});
     $argv .= ' -t' unless ($args{formatting_options}{insertSpaces});
     $argv .= ' -en=' . $args{formatting_options}{tabSize} if (length $args{formatting_options}{tabSize} and $args{formatting_options}{insertSpaces});
@@ -376,8 +378,9 @@ sub format_range
 
     # remove padding added for consistent formatting
     $formatted = substr $formatted, (length $first_line_padding);
-    $formatted =~ s/\n+$//ms;
-    $formatted .= $newlines_at_end;
+    $formatted =~ s/\n+$//;
+    $formatted .= $newlines_at_end if (length $newlines_at_end);
+    $formatted .= "\n"             if ($whole_file and not $formatted =~ /\n$/);
 
     $formatted =~ s/\s+$//gm if ($args{formatting_options}{trimTrailingWhitespace});
 
@@ -420,7 +423,7 @@ sub format_range
                  data    => $stderr
                 }
                );
-    }
+    } ## end if (length $stderr)
 
     return (
             1,
@@ -438,7 +441,7 @@ sub format
     my ($self, $formatting_options) = @_;
 
     return $self->format_range(formatting_options => $formatting_options);
-} ## end sub format
+}
 
 sub _ppi_location
 {
