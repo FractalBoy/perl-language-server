@@ -360,6 +360,7 @@ sub format_range
     } ## end else [ if (ref $range eq 'HASH'...)]
 
     my $selection = join "\n", @lines;
+    my ($newlines_at_end) = $selection =~ /(\n+)$/ms;
 
     # add padding to selection to keep indentation consistent
     $selection = $first_line_padding . $selection;
@@ -375,6 +376,8 @@ sub format_range
 
     # remove padding added for consistent formatting
     $formatted = substr $formatted, (length $first_line_padding);
+    $formatted =~ s/\n+$//ms;
+    $formatted .= $newlines_at_end;
 
     $formatted =~ s/\s+$//gm if ($args{formatting_options}{trimTrailingWhitespace});
 
