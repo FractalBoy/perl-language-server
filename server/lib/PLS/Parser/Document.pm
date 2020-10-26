@@ -332,40 +332,49 @@ sub format_range
         return (0, {code => -32700, message => 'Could not get document text.'});
     }
 
-    my @lines = split /\n/, ${$self->{text}};
-
-    # the amount of padding on the first line that is not part of the selection
-    my $first_line_padding = '';
-    my $whole_file         = 0;
+    my $selection = '';
 
     if (ref $range eq 'HASH')
     {
-        @lines = @lines[$range->{start}{line} .. $range->{end}{line}];
-        ($first_line_padding) = (substr $lines[0], 0, $range->{start}{character}) =~ /^(\s+)/;
-        $first_line_padding = '' unless (length $first_line_padding);
-        $lines[0]           = substr $lines[0],  $range->{start}{character};
-        $lines[-1]          = substr $lines[-1], 0, $range->{end}{character};
+        my @lines;
+
+        # if we've selected up until the first character of the next line,
+        # just format up to the line before that
+        $range->{end}{line}-- if ($range->{end}{character} == 0);
+
+        # rather than splitting the text, only to join it back together,
+        # open up a fake filehandle to loop through.
+        open my $fh, '<', $self->{text};
+
+        while (my $line = <$fh>)
+        {
+            if ($. > $range->{start}{line} and $. <= $range->{end}{line} + 1)
+            {
+                push @lines, $line;
+            }
+        } ## end while (my $line = <$fh>)
+
+        close $fh;
+
+        # ignore the column, and just format the entire line.
+        # the text will likely get messed up if you don't include the entire line, anyway.
+        $range->{start}{character} = 0;
+        $selection = join '', @lines;
     } ## end if (ref $range eq 'HASH'...)
     else
     {
+        $selection = ${$self->{text}};
         $range = {
                   start => {
                             line      => 0,
                             character => 0
                            },
                   end => {
-                          line      => scalar @lines,
+                          line      => 0,
                           character => 0
                          }
                  };
-        $whole_file = 1;
     } ## end else [ if (ref $range eq 'HASH'...)]
-
-    my $selection = join "\n", @lines;
-    my ($newlines_at_end) = $selection =~ /(\n+)$/;
-
-    # add padding to selection to keep indentation consistent
-    $selection = $first_line_padding . $selection;
 
     my $formatted = '';
     my $stderr    = '';
@@ -376,11 +385,14 @@ sub format_range
     my $perltidyrc = glob($PLS::Server::State::CONFIG{perltidyrc} // '~/.perltidyrc');
     my $error      = Perl::Tidy::perltidy(source => \$selection, destination => \$formatted, stderr => \$stderr, perltidyrc => glob('~/.perltidyrc'), argv => '-se');
 
-    # remove padding added for consistent formatting
-    $formatted = substr $formatted, (length $first_line_padding);
-    $formatted =~ s/\n+$//;
-    $formatted .= $newlines_at_end if (length $newlines_at_end);
-    $formatted .= "\n"             if ($whole_file and not $formatted =~ /\n$/);
+    # get the number of lines in the formatted result - we need to modify the range if
+    # any lines were added
+    my $lines = 0;
+    open my $fh, '<', \$formatted;
+    while (my $line = <$fh>) { $lines++ }
+    close $fh;
+    $range->{end}{line}      = $range->{start}{line} + $lines;
+    $range->{end}{character} = 0;
 
     $formatted =~ s/\s+$//gm if ($args{formatting_options}{trimTrailingWhitespace});
 
