@@ -372,7 +372,7 @@ sub get_all_perl_files
              return grep
              {
                  my $file = $_;
-                 grep { $_ ne $file } @ignore_files
+                 not scalar @ignore_files or grep { $_ ne $file } @ignore_files
              } @_;
          },
          wanted => sub {
