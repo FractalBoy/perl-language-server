@@ -334,6 +334,8 @@ sub format_range
 
     my $selection = '';
 
+    open my $fh, '<', $self->{text};
+
     if (ref $range eq 'HASH')
     {
         my @lines;
@@ -344,8 +346,6 @@ sub format_range
 
         # rather than splitting the text, only to join it back together,
         # open up a fake filehandle to loop through.
-        open my $fh, '<', $self->{text};
-
         while (my $line = <$fh>)
         {
             if ($. > $range->{start}{line} and $. <= $range->{end}{line} + 1)
@@ -354,27 +354,32 @@ sub format_range
             }
         } ## end while (my $line = <$fh>)
 
-        close $fh;
-
         # ignore the column, and just format the entire line.
         # the text will likely get messed up if you don't include the entire line, anyway.
         $range->{start}{character} = 0;
+        $range->{end}{character} = 0;
+        $range->{end}{line}++;
         $selection = join '', @lines;
     } ## end if (ref $range eq 'HASH'...)
     else
     {
         $selection = ${$self->{text}};
+        my $lines = 0;
+        while (my $line = <$fh>) { $lines++ }
+
         $range = {
                   start => {
                             line      => 0,
                             character => 0
                            },
                   end => {
-                          line      => 0,
+                          line      => $lines,
                           character => 0
                          }
                  };
     } ## end else [ if (ref $range eq 'HASH'...)]
+
+    close $fh;
 
     my $formatted = '';
     my $stderr    = '';
@@ -388,11 +393,12 @@ sub format_range
     # get the number of lines in the formatted result - we need to modify the range if
     # any lines were added
     my $lines = 0;
-    open my $fh, '<', \$formatted;
+    open $fh, '<', \$formatted;
     while (my $line = <$fh>) { $lines++ }
     close $fh;
-    $range->{end}{line}      = $range->{start}{line} + $lines;
-    $range->{end}{character} = 0;
+    # if the selection length has increased due to formatting, update the end.
+    my $new_end = $range->{start}{line} + $lines;
+    $range->{end}{line}      = $new_end if $new_end > $range->{end}{line};
 
     $formatted =~ s/\s+$//gm if ($args{formatting_options}{trimTrailingWhitespace});
 
