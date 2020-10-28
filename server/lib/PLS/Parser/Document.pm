@@ -227,7 +227,6 @@ sub open_file
     return unless $args{languageId} eq 'perl';
 
     $FILES{$args{uri}} = {
-                          version => $args{version},
                           text    => $args{text}
                          };
 
@@ -242,8 +241,54 @@ sub update_file
 
     my $file = $FILES{$args{uri}};
     return unless (ref $file eq 'HASH');
-    return if $args{version} <= $file->{version};
-    $file->{text} = $args{text};
+    open my $fh, '<', \($file->{text});
+    my @lines = <$fh>;
+    close $fh;
+
+    foreach my $change (@{$args{changes}})
+    {
+        open $fh, '<', \($change->{text});
+
+        if (ref $change->{range} eq 'HASH')
+        {
+            my @replacement = <$fh>;
+
+            # get the text that we're not replacing at the start and end of each selection
+            my $starting_text = substr $lines[$change->{range}{start}{line}], 0, $change->{range}{start}{character};
+            my $ending_text = substr $lines[$change->{range}{end}{line}], $change->{range}{end}{character};
+
+            # append the existing text to the replacement
+            if (length $starting_text)
+            {
+                $replacement[0] = length $replacement[0] ? $starting_text . $replacement[0] : $starting_text;
+            }
+            if (length $ending_text)
+            {
+                if (scalar @replacement)
+                {
+                    $replacement[-1] .= $ending_text;
+                }
+                else
+                {
+                    $replacement[0] = $ending_text;
+                }
+            }
+
+            # replace the lines in the range (which may not match the number of lines in the replacement)
+            # with the replacement, including the existing text that is not changing, that we appended above
+            my $lines_replacing = $change->{range}{end}{line} - $change->{range}{start}{line} + 1;
+            splice @lines, $change->{range}{start}{line}, $lines_replacing, @replacement;
+        }
+        else
+        {
+            # no range means we're updating the entire document
+            @lines = <$fh>;
+        }
+
+        close $fh;
+    }
+
+    $file->{text} = join '', @lines;
 } ## end sub update_file
 
 sub close_file

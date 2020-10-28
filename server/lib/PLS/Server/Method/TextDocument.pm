@@ -42,11 +42,8 @@ sub get_request
     if ($method eq 'didChange')
     {
         # skip the earlier changes and just use the newest one.
-        return
-          unless (    ref $request->{params}{contentChanges} eq 'ARRAY'
-                  and ref $request->{params}{contentChanges}[-1] eq 'HASH');
-        my $text_document = $request->{params}{textDocument};
-        PLS::Parser::Document->update_file(%$text_document, text => $request->{params}{contentChanges}[-1]{text});
+        return unless (ref $request->{params}{contentChanges} eq 'ARRAY');
+        PLS::Parser::Document->update_file(uri => $request->{params}{textDocument}{uri}, changes => $request->{params}{contentChanges});
     } ## end if ($method eq 'didChange'...)
     if ($method eq 'didClose')
     {

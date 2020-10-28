@@ -21,7 +21,7 @@ sub new
                                                                      },
                                             textDocumentSync => {
                                                                  openClose => \1,
-                                                                 change    => 1
+                                                                 change    => 2
                                                                 },
                                             documentFormattingProvider      => \1,
                                             documentRangeFormattingProvider => \1,
