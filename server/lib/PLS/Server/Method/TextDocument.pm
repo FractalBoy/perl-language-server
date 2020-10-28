@@ -41,7 +41,6 @@ sub get_request
     }
     if ($method eq 'didChange')
     {
-        # skip the earlier changes and just use the newest one.
         return unless (ref $request->{params}{contentChanges} eq 'ARRAY');
         PLS::Parser::Document->update_file(uri => $request->{params}{textDocument}{uri}, changes => $request->{params}{contentChanges});
     } ## end if ($method eq 'didChange'...)
