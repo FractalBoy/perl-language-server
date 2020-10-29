@@ -75,7 +75,7 @@ sub index_files
         my @mtimes = map { {file => $_, mtime => (stat $_)->mtime} } @files;
 
         # return existing index if all files are older than index
-        return $index if (all { $_ <= $self->{last_mtime} } @mtimes);
+        return $index if (all { $_->{mtime} <= $self->{last_mtime} } @mtimes);
         @files = map { $_->{file} } grep { $_->{mtime} > $self->{last_mtime} } @mtimes;
     } ## end if (-f $self->{location...})
 
