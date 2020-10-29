@@ -96,8 +96,13 @@ sub go_to_definition
 
             if (length $package)
             {
-                return $self->{index}->find_package_subroutine($package, $subroutine);
-            }
+                my $results = $self->{index}->find_package_subroutine($package, $subroutine);
+                return $results if (ref $results eq 'ARRAY' and scalar @$results);
+
+                my $external = $self->find_external_subroutine($package, $subroutine);
+                return [$external] if (ref $external eq 'HASH');
+                return [];
+            } ## end if (length $package)
 
             return $self->{index}->find_subroutine($subroutine);
         } ## end if (my ($package, $subroutine...))
@@ -107,6 +112,9 @@ sub go_to_definition
 
             # fall back to treating as a method instead of class method
             return $results if (ref $results eq 'ARRAY' and scalar @$results);
+
+            my $external = $self->find_external_subroutine($class, $method);
+            return [$external] if (ref $external eq 'HASH');
         } ## end if (my ($class, $method...))
         if (my $method = $match->method_name())
         {
@@ -218,6 +226,29 @@ sub find_elements_at_location
     return @matches;
 } ## end sub find_elements_at_location
 
+sub find_external_subroutine
+{
+    my ($self, $package_name, $subroutine_name) = @_;
+
+    my $include = PLS::Parser::Pod->get_clean_inc();
+    my $package = Module::Metadata->new_from_module($package_name, inc => $include);
+    return unless (ref $package eq 'Module::Metadata');
+
+    my $doc = PLS::Parser::Document->new(path => $package->filename);
+    return unless (ref $doc eq 'PLS::Parser::Document');
+
+    foreach my $subroutine (@{$doc->get_subroutines()})
+    {
+        next unless ($subroutine->name eq $subroutine_name);
+        my $range = $subroutine->range();
+        return {
+                uri       => URI::file->new($package->filename)->as_string,
+                range     => $subroutine->range(),
+                signature => $subroutine->location_info->{signature}
+               };
+    } ## end foreach my $subroutine (@{$doc...})
+} ## end sub find_external_subroutine
+
 sub open_file
 {
     my ($class, @args) = @_;
@@ -226,9 +257,7 @@ sub open_file
 
     return unless $args{languageId} eq 'perl';
 
-    $FILES{$args{uri}} = {
-                          text    => $args{text}
-                         };
+    $FILES{$args{uri}} = {text => $args{text}};
 
     return;
 } ## end sub open_file
@@ -255,7 +284,7 @@ sub update_file
 
             # get the text that we're not replacing at the start and end of each selection
             my $starting_text = substr $lines[$change->{range}{start}{line}], 0, $change->{range}{start}{character};
-            my $ending_text = substr $lines[$change->{range}{end}{line}], $change->{range}{end}{character};
+            my $ending_text   = substr $lines[$change->{range}{end}{line}],   $change->{range}{end}{character};
 
             # append the existing text to the replacement
             if (length $starting_text)
@@ -272,13 +301,13 @@ sub update_file
                 {
                     $replacement[0] = $ending_text;
                 }
-            }
+            } ## end if (length $ending_text...)
 
             # replace the lines in the range (which may not match the number of lines in the replacement)
             # with the replacement, including the existing text that is not changing, that we appended above
             my $lines_replacing = $change->{range}{end}{line} - $change->{range}{start}{line} + 1;
             splice @lines, $change->{range}{start}{line}, $lines_replacing, @replacement;
-        }
+        } ## end if (ref $change->{range...})
         else
         {
             # no range means we're updating the entire document
@@ -286,7 +315,7 @@ sub update_file
         }
 
         close $fh;
-    }
+    } ## end foreach my $change (@{$args...})
 
     $file->{text} = join '', @lines;
 } ## end sub update_file
@@ -402,7 +431,7 @@ sub format_range
         # ignore the column, and just format the entire line.
         # the text will likely get messed up if you don't include the entire line, anyway.
         $range->{start}{character} = 0;
-        $range->{end}{character} = 0;
+        $range->{end}{character}   = 0;
         $range->{end}{line}++;
         $selection = join '', @lines;
     } ## end if (ref $range eq 'HASH'...)
@@ -441,9 +470,10 @@ sub format_range
     open $fh, '<', \$formatted;
     while (my $line = <$fh>) { $lines++ }
     close $fh;
+
     # if the selection length has increased due to formatting, update the end.
     my $new_end = $range->{start}{line} + $lines;
-    $range->{end}{line}      = $new_end if $new_end > $range->{end}{line};
+    $range->{end}{line} = $new_end if $new_end > $range->{end}{line};
 
     $formatted =~ s/\s+$//gm if ($args{formatting_options}{trimTrailingWhitespace});
 
