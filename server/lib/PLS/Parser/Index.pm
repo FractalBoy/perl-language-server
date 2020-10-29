@@ -68,7 +68,7 @@ sub index_files
     {
         @files = @{$self->get_all_perl_files()};
         $self->cleanup_old_files($index);
-    } ## end unless (scalar @files)
+    }
 
     if (-f $self->{location})
     {
@@ -255,16 +255,14 @@ sub find_package_subroutine
 {
     my ($self, $package, $subroutine) = @_;
 
-    my @path = split '::', $package;
-    my $package_path = File::Spec->join(@path) . '.pm';
-
     $self->index_files();
-    my $index = $self->index();
+    my $index     = $self->index();
+    my $locations = $index->{packages}{$package};
+    return [] unless (ref $locations eq 'ARRAY');
 
-    foreach my $file (keys %{$index->{files}})
+    foreach my $file (@$locations)
     {
-        next unless ($file =~ /\Q$package_path\E$/);
-        return $self->find_subroutine($subroutine, $file);
+        return $self->find_subroutine($subroutine, $file->{file});
     }
 
     return;
@@ -285,7 +283,7 @@ sub find_subroutine
     {
         @locations = grep {
             my $location = $_;
-            grep { $location->{file} eq $_ } @files
+            scalar grep { $location->{file} eq $_ } @files;
         } @locations;
     } ## end if (scalar @files)
 
@@ -369,8 +367,7 @@ sub get_all_perl_files
         {
          preprocess => sub {
              return () if grep { $File::Find::dir eq $_ } @ignore_files;
-             return grep
-             {
+             return grep {
                  my $file = $_;
                  not scalar @ignore_files or grep { $_ ne $file } @ignore_files
              } @_;
