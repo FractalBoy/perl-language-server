@@ -407,6 +407,7 @@ sub format_range
     }
 
     my $selection = '';
+    my $whole_file = 0;
 
     open my $fh, '<', $self->{text};
 
@@ -437,6 +438,7 @@ sub format_range
     } ## end if (ref $range eq 'HASH'...)
     else
     {
+        $whole_file = 1;
         $selection = ${$self->{text}};
         my $lines = 0;
         while (my $line = <$fh>) { $lines++ }
@@ -472,8 +474,7 @@ sub format_range
     close $fh;
 
     # if the selection length has increased due to formatting, update the end.
-    my $new_end = $range->{start}{line} + $lines;
-    $range->{end}{line} = $new_end if $new_end > $range->{end}{line};
+    $range->{end}{line} = $lines if ($whole_file and $lines > $range->{end}{line});
 
     $formatted =~ s/\s+$//gm if ($args{formatting_options}{trimTrailingWhitespace});
 
