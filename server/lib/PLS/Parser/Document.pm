@@ -275,12 +275,14 @@ sub update_file
     {
         if (ref $change->{range} eq 'HASH')
         {
-            my @lines       = split $/, ${$file->{text}};
-            my @replacement = split $/, $change->{text};
+            my @lines       = _split_lines($file->{text});
+            my @replacement = _split_lines($change->{text});
+
+            my ($starting_text, $ending_text);
 
             # get the text that we're not replacing at the start and end of each selection
-            my $starting_text = substr $lines[$change->{range}{start}{line}], 0, $change->{range}{start}{character};
-            my $ending_text   = substr $lines[$change->{range}{end}{line}],   $change->{range}{end}{character};
+            $starting_text = substr $lines[$change->{range}{start}{line}], 0, $change->{range}{start}{character} if ($#lines >= $change->{range}{start}{line});
+            $ending_text   = substr $lines[$change->{range}{end}{line}],   $change->{range}{end}{character} if ($#lines >= $change->{range}{end}{line});
 
             # append the existing text to the replacement
             if (length $starting_text)
@@ -396,12 +398,12 @@ sub format_range
     $args{formatting_options} = {} unless (ref $args{formatting_options} eq 'HASH');
     my $range = $args{range};
 
-    if (not ref $self->{text} eq 'SCALAR' or not length ${$self->{text}})
+    if (ref $self->{text} ne 'SCALAR' or not length ${$self->{text}})
     {
         return (0, {code => -32700, message => 'Could not get document text.'});
     }
 
-    my $selection = '';
+    my $selection  = '';
     my $whole_file = 0;
 
     if (ref $range eq 'HASH')
@@ -410,7 +412,7 @@ sub format_range
         # just format up to the line before that
         $range->{end}{line}-- if ($range->{end}{character} == 0);
 
-        my @lines = split $/, ${$self->{text}};
+        my @lines = _split_lines(${$self->{text}});
         @lines = @lines[$range->{start}{line} .. $range->{end}{line}];
 
         # ignore the column, and just format the entire line.
@@ -423,7 +425,7 @@ sub format_range
     else
     {
         $whole_file = 1;
-        $selection = ${$self->{text}};
+        $selection  = ${$self->{text}};
         my $lines = () = $selection =~ m{($/)}g;
         $lines++;
 
@@ -442,8 +444,7 @@ sub format_range
     my $formatted = '';
     my $stderr    = '';
     my $argv      = '-se';
-    $argv .= ' -i=' . $args{formatting_options}{tabSize} if (length $args{formatting_options}{tabSize});
-    $argv .= ' -t' unless ($args{formatting_options}{insertSpaces});
+    $argv .= ' -i=' . $args{formatting_options}{tabSize}  if (length $args{formatting_options}{tabSize});
     $argv .= ' -en=' . $args{formatting_options}{tabSize} if (length $args{formatting_options}{tabSize} and $args{formatting_options}{insertSpaces});
     my $perltidyrc = glob($PLS::Server::State::CONFIG{perltidyrc} // '~/.perltidyrc');
     my $error      = Perl::Tidy::perltidy(source => \$selection, destination => \$formatted, stderr => \$stderr, perltidyrc => $perltidyrc, argv => $argv);
@@ -617,5 +618,13 @@ sub find_word_under_cursor
 
     return $range, 0, $package, $name;
 } ## end sub find_word_under_cursor
+
+sub _split_lines
+{
+    my ($text) = @_;
+
+    my $sep = $/;
+    return split /(?<=$sep)/, $text;
+} ## end sub _split_lines
 
 1;
