@@ -270,17 +270,13 @@ sub update_file
 
     my $file = $FILES{$args{uri}};
     return unless (ref $file eq 'HASH');
-    open my $fh, '<', \($file->{text});
-    my @lines = <$fh>;
-    close $fh;
 
     foreach my $change (@{$args{changes}})
     {
-        open $fh, '<', \($change->{text});
-
         if (ref $change->{range} eq 'HASH')
         {
-            my @replacement = <$fh>;
+            my @lines       = split $/, ${$file->{text}};
+            my @replacement = split $/, $change->{text};
 
             # get the text that we're not replacing at the start and end of each selection
             my $starting_text = substr $lines[$change->{range}{start}{line}], 0, $change->{range}{start}{character};
@@ -307,17 +303,16 @@ sub update_file
             # with the replacement, including the existing text that is not changing, that we appended above
             my $lines_replacing = $change->{range}{end}{line} - $change->{range}{start}{line} + 1;
             splice @lines, $change->{range}{start}{line}, $lines_replacing, @replacement;
+            $file->{text} = join '', @lines;
         } ## end if (ref $change->{range...})
         else
         {
             # no range means we're updating the entire document
-            @lines = <$fh>;
+            $file->{text} = $change->{text};
         }
-
-        close $fh;
     } ## end foreach my $change (@{$args...})
 
-    $file->{text} = join '', @lines;
+    return;
 } ## end sub update_file
 
 sub close_file
@@ -409,25 +404,14 @@ sub format_range
     my $selection = '';
     my $whole_file = 0;
 
-    open my $fh, '<', $self->{text};
-
     if (ref $range eq 'HASH')
     {
-        my @lines;
-
         # if we've selected up until the first character of the next line,
         # just format up to the line before that
         $range->{end}{line}-- if ($range->{end}{character} == 0);
 
-        # rather than splitting the text, only to join it back together,
-        # open up a fake filehandle to loop through.
-        while (my $line = <$fh>)
-        {
-            if ($. > $range->{start}{line} and $. <= $range->{end}{line} + 1)
-            {
-                push @lines, $line;
-            }
-        } ## end while (my $line = <$fh>)
+        my @lines = split $/, ${$self->{text}};
+        @lines = @lines[$range->{start}{line} .. $range->{end}{line}];
 
         # ignore the column, and just format the entire line.
         # the text will likely get messed up if you don't include the entire line, anyway.
@@ -440,8 +424,8 @@ sub format_range
     {
         $whole_file = 1;
         $selection = ${$self->{text}};
-        my $lines = 0;
-        while (my $line = <$fh>) { $lines++ }
+        my $lines = () = $selection =~ m{($/)}g;
+        $lines++;
 
         $range = {
                   start => {
@@ -455,8 +439,6 @@ sub format_range
                  };
     } ## end else [ if (ref $range eq 'HASH'...)]
 
-    close $fh;
-
     my $formatted = '';
     my $stderr    = '';
     my $argv      = '-se';
@@ -464,14 +446,12 @@ sub format_range
     $argv .= ' -t' unless ($args{formatting_options}{insertSpaces});
     $argv .= ' -en=' . $args{formatting_options}{tabSize} if (length $args{formatting_options}{tabSize} and $args{formatting_options}{insertSpaces});
     my $perltidyrc = glob($PLS::Server::State::CONFIG{perltidyrc} // '~/.perltidyrc');
-    my $error      = Perl::Tidy::perltidy(source => \$selection, destination => \$formatted, stderr => \$stderr, perltidyrc => glob('~/.perltidyrc'), argv => '-se');
+    my $error      = Perl::Tidy::perltidy(source => \$selection, destination => \$formatted, stderr => \$stderr, perltidyrc => $perltidyrc, argv => $argv);
 
     # get the number of lines in the formatted result - we need to modify the range if
     # any lines were added
-    my $lines = 0;
-    open $fh, '<', \$formatted;
-    while (my $line = <$fh>) { $lines++ }
-    close $fh;
+    my $lines = () = $formatted =~ m{($/)}g;
+    $lines++;
 
     # if the selection length has increased due to formatting, update the end.
     $range->{end}{line} = $lines if ($whole_file and $lines > $range->{end}{line});
