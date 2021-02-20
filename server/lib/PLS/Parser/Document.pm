@@ -27,9 +27,7 @@ my $INDEX;
 
 sub new
 {
-    my ($class, @args) = @_;
-
-    my %args = @args;
+    my ($class, %args) = @_;
 
     my ($path, $uri);
 
@@ -45,19 +43,18 @@ sub new
     }
 
     return unless (length $path and length $uri);
-    $INDEX = PLS::Parser::Index->new(root => $PLS::Server::State::ROOT_PATH)
-      unless (ref $INDEX eq 'PLS::Parser::Index');
 
-    my ($document, $text);
+    $INDEX = PLS::Parser::Index->new(root => $PLS::Server::State::ROOT_PATH) unless (ref $INDEX eq 'PLS::Parser::Index');
+
+    my $document;
 
     if (ref $args{text} eq 'SCALAR')
     {
         $document = PPI::Document->new($args{text});
-        $text     = $args{text};
     }
     else
     {
-        ($document, $text) = _document_from_uri($uri);
+        $document = _document_from_uri($uri);
     }
 
     return unless (ref $document eq 'PPI::Document');
@@ -65,7 +62,6 @@ sub new
     my %self = (
                 path     => $path,
                 document => $document,
-                text     => $text,
                 index    => $INDEX
                );
 
@@ -251,9 +247,7 @@ sub find_external_subroutine
 
 sub open_file
 {
-    my ($class, @args) = @_;
-
-    my %args = @args;
+    my ($class, %args) = @_;
 
     return unless $args{languageId} eq 'perl';
 
@@ -392,13 +386,14 @@ sub get_variable_statements
 
 sub format_range
 {
-    my ($self, @args) = @_;
+    my ($class, %args) = @_;
 
-    my %args = @args;
     $args{formatting_options} = {} unless (ref $args{formatting_options} eq 'HASH');
     my $range = $args{range};
 
-    if (ref $self->{text} ne 'SCALAR' or not length ${$self->{text}})
+    my $text = _text_from_uri($args{uri});
+
+    if (ref $text ne 'SCALAR')
     {
         return (0, {code => -32700, message => 'Could not get document text.'});
     }
@@ -412,7 +407,7 @@ sub format_range
         # just format up to the line before that
         $range->{end}{line}-- if ($range->{end}{character} == 0);
 
-        my @lines = _split_lines(${$self->{text}});
+        my @lines = _split_lines($$text);
         @lines = @lines[$range->{start}{line} .. $range->{end}{line}];
 
         # ignore the column, and just format the entire line.
@@ -425,7 +420,7 @@ sub format_range
     else
     {
         $whole_file = 1;
-        $selection  = ${$self->{text}};
+        $selection  = $$text;
         my $lines = () = $selection =~ m{($/)}g;
         $lines++;
 
@@ -516,9 +511,9 @@ sub format_range
 
 sub format
 {
-    my ($self, $formatting_options) = @_;
+    my ($class, %args) = @_;
 
-    return $self->format_range(formatting_options => $formatting_options);
+    return $class->format_range(formatting_options => $args{formatting_options}, uri => $args{uri});
 }
 
 sub _ppi_location
@@ -528,28 +523,43 @@ sub _ppi_location
     return ++$line_number, ++$column_number;
 }
 
+sub _text_from_uri
+{
+    my ($uri) = @_;
+
+    if (ref $FILES{$uri} eq 'HASH')
+    {
+        return \($FILES{$uri}{text});
+    }
+    else
+    {
+        my $file = URI->new($uri);
+        open my $fh, '<', $file->file or return;
+        my $text = do { local $/; <$fh> };
+        return \$text;
+    }
+}
+
 sub _document_from_uri
 {
     my ($uri) = @_;
 
-    my ($document, $text);
-
+    my $document;
+    
     if (ref $FILES{$uri} eq 'HASH')
     {
-        $text     = $FILES{$uri}{text};
+        my $text = $FILES{$uri}{text};
         $document = PPI::Document->new(\$text);
     }
     else
     {
         my $file = URI->new($uri);
-        open my $fh, '<', $file->file or return ('', \'');
-        $text     = do { local $/; <$fh> };
         $document = PPI::Document->new($file->file);
-    } ## end else [ if (ref $FILES{$uri} eq...)]
+    }
 
-    return '' unless (ref $document eq 'PPI::Document');
+    return unless (ref $document eq 'PPI::Document');
     $document->index_locations;
-    return ($document, \$text);
+    return $document;
 } ## end sub _document_from_uri
 
 sub _is_constant

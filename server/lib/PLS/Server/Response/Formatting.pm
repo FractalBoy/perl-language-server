@@ -11,9 +11,8 @@ sub new
 {
     my ($class, $request) = @_;
 
-    my $self     = bless {id => $request->{id}}, $class;
-    my $document = PLS::Parser::Document->new(uri => $request->{params}{textDocument}{uri});
-    my ($ok, $formatted) = $document->format(formatting_options => $request->{params}{options});
+    my $self = bless {id => $request->{id}}, $class;
+    my ($ok, $formatted) = PLS::Parser::Document->format(uri => $request->{params}{textDocument}{uri}, formatting_options => $request->{params}{options});
 
     if ($ok)
     {

@@ -11,16 +11,14 @@ sub new
 {
     my ($class, $request) = @_;
 
-    my $document = PLS::Parser::Document->new(uri => $request->{params}{textDocument}{uri});
-
     if (ref $request->{params}{options} eq 'HASH')
     {
         # these options aren't really valid for range formatting
         delete $request->{params}{options}{trimFinalNewlines};
         delete $request->{params}{options}{insertFinalNewline};
-    }
+    } ## end if (ref $request->{params...})
 
-    my ($ok, $formatted) = $document->format_range(range => $request->{params}{range}, formatting_options => $request->{params}{options});
+    my ($ok, $formatted) = PLS::Parser::Document->format_range(uri => $request->{params}{textDocument}{uri}, range => $request->{params}{range}, formatting_options => $request->{params}{options});
 
     my %self = (id => $request->{id}, result => undef);
 
