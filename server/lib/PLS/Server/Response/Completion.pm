@@ -100,11 +100,13 @@ sub new
             if ($variable->name =~ /^[\@\%]/)
             {
                 my $name = $variable->name =~ s/^[\@\%]/\$/r;
+                my $append = $variable->name =~ /^\@/ ? '[' : '{';
                 push @results,
                   {
-                    label  => $name,
-                    kind   => 6,
-                    append => $variable->name =~ /^\@/ ? '[' : '{'
+                    label  => $variable->name,
+                    insertText => $name . $append,
+                    filterText => $name,
+                    kind   => 6
                   };
             } ## end if ($variable->name =~...)
         } ## end foreach my $variable (@{$statement...})
@@ -174,7 +176,6 @@ sub new
     foreach my $result (@results)
     {
         my $new_text = $result->{label};
-        $new_text .= $result->{append}    if (length $result->{append});
         $new_text = $result->{insertText} if (length $result->{insertText});
         delete $result->{insertText};
 
