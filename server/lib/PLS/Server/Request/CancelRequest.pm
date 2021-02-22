@@ -11,12 +11,12 @@ sub service
 {
     my ($self) = @_;
 
-    # right now, we'll just add this id to the list of cancelled ids.
+    # right now, we don't do anything with a cancelled request
     # we don't yet have the ability to cancel a request in flight.
     # according to the specification, the server is still supposed to send
     # a response even if it was canceled.
-    push @PLS::Server::State::CANCELED, $self->{params}{id};
-    return undef;
+
+    return;
 } ## end sub service
 
 1;

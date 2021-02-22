@@ -14,7 +14,7 @@ sub new
     $self->{package} = $args{package};
 
     return $self;
-}
+} ## end sub new
 
 sub name
 {
@@ -42,13 +42,13 @@ sub find
                 $self->{markdown} = $markdown;
                 return 1;
             }
-        }
-    }
+        } ## end foreach my $definition (@$definitions...)
+    } ## end if (ref $definitions eq...)
 
     my ($ok, $markdown) = $self->get_markdown_for_package($self->{package});
     $self->{markdown} = $markdown if $ok;
 
     return $ok;
-}
+} ## end sub find
 
 1;

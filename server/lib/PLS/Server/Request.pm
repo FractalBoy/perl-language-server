@@ -37,17 +37,17 @@ sub new
     }
 
     # create and return request classes here
-    my @method = split '/', $method;
+    ($method) = split '/', $method;
 
-    if ($method[0] eq 'textDocument')
+    if ($method eq 'textDocument')
     {
         return PLS::Server::Method::TextDocument::get_request($request);
     }
-    elsif ($method[0] eq 'workspace')
+    elsif ($method eq 'workspace')
     {
         return PLS::Server::Method::Workspace::get_request($request);
     }
-    elsif ($method[0] eq 'completionItem')
+    elsif ($method eq 'completionItem')
     {
         return PLS::Server::Method::CompletionItem::get_request($request);
     }

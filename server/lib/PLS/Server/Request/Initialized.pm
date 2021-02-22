@@ -16,7 +16,7 @@ sub service
     $server->{server_requests}->put(PLS::Server::Request::Workspace::Configuration->new);
 
     $PLS::Server::State::INITIALIZED = 1;
-    return undef;
+    return;
 } ## end sub service
 
 1;

@@ -23,7 +23,7 @@ sub get_all_document_symbols
     return [] unless (ref $document eq 'PLS::Parser::Document');
 
     return [@{get_all_packages($document)}, @{get_all_subroutines($document)}, @{get_all_variables($document)}, @{get_all_constants($document)}];
-}
+} ## end sub get_all_document_symbols
 
 sub get_all_packages
 {

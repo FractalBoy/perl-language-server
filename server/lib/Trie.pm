@@ -28,10 +28,10 @@ sub collect
         push @$prefix, $char;
         push @results, @{$self->{children}{$char}->collect($prefix)};
         pop @$prefix;
-    }
+    } ## end foreach my $char (keys %{$self...})
 
     return \@results;
-}
+} ## end sub collect
 
 package Trie;
 
@@ -39,22 +39,20 @@ sub new
 {
     my ($class) = @_;
 
-    my %self = (
-        root => Node->new()
-    );
+    my %self = (root => Node->new());
 
     return bless \%self, $class;
-}
+} ## end sub new
 
 sub find
 {
     my ($self, $prefix) = @_;
 
     my @prefix = split //, $prefix;
-    my $node = $self->_get_node(\@prefix);
+    my $node   = $self->_get_node(\@prefix);
     return unless (ref $node eq 'Node');
     return $node->collect(\@prefix);
-}
+} ## end sub find
 
 sub _get_node
 {
@@ -72,10 +70,10 @@ sub _get_node
         {
             return;
         }
-    } ## end foreach my $char (split //,...)
+    } ## end foreach my $char (@$key)
 
     return $node;
-} ## end sub find
+} ## end sub _get_node
 
 sub find_node
 {
@@ -83,7 +81,7 @@ sub find_node
 
     my @chars = split //, $key;
     return $self->_get_node(\@chars);
-}
+} ## end sub find_node
 
 sub insert
 {
@@ -108,9 +106,9 @@ sub delete
 {
     my ($self, $key) = @_;
 
-    my @chars = split //, $key;
+    my @chars     = split //, $key;
     my $last_char = pop @chars;
-    my $node = $self->_get_node(\@chars);
+    my $node      = $self->_get_node(\@chars);
     return unless (ref $node eq 'Node');
     delete $node->{children}{$last_char};
 } ## end sub delete

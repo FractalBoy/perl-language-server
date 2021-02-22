@@ -40,7 +40,7 @@ sub find
     if (length $self->{package})
     {
         my $include = $self->get_clean_inc();
-        my $path = Pod::Find::pod_where({-dirs => $include}, $self->{package});
+        my $path    = Pod::Find::pod_where({-dirs => $include}, $self->{package});
 
         if (length $path)
         {
@@ -85,7 +85,7 @@ sub find
             my $package = join '::', $self->{package}, $self->{subroutine};
             ($ok, $markdown) = $self->get_markdown_for_package($package);
         }
-    }
+    } ## end if (length $self->{package...})
 
     $self->{markdown} = $markdown if $ok;
     return $ok;
@@ -144,7 +144,7 @@ sub find_pod_in_file
 
             if (   $start eq 'item' and $line =~ /^=item/
                 or $start =~ /head/ and $line =~ /^=$start/
-                or $line  =~ /^=cut/)
+                or $line =~ /^=cut/)
             {
                 last;
             } ## end if ($start eq 'item' and...)

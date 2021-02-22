@@ -537,15 +537,15 @@ sub _text_from_uri
         open my $fh, '<', $file->file or return;
         my $text = do { local $/; <$fh> };
         return \$text;
-    }
-}
+    } ## end else [ if (ref $FILES{$uri} eq...)]
+} ## end sub _text_from_uri
 
 sub _document_from_uri
 {
     my ($uri) = @_;
 
     my $document;
-    
+
     if (ref $FILES{$uri} eq 'HASH')
     {
         my $text = $FILES{$uri}{text};

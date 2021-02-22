@@ -14,7 +14,7 @@ sub new
     $self->{variable} = $args{variable};
 
     return $self;
-}
+} ## end sub new
 
 sub name
 {
@@ -30,6 +30,6 @@ sub find
     my ($ok, $markdown) = $self->run_perldoc_command('-Tuv', $self->{variable});
     $self->{markdown} = $markdown if $ok;
     return $ok;
-}
+} ## end sub find
 
 1;

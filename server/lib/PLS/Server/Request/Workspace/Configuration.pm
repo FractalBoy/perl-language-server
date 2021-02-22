@@ -29,6 +29,6 @@ sub handle_response
     return unless (ref $config eq 'HASH');
     $PLS::Server::State::CONFIG = $config;
     return;
-}
+} ## end sub handle_response
 
 1;

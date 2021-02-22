@@ -43,7 +43,7 @@ sub get_request
     {
         return unless (ref $request->{params}{contentChanges} eq 'ARRAY');
         PLS::Parser::Document->update_file(uri => $request->{params}{textDocument}{uri}, changes => $request->{params}{contentChanges});
-    } ## end if ($method eq 'didChange'...)
+    }
     if ($method eq 'didClose')
     {
         PLS::Parser::Document->close_file(%{$request->{params}{textDocument}});

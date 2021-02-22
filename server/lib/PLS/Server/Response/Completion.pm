@@ -99,14 +99,14 @@ sub new
             # add other variable forms to the list for arrays and hashes
             if ($variable->name =~ /^[\@\%]/)
             {
-                my $name = $variable->name =~ s/^[\@\%]/\$/r;
+                my $name   = $variable->name =~ s/^[\@\%]/\$/r;
                 my $append = $variable->name =~ /^\@/ ? '[' : '{';
                 push @results,
                   {
-                    label  => $variable->name,
+                    label      => $variable->name,
                     insertText => $name . $append,
                     filterText => $name,
-                    kind   => 6
+                    kind       => 6
                   };
             } ## end if ($variable->name =~...)
         } ## end foreach my $variable (@{$statement...})

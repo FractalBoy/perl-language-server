@@ -17,7 +17,7 @@ sub location_info
     $info->{signature} = $signature if (ref $signature eq 'HASH');
 
     return $info;
-} ## end sub subroutine_info
+} ## end sub location_info
 
 sub signature
 {
