@@ -134,7 +134,7 @@ sub find_pod
 
     foreach my $element (@elements)
     {
-        my ($package, $subroutine, $variable);
+        my ($package, $subroutine, $variable, $import);
 
         if (($package, $subroutine) = $element->subroutine_package_and_name())
         {
@@ -171,17 +171,29 @@ sub find_pod
             my $ok = $pod->find();
             return (1, $pod) if $ok;
         } ## end if ($subroutine = $element...)
-        if ($package = $element->package_name())
+        if (($package, $import) = $element->package_name($column_number))
         {
-            my $pod =
-              PLS::Parser::Pod::Package->new(
-                                             document => $self,
-                                             element  => $element,
-                                             package  => $package
-                                            );
-            my $ok = $pod->find();
+            my %args       = (document => $self, element => $element, package => $package);
+            my $class_name = 'PLS::Parser::Pod::Package';
+
+            if (length $import)
+            {
+                if ($import =~ /^[\$\@\%]/)
+                {
+                    $args{variable} = $import;
+                    $class_name = 'PLS::Parser::Pod::Variable';
+                }
+                else
+                {
+                    $args{subroutine} = $import;
+                    $class_name = 'PLS::Parser::Pod::Subroutine';
+                }
+            } ## end if (length $import)
+
+            my $pod = $class_name->new(%args);
+            my $ok  = $pod->find();
             return (1, $pod) if $ok;
-        } ## end if ($package = $element...)
+        } ## end if (($package, $import...))
         if ($variable = $element->variable_name())
         {
             my $pod =

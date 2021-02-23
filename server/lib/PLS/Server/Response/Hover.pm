@@ -29,7 +29,7 @@ sub new
                                           },
                                  end => {
                                          line      => $pod->line_number,
-                                         character => $pod->column_number + length $pod->name,
+                                         character => $pod->column_number + length $pod->{element}->content,
                                         }
                                 }
                       };
