@@ -18,7 +18,7 @@ sub new
 {
     my ($class, $request) = @_;
 
-    my $self = bless {id => $request->{id}, result => undef};
+    my $self = bless {id => $request->{id}, result => undef}, $class;
 
     my $document = PLS::Parser::Document->new(uri => $request->{params}{textDocument}{uri});
     return $self unless (ref $document eq 'PLS::Parser::Document');
@@ -47,8 +47,8 @@ sub new
 
     if (length $package and not length $@)
     {
-        my $separator = $arrow ? '->' : '::';
-        my $ref = \%::;
+        my $separator    = $arrow ? '->' : '::';
+        my $ref          = \%::;
         my @module_parts = split '::', $package;
 
         foreach my $part (@module_parts)
@@ -64,10 +64,10 @@ sub new
 
             my $fully_qualified = join $separator, $package, $name;
             my $result = {
-                label => $name,
-                sortText => $fully_qualified,
-                kind => 3
-            };
+                          label    => $name,
+                          sortText => $fully_qualified,
+                          kind     => 3
+                         };
 
             unless ($arrow)
             {
@@ -76,13 +76,12 @@ sub new
             }
 
             push @results, $result;
-        }
+        } ## end foreach my $name (keys %{$ref...})
     } ## end if (length $package and...)
     else
     {
         my $subs     = $document->{index}{subs_trie}->find($filter);
         my $packages = $document->{index}{packages_trie}->find($filter);
-
 
         foreach my $family (keys %Pod::Functions::Kinds)
         {
@@ -130,7 +129,7 @@ sub new
                     kind  => 3
                   };
             } ## end foreach my $sub (@{$document...})
-        }
+        } ## end if (ref $subs ne 'ARRAY'...)
 
         my %seen_constants;
 
@@ -145,7 +144,7 @@ sub new
                     kind  => 21
                   };
             } ## end foreach my $constant (@{$document...})
-        }
+        } ## end if (ref $subs ne 'ARRAY'...)
 
         my %seen_variables;
 
@@ -186,7 +185,7 @@ sub new
                     kind  => 7
                   };
             } ## end foreach my $pack (@{$document...})
-        }
+        } ## end if (ref $packages ne 'ARRAY'...)
 
         $subs     = [] unless (ref $subs eq 'ARRAY');
         $packages = [] unless (ref $packages eq 'ARRAY');
@@ -195,7 +194,7 @@ sub new
         @$packages = map { {label => $_, kind => 7} } @$packages;
 
         @results = (@results, @$subs, @$packages);
-    }
+    } ## end else [ if (length $package and...)]
 
     foreach my $result (@results)
     {
