@@ -128,7 +128,7 @@ sub go_to_definition
             {
                 return $self->{index}->find_package($package);
             }
-        }
+        } ## end if (my ($package, $import...))
     } ## end foreach my $match (@matches...)
 
     return;
@@ -256,14 +256,41 @@ sub find_external_subroutine
     foreach my $subroutine (@{$doc->get_subroutines()})
     {
         next unless ($subroutine->name eq $subroutine_name);
-        my $range = $subroutine->range();
+
         return {
                 uri       => URI::file->new($package->filename)->as_string,
                 range     => $subroutine->range(),
                 signature => $subroutine->location_info->{signature}
                };
     } ## end foreach my $subroutine (@{$doc...})
+
+    return;
 } ## end sub find_external_subroutine
+
+sub find_external_package
+{
+    my ($self, $package_name) = @_;
+
+    my $include  = PLS::Parser::Pod->get_clean_inc();
+    my $metadata = Module::Metadata->new_from_module($package_name, inc => $include);
+
+    return unless (ref $metadata eq 'Module::Metadata');
+
+    my $document = PLS::Parser::Document->new(path => $metadata->filename);
+    return unless (ref $document eq 'PLS::Parser::Document');
+
+    foreach my $package (@{$document->get_packages()})
+    {
+        next unless ($package->name eq $package_name);
+
+        return {
+                uri   => URI::file->new($metadata->filename)->as_string,
+                range => $package->range()
+               };
+    } ## end foreach my $package (@{$document...})
+
+    return;
+} ## end sub find_external_package
 
 sub open_file
 {

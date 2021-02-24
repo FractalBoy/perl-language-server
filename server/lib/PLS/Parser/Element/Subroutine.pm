@@ -48,4 +48,11 @@ sub name
     return $self->{ppi_element}->name;
 }
 
+sub length
+{
+    my ($self) = @_;
+
+    return $self->SUPER::length() + length('sub ');
+}
+
 1;

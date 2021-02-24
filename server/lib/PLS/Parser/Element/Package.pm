@@ -12,4 +12,11 @@ sub name
     return $self->{ppi_element}->namespace;
 }
 
+sub length
+{
+    my ($self) = @_;
+
+    return $self->SUPER::length() + length('package ') + length(';');
+}
+
 1;

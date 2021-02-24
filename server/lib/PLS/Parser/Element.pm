@@ -293,10 +293,17 @@ sub range
                      },
             end => {
                     line      => $self->lsp_line_number,
-                    character => ($self->lsp_column_number + length $self->name)
+                    character => $self->lsp_column_number + $self->length
                    }
            };
 } ## end sub range
+
+sub length
+{
+    my ($self) = @_;
+
+    return length $self->name;
+}
 
 sub parent
 {
