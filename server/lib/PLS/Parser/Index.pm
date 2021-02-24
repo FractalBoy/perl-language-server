@@ -14,6 +14,7 @@ use List::Util qw(all);
 use Time::Piece;
 use Storable;
 
+use PLS::Parser::Pod;
 use Trie;
 
 use constant {INDEX_LOCATION => File::Spec->catfile('.pls_cache', 'index')};
@@ -258,7 +259,38 @@ sub find_package_subroutine
     $self->index_files();
     my $index     = $self->index();
     my $locations = $index->{packages}{$package};
-    return [] unless (ref $locations eq 'ARRAY');
+
+    if (ref $locations ne 'ARRAY')
+    {
+        my $include  = PLS::Parser::Pod->get_clean_inc();
+        my $metadata = Module::Metadata->new_from_module($package, inc => $include);
+
+        if (ref $metadata eq 'Module::Metadata' and length $metadata->filename)
+        {
+            my $document = PLS::Parser::Document->new(path => $metadata->filename);
+            return unless (ref $document eq 'PLS::Parser::Document');
+            my @matches = grep { $_->name eq $subroutine } @{$document->get_subroutines()};
+            return unless (scalar @matches);
+            return [
+                map {
+                    {
+                     uri   => URI::file->new($_->{file})->as_string,
+                     range => {
+                               start => {
+                                         line      => $_->{location}{line_number},
+                                         character => $_->{location}{column_number}
+                                        },
+                               end => {
+                                       line      => $_->{location}{line_number},
+                                       character => $_->{location}{column_number} + length($subroutine) + length('sub ')
+                                      }
+                              }
+                    }
+                  }
+                  map { $_->location_info } @matches
+            ];
+        } ## end if (ref $metadata eq 'Module::Metadata'...)
+    } ## end if (ref $locations ne ...)
 
     foreach my $file (@$locations)
     {
@@ -314,7 +346,38 @@ sub find_package
     $self->index_files(@files);
     my $index = $self->index;
     my $found = $index->{packages}{$package};
-    return [] unless (ref $found eq 'ARRAY');
+
+    if (ref $found ne 'ARRAY')
+    {
+        my $include  = PLS::Parser::Pod->get_clean_inc();
+        my $metadata = Module::Metadata->new_from_module($package, inc => $include);
+
+        if (ref $metadata eq 'Module::Metadata' and length $metadata->filename)
+        {
+            my $document = PLS::Parser::Document->new(path => $metadata->filename);
+            return unless (ref $document eq 'PLS::Parser::Document');
+            my @matches = grep { $_->name eq $package } @{$document->get_packages()};
+            return unless (scalar @matches);
+            return [
+                map {
+                    {
+                     uri   => URI::file->new($_->{file})->as_string,
+                     range => {
+                               start => {
+                                         line      => $_->{location}{line_number},
+                                         character => $_->{location}{column_number}
+                                        },
+                               end => {
+                                       line      => $_->{location}{line_number},
+                                       character => $_->{location}{column_number} + length($package) + length('package ')
+                                      }
+                              }
+                    }
+                  }
+                  map { $_->location_info } @matches
+            ];
+        } ## end if (ref $metadata eq 'Module::Metadata'...)
+    } ## end if (ref $found ne 'ARRAY'...)
 
     my @locations = @$found;
 

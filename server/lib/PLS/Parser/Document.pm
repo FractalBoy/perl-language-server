@@ -51,6 +51,7 @@ sub new
     if (ref $args{text} eq 'SCALAR')
     {
         $document = PPI::Document->new($args{text});
+        $document->index_locations();
     }
     else
     {
@@ -117,9 +118,16 @@ sub go_to_definition
             $method =~ s/SUPER:://;
             return $self->{index}->find_subroutine($method);
         }
-        if (my $package = $match->package_name())
+        if (my ($package, $import) = $match->package_name($column_number))
         {
-            return $self->{index}->find_package($package);
+            if (length $import)
+            {
+                return $self->{index}->find_package_subroutine($package, $import);
+            }
+            else
+            {
+                return $self->{index}->find_package($package);
+            }
         }
     } ## end foreach my $match (@matches...)
 

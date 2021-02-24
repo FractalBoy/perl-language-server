@@ -4,7 +4,6 @@ use strict;
 use warnings;
 
 use List::Util qw(any);
-use PPIx::QuoteLike;
 use Scalar::Util qw(blessed);
 
 sub new
