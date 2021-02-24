@@ -50,7 +50,7 @@ sub new
 
     if (ref $args{text} eq 'SCALAR')
     {
-        $document = PPI::Document->new($args{text});
+        $document = PPI::Document->new($args{text}, readonly => 1);
         $document->index_locations();
     }
     else
@@ -592,16 +592,17 @@ sub _document_from_uri
     my ($uri) = @_;
 
     my $document;
+    use Time::HiRes qw(gettimeofday tv_interval);
 
     if (ref $FILES{$uri} eq 'HASH')
     {
         my $text = $FILES{$uri}{text};
-        $document = PPI::Document->new(\$text);
+        $document = PPI::Document->new(\$text, readonly => 1);
     }
     else
     {
         my $file = URI->new($uri);
-        $document = PPI::Document->new($file->file);
+        $document = PPI::Document->new($file->file, readonly => 1);
     }
 
     return unless (ref $document eq 'PPI::Document');

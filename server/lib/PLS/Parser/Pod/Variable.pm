@@ -25,7 +25,7 @@ sub name
 
 sub find
 {
-    my ($self) = @_;
+    my ($self, $skip_indexing) = @_;
 
     my ($ok, $markdown) = $self->run_perldoc_command('-Tuv', $self->{variable});
     $self->{markdown} = $markdown if $ok;

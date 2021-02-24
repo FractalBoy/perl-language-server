@@ -25,8 +25,8 @@ sub name
 
 sub find
 {
-    my ($self) = @_;
-    my $definitions = $self->{document}{index}->find_package($self->{package});
+    my ($self, $skip_indexing) = @_;
+    my $definitions = $self->{document}{index}->find_package($self->{package}, $skip_indexing);
 
     if (ref $definitions eq 'ARRAY' and scalar @$definitions)
     {

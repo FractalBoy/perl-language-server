@@ -253,9 +253,9 @@ sub cleanup_old_files
 
 sub find_package_subroutine
 {
-    my ($self, $package, $subroutine) = @_;
+    my ($self, $package, $subroutine, $skip_indexing) = @_;
 
-    $self->index_files();
+    $self->index_files() unless $skip_indexing;
     my $index     = $self->index();
     my $locations = $index->{packages}{$package};
 
@@ -268,7 +268,7 @@ sub find_package_subroutine
 
     foreach my $file (@$locations)
     {
-        return $self->find_subroutine($subroutine, $file->{file});
+        return $self->find_subroutine($subroutine, 1, $file->{file});
     }
 
     return;
@@ -276,9 +276,9 @@ sub find_package_subroutine
 
 sub find_subroutine
 {
-    my ($self, $subroutine, @files) = @_;
+    my ($self, $subroutine, $skip_indexing, @files) = @_;
 
-    $self->index_files(@files);
+    $self->index_files(@files) unless $skip_indexing;
     my $index = $self->index;
     my $found = $index->{subs}{$subroutine};
     return [] unless (ref $found eq 'ARRAY');
@@ -315,9 +315,9 @@ sub find_subroutine
 
 sub find_package
 {
-    my ($self, $package, @files) = @_;
+    my ($self, $package, $skip_indexing, @files) = @_;
 
-    $self->index_files(@files);
+    $self->index_files(@files) unless $skip_indexing;
     my $index = $self->index;
     my $found = $index->{packages}{$package};
 

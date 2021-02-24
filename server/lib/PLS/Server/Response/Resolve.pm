@@ -22,7 +22,7 @@ sub new
     if ($kind == 7)
     {
         my $pod = PLS::Parser::Pod::Package->new(document => $document, package => $request->{params}{label});
-        my $ok  = $pod->find();
+        my $ok  = $pod->find(1);
 
         if ($ok)
         {
@@ -52,7 +52,7 @@ sub new
         }
 
         my $pod = PLS::Parser::Pod::Subroutine->new(document => $document, package => $package, subroutine => $subroutine);
-        my $ok  = $pod->find();
+        my $ok  = $pod->find(1);
 
         if ($ok)
         {
