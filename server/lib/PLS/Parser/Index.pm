@@ -298,7 +298,7 @@ sub find_subroutine
                                 },
                        end => {
                                line      => $_->{location}{line_number},
-                               character => $_->{location}{column_number} + (length $subroutine) + ($_->{constant} ? (length '') : (length 'sub '))
+                               character => $_->{location}{column_number} + (length $subroutine) + ($_->{constant} ? 0 : (length 'sub '))
                               }
                       },
              signature => $_->{signature}
@@ -337,7 +337,7 @@ sub find_package
                                 },
                        end => {
                                line      => $_->{location}{line_number},
-                               character => ($_->{location}{column_number} + length $package)
+                               character => ($_->{location}{column_number} + length $package + length 'package ')
                               }
                       }
             }
