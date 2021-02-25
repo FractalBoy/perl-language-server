@@ -164,8 +164,8 @@ EOF
 
     # Can use state here, core and external modules unlikely to change.
     state $core_modules = [Module::CoreList->find_modules(qr//, $])];
-    state $include  = PLS::Parser::Pod->get_clean_inc();
-    state $ext_modules = [ExtUtils::Installed->new(inc_override => $include)->modules];
+    state $include      = PLS::Parser::Pod->get_clean_inc();
+    state $ext_modules  = [ExtUtils::Installed->new(inc_override => $include)->modules];
 
     foreach my $module (@{$core_modules}, @{$ext_modules})
     {
@@ -175,7 +175,7 @@ EOF
             label => $module,
             kind  => 7
           };
-    } ## end foreach my $module (Module::CoreList...)
+    } ## end foreach my $module (@{$core_modules...})
 
     my %seen_variables;
 
@@ -205,7 +205,7 @@ EOF
                   };
             } ## end if ($variable =~ /^[\@\%]/...)
         } ## end foreach my $variable (@{$document...})
-    }
+    } ## end if (not $arrow and $filter...)
 
     $subs     = [] unless (ref $subs eq 'ARRAY');
     $packages = [] unless (ref $packages eq 'ARRAY');
