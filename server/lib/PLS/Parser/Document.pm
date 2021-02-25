@@ -475,17 +475,11 @@ sub get_subroutines_fast
     $text = $self->get_full_text() unless (ref $text eq 'SCALAR');
     return [] unless (ref $text eq 'SCALAR');
 
-    my @subroutine_declarations = $$text =~ /((?&PerlSubroutineDeclaration))$PPR::GRAMMAR/gx;
-    @subroutine_declarations = grep { defined } @subroutine_declarations;
-
-    use Data::Dumper;
-
-    # Precompile regex used multiple times
-    my $re = qr/sub\b(?&PerlOWS)((?&PerlOldQualifiedIdentifier))$PPR::GRAMMAR/x;
+    my @subroutine_declarations = $$text =~ /sub\b(?&PerlOWS)((?&PerlOldQualifiedIdentifier))$PPR::GRAMMAR/gx;
 
     return [
             map { s/^\s+|\s+$//r }
-            grep { defined } map { /$re/g } @subroutine_declarations
+            grep { defined } @subroutine_declarations
            ];
 } ## end sub get_subroutines_fast
 
