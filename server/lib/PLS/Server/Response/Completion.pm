@@ -20,10 +20,17 @@ sub new
 
     my $self = bless {id => $request->{id}, result => undef}, $class;
 
-    my $document = PLS::Parser::Document->new(uri => $request->{params}{textDocument}{uri});
+    my $document = PLS::Parser::Document->new(uri => $request->{params}{textDocument}{uri}, line => $request->{params}{position}{line});
     return $self unless (ref $document eq 'PLS::Parser::Document');
 
     my ($range, $arrow, $package, $filter) = $document->find_word_under_cursor(@{$request->{params}{position}}{qw(line character)});
+
+    if (ref $range eq 'HASH')
+    {
+        $range->{start}{line} = $request->{params}{position}{line};
+        $range->{end}{line} = $request->{params}{position}{line};
+    }
+
     return $self unless (ref $range eq 'HASH');
     $package =~ s/::$// if (length $package);
 

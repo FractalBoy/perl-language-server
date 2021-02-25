@@ -46,27 +46,16 @@ sub new
 
     $INDEX = PLS::Parser::Index->new(root => $PLS::Server::State::ROOT_PATH) unless (ref $INDEX eq 'PLS::Parser::Index');
 
-    my $document;
+    my $self = bless {
+                      path  => $path,
+                      index => $INDEX
+                     }, $class;
 
-    if (ref $args{text} eq 'SCALAR')
-    {
-        $document = PPI::Document->new($args{text}, readonly => 1);
-        $document->index_locations();
-    }
-    else
-    {
-        $document = _document_from_uri($uri);
-    }
-
+    my $document = $self->_get_ppi_document(%args);
     return unless (ref $document eq 'PPI::Document');
+    $self->{document} = $document;
 
-    my %self = (
-                path     => $path,
-                document => $document,
-                index    => $INDEX
-               );
-
-    return bless \%self, $class;
+    return $self;
 } ## end sub new
 
 sub set_index
@@ -223,6 +212,7 @@ sub find_elements_at_location
     my ($self, $line_number, $column_number) = @_;
 
     ($line_number, $column_number) = _ppi_location($line_number, $column_number);
+    $line_number = 1 if $self->{one_line};
 
     my $find = PPI::Find->new(
         sub {
@@ -587,28 +577,61 @@ sub _text_from_uri
     } ## end else [ if (ref $FILES{$uri} eq...)]
 } ## end sub _text_from_uri
 
-sub _document_from_uri
+sub _get_ppi_document
 {
-    my ($uri) = @_;
+    my ($self, %args) = @_;
 
-    my $document;
-    use Time::HiRes qw(gettimeofday tv_interval);
+    my $file;
 
-    if (ref $FILES{$uri} eq 'HASH')
+    if (length $args{uri})
     {
-        my $text = $FILES{$uri}{text};
-        $document = PPI::Document->new(\$text, readonly => 1);
-    }
-    else
+        if (ref $FILES{$args{uri}} eq 'HASH')
+        {
+            $file = \($FILES{$args{uri}}{text});
+        }
+        else
+        {
+            $file = URI->new($args{uri})->file;
+        }
+    } ## end if (length $args{uri})
+    elsif ($args{text})
     {
-        my $file = URI->new($uri);
-        $document = PPI::Document->new($file->file, readonly => 1);
+        $file = $args{text};
     }
 
+    if (length $args{line})
+    {
+        my $fh;
+        if (ref $file eq 'SCALAR')
+        {
+            my $line     = $args{line};
+            my $new_line = $/;
+
+            my ($text) = $$file =~ /(?:[^$new_line]*$new_line){$line}([^$new_line]*)$new_line?/m;
+
+            if (length $text)
+            {
+                $file = \$text;
+                $self->{one_line} = 1;
+            } ## end if (length $text)
+        } ## end if (ref $file eq 'SCALAR'...)
+        elsif (open $fh, '<', $file)
+        {
+            my @text = <$fh>;
+
+            if (length $text[$args{line}])
+            {
+                $file = \($text[$args{line}]);
+                $self->{one_line} = 1;
+            }
+        } ## end elsif (open $fh, '<', $file...)
+    } ## end if (length $args{line}...)
+
+    my $document = PPI::Document->new($file, readonly => 1);
     return unless (ref $document eq 'PPI::Document');
-    $document->index_locations;
+    $document->index_locations();
     return $document;
-} ## end sub _document_from_uri
+} ## end sub _get_ppi_document
 
 sub _is_constant
 {
