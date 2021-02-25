@@ -152,15 +152,37 @@ EOF
         {
             next if $sub =~ /\s+/;
             next if $seen_subs{$sub}++;
-            push @results,
-              {
-                label => $sub,
-                kind  => 3
-              };
+            push @results, {label => $sub, kind  => 3};
         } ## end foreach my $sub (@{$Pod::Functions::Kinds...})
     } ## end foreach my $family (keys %Pod::Functions::Kinds...)
 
+    my $full_text;
     my %seen_packages;
+
+    unless ($filter =~ /^[\$\%\@]/)
+    {
+        $full_text = $document->get_full_text();
+
+        foreach my $sub (@{$document->get_subroutines_fast($full_text)})
+        {
+            next if $seen_subs{$sub}++;
+            push @results, {label => $sub, kind => 3};
+        }
+
+        my %seen_constants;
+
+        foreach my $constant (@{$document->get_constants_fast($full_text)})
+        {
+            next if $seen_constants{$constant}++;
+            push @results, {label => $constant, kind => 21};
+        }
+
+        foreach my $pack (@{$document->get_packages_fast($full_text)})
+        {
+            next if $seen_packages{$pack}++;
+            push @results, {label => $pack, kind => 9};
+        }
+    }
 
     # Can use state here, core and external modules unlikely to change.
     state $core_modules = [Module::CoreList->find_modules(qr//, $])];
@@ -182,7 +204,9 @@ EOF
     # Add variables to the list if the current word is obviously a variable.
     if (not $arrow and $filter =~ /^[\$\@\%]/)
     {
-        foreach my $variable (@{$document->get_variables_fast()})
+        $full_text = $document->get_full_text() unless (ref $full_text eq 'SCALAR');
+
+        foreach my $variable (@{$document->get_variables_fast($full_text)})
         {
             next if $seen_variables{$variable}++;
             push @results,

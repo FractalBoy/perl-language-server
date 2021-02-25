@@ -209,6 +209,7 @@ sub update_index
         else
         {
             $index->{$type}{$reference->name} = [$info];
+            $trie->insert($reference->name, 1);
         }
 
         push @{$index->{files}{$file}{$type}}, $reference->name;

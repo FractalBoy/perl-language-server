@@ -432,9 +432,9 @@ sub get_full_text
 
 sub get_variables_fast
 {
-    my ($self) = @_;
+    my ($self, $text) = @_;
 
-    my $text = $self->get_full_text();
+    $text = $self->get_full_text() unless (ref $text eq 'SCALAR');
     return [] unless (ref $text eq 'SCALAR');
 
     my @variable_declarations = $$text =~ /((?&PerlVariableDeclaration))$PPR::GRAMMAR/gx;
@@ -451,9 +451,9 @@ sub get_variables_fast
 
 sub get_packages_fast
 {
-    my ($self) = @_;
+    my ($self, $text) = @_;
 
-    my $text = $self->get_full_text();
+    $text = $self->get_full_text() unless (ref $text eq 'SCALAR');
     return [] unless (ref $text eq 'SCALAR');
 
     my @package_declarations = $$text =~ /((?&PerlPackageDeclaration))$PPR::GRAMMAR/gx;
@@ -470,16 +470,18 @@ sub get_packages_fast
 
 sub get_subroutines_fast
 {
-    my ($self) = @_;
+    my ($self, $text) = @_;
 
-    my $text = $self->get_full_text();
+    $text = $self->get_full_text() unless (ref $text eq 'SCALAR');
     return [] unless (ref $text eq 'SCALAR');
 
     my @subroutine_declarations = $$text =~ /((?&PerlSubroutineDeclaration))$PPR::GRAMMAR/gx;
     @subroutine_declarations = grep { defined } @subroutine_declarations;
 
+    use Data::Dumper;
+
     # Precompile regex used multiple times
-    my $re = qr/((?&PerlOldQualifiedIdentifier))$PPR::GRAMMAR/x;
+    my $re = qr/sub\b(?&PerlOWS)((?&PerlOldQualifiedIdentifier))$PPR::GRAMMAR/x;
 
     return [
             map { s/^\s+|\s+$//r }
@@ -489,9 +491,9 @@ sub get_subroutines_fast
 
 sub get_constants_fast
 {
-    my ($self) = @_;
+    my ($self, $text) = @_;
 
-    my $text = $self->get_full_text();
+    $text = $self->get_full_text() unless (ref $text eq 'SCALAR');
     return [] unless (ref $text eq 'SCALAR');
 
     my @use_statements = $$text =~ /((?&PerlUseStatement)) $PPR::GRAMMAR/gx;
