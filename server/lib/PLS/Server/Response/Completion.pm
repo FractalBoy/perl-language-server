@@ -4,6 +4,7 @@ use strict;
 use warnings;
 
 use parent q(PLS::Server::Response);
+use feature 'state';
 
 use Fcntl;
 use Pod::Functions;
@@ -161,7 +162,12 @@ EOF
 
     my %seen_packages;
 
-    foreach my $module (Module::CoreList->find_modules(qr//, $]))
+    # Can use state here, core and external modules unlikely to change.
+    state $core_modules = [Module::CoreList->find_modules(qr//, $])];
+    state $include  = PLS::Parser::Pod->get_clean_inc();
+    state $ext_modules = [ExtUtils::Installed->new(inc_override => $include)->modules];
+
+    foreach my $module (@{$core_modules}, @{$ext_modules})
     {
         next if $seen_packages{$module}++;
         push @results,
@@ -171,77 +177,35 @@ EOF
           };
     } ## end foreach my $module (Module::CoreList...)
 
-    my $include  = PLS::Parser::Pod->get_clean_inc();
-    my $extutils = ExtUtils::Installed->new(inc_override => $include);
-
-    foreach my $module ($extutils->modules)
-    {
-        next if $seen_packages{$module}++;
-        push @results,
-          {
-            label => $module,
-            kind  => 7
-          };
-    } ## end foreach my $module ($extutils...)
-
-    foreach my $sub (@{$document->get_subroutines_fast()})
-    {
-        next if $seen_subs{$sub}++;
-
-        push @results,
-          {
-            label => $sub,
-            kind  => 3
-          };
-    } ## end foreach my $sub (@{$document...})
-
-    my %seen_constants;
-
-    foreach my $constant (@{$document->get_constants_fast()})
-    {
-        next if $seen_constants{$constant}++;
-        push @results,
-          {
-            label => $constant,
-            kind  => 21
-          };
-    } ## end foreach my $constant (@{$document...})
-
     my %seen_variables;
 
-    foreach my $variable (@{$document->get_variables_fast()})
+    # Add variables to the list if the current word is obviously a variable.
+    if (not $arrow and $filter =~ /^[\$\@\%]/)
     {
-        next if $seen_variables{$variable}++;
-        push @results,
-          {
-            label => $variable,
-            kind  => 6
-          };
-
-        # add other variable forms to the list for arrays and hashes
-        if ($variable =~ /^[\@\%]/)
+        foreach my $variable (@{$document->get_variables_fast()})
         {
-            my $name   = $variable =~ s/^[\@\%]/\$/r;
-            my $append = $variable =~ /^\@/ ? '[' : '{';
+            next if $seen_variables{$variable}++;
             push @results,
               {
-                label      => $variable,
-                insertText => $name . $append,
-                filterText => $name,
-                kind       => 6
+                label => $variable,
+                kind  => 6
               };
-        } ## end if ($variable =~ /^[\@\%]/...)
-    } ## end foreach my $variable (@{$document...})
 
-    foreach my $pack (@{$document->get_packages_fast()})
-    {
-        next if $seen_packages{$pack}++;
-        push @results,
-          {
-            label => $pack,
-            kind  => 7
-          };
-    } ## end foreach my $pack (@{$document...})
+            # add other variable forms to the list for arrays and hashes
+            if ($variable =~ /^[\@\%]/)
+            {
+                my $name   = $variable =~ s/^[\@\%]/\$/r;
+                my $append = $variable =~ /^\@/ ? '[' : '{';
+                push @results,
+                  {
+                    label      => $variable,
+                    insertText => $name . $append,
+                    filterText => $name,
+                    kind       => 6
+                  };
+            } ## end if ($variable =~ /^[\@\%]/...)
+        } ## end foreach my $variable (@{$document...})
+    }
 
     $subs     = [] unless (ref $subs eq 'ARRAY');
     $packages = [] unless (ref $packages eq 'ARRAY');
