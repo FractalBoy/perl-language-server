@@ -28,7 +28,7 @@ sub new
     if (ref $range eq 'HASH')
     {
         $range->{start}{line} = $request->{params}{position}{line};
-        $range->{end}{line} = $request->{params}{position}{line};
+        $range->{end}{line}   = $request->{params}{position}{line};
     }
 
     return $self unless (ref $range eq 'HASH');
@@ -127,12 +127,13 @@ sub new
 
         if (ref $subs ne 'ARRAY' or not scalar @{$subs})
         {
-            foreach my $sub (@{$document->get_subroutines()})
+            foreach my $sub (@{$document->get_subroutines_fast()})
             {
-                next if $seen_subs{$sub->name}++;
+                next if $seen_subs{$sub}++;
+
                 push @results,
                   {
-                    label => $sub->name,
+                    label => $sub,
                     kind  => 3
                   };
             } ## end foreach my $sub (@{$document...})
@@ -142,12 +143,12 @@ sub new
 
         if (ref $subs ne 'ARRAY' or not scalar @{$subs})
         {
-            foreach my $constant (@{$document->get_constants()})
+            foreach my $constant (@{$document->get_constants_fast()})
             {
-                next if $seen_constants{$constant->name}++;
+                next if $seen_constants{$constant}++;
                 push @results,
                   {
-                    label => $constant->name,
+                    label => $constant,
                     kind  => 21
                   };
             } ## end foreach my $constant (@{$document...})
@@ -155,40 +156,37 @@ sub new
 
         my %seen_variables;
 
-        foreach my $statement (@{$document->get_variable_statements()})
+        foreach my $variable (@{$document->get_variables_fast()})
         {
-            foreach my $variable (@{$statement->{symbols}})
+            next if $seen_variables{$variable}++;
+            push @results,
+              {
+                label => $variable,
+                kind  => 6
+              };
+
+            # add other variable forms to the list for arrays and hashes
+            if ($variable =~ /^[\@\%]/)
             {
-                next if $seen_variables{$variable->name}++;
+                my $name   = $variable =~ s/^[\@\%]/\$/r;
+                my $append = $variable =~ /^\@/ ? '[' : '{';
                 push @results,
                   {
-                    label => $variable->name,
-                    kind  => 6
+                    label      => $variable,
+                    insertText => $name . $append,
+                    filterText => $name,
+                    kind       => 6
                   };
-
-                # add other variable forms to the list for arrays and hashes
-                if ($variable->name =~ /^[\@\%]/)
-                {
-                    my $name   = $variable->name =~ s/^[\@\%]/\$/r;
-                    my $append = $variable->name =~ /^\@/ ? '[' : '{';
-                    push @results,
-                      {
-                        label      => $variable->name,
-                        insertText => $name . $append,
-                        filterText => $name,
-                        kind       => 6
-                      };
-                } ## end if ($variable->name =~...)
-            } ## end foreach my $variable (@{$statement...})
-        } ## end foreach my $statement (@{$document...})
+            } ## end if ($variable->name =~...)
+        } ## end foreach my $variable (@{$document...})
 
         if (ref $packages ne 'ARRAY' or not scalar @{$packages})
         {
-            foreach my $pack (@{$document->get_packages()})
+            foreach my $pack (@{$document->get_packages_fast()})
             {
                 push @results,
                   {
-                    label => $pack->name,
+                    label => $pack,
                     kind  => 7
                   };
             } ## end foreach my $pack (@{$document...})

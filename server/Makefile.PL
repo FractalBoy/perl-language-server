@@ -15,6 +15,7 @@ WriteMakefile(
         'Perl::Critic' => 1.138,
         'Pod::Markdown' => 3.200,
         'PPI' => 1.264,
+        'PPR' => 0.000028,
         'Test::More' => 1.302073,
         'URI' => 1.76
     }

@@ -7,6 +7,7 @@ use Perl::Critic::Utils;
 use Perl::Tidy;
 use PPI;
 use PPI::Find;
+use PPR;
 use URI;
 use URI::file;
 
@@ -48,6 +49,7 @@ sub new
 
     my $self = bless {
                       path  => $path,
+                      uri   => $uri,
                       index => $INDEX
                      }, $class;
 
@@ -421,6 +423,100 @@ sub get_variable_statements
     return [map { PLS::Parser::Element::VariableStatement->new(document => $self->{document}, element => $_, file => $self->{path}) } $find->in($self->{document})];
 } ## end sub get_variable_statements
 
+sub get_full_text
+{
+    my ($self) = @_;
+
+    if (ref $FILES{$self->{uri}} eq 'HASH')
+    {
+        return \($FILES{$self->{uri}}{text});
+    }
+    else
+    {
+        open my $fh, '<', $self->{path} or return;
+        my $text = do { local $/; <$fh> };
+        return \$text;
+    } ## end else [ if (ref $FILES{$self->...})]
+} ## end sub get_full_text
+
+sub get_variables_fast
+{
+    my ($self) = @_;
+
+    my $text = $self->get_full_text();
+    return [] unless (ref $text eq 'SCALAR');
+
+    my @variable_declarations = $$text =~ /((?&PerlVariableDeclaration))$PPR::GRAMMAR/gx;
+    @variable_declarations = grep { defined } @variable_declarations;
+
+    # Precompile regex used multiple times
+    my $re = qr/((?&PerlVariable))$PPR::GRAMMAR/x;
+
+    return [
+            map { s/^\s+|\s+$//r }
+            grep { defined } map { /$re/g } @variable_declarations
+           ];
+} ## end sub get_variables_fast
+
+sub get_packages_fast
+{
+    my ($self) = @_;
+
+    my $text = $self->get_full_text();
+    return [] unless (ref $text eq 'SCALAR');
+
+    my @package_declarations = $$text =~ /((?&PerlPackageDeclaration))$PPR::GRAMMAR/gx;
+    @package_declarations = grep { defined } @package_declarations;
+
+    # Precompile regex used multiple times
+    my $re = qr/((?&PerlQualifiedIdentifier))$PPR::GRAMMAR/x;
+
+    return [
+            map { s/^\s+|\s+$//r }
+            grep { defined } map { /$re/g } @package_declarations
+           ];
+} ## end sub get_packages_fast
+
+sub get_subroutines_fast
+{
+    my ($self) = @_;
+
+    my $text = $self->get_full_text();
+    return [] unless (ref $text eq 'SCALAR');
+
+    my @subroutine_declarations = $$text =~ /((?&PerlSubroutineDeclaration))$PPR::GRAMMAR/gx;
+    @subroutine_declarations = grep { defined } @subroutine_declarations;
+
+    # Precompile regex used multiple times
+    my $re = qr/((?&PerlOldQualifiedIdentifier))$PPR::GRAMMAR/x;
+
+    return [
+            map { s/^\s+|\s+$//r }
+            grep { defined } map { /$re/g } @subroutine_declarations
+           ];
+} ## end sub get_subroutines_fast
+
+sub get_constants_fast
+{
+    my ($self) = @_;
+
+    my $text = $self->get_full_text();
+    return [] unless (ref $text eq 'SCALAR');
+
+    my @use_statements = $$text =~ /((?&PerlUseStatement)) $PPR::GRAMMAR/gx;
+    @use_statements = grep { defined } @use_statements;
+
+    # Precompile regex used multiple times
+    my $block_re    = qr/constant (?&PerlOWS) ((?&PerlBlock)) $PPR::GRAMMAR/x;
+    my $bareword_re = qr/((?&PerlBareword)) (?&PerlOWS) (?&PerlComma) $PPR::GRAMMAR/x;
+
+    return [
+            map  { s/^\s+|\s+$//r }
+            grep { defined } map { /$bareword_re/g }
+            grep { defined } map { /$block_re/g } @use_statements
+           ];
+} ## end sub get_constants_fast
+
 sub format_range
 {
     my ($class, %args) = @_;
@@ -613,7 +709,7 @@ sub _get_ppi_document
             {
                 $file = \$text;
                 $self->{one_line} = 1;
-            } ## end if (length $text)
+            }
         } ## end if (ref $file eq 'SCALAR'...)
         elsif (open $fh, '<', $file)
         {
