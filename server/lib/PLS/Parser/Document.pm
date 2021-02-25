@@ -3,7 +3,7 @@ package PLS::Parser::Document;
 use strict;
 use warnings;
 
-use Perl::Critic::Utils;
+use Perl::Critic::Utils ();
 use Perl::Tidy;
 use PPI;
 use PPI::Find;
@@ -427,17 +427,8 @@ sub get_full_text
 {
     my ($self) = @_;
 
-    if (ref $FILES{$self->{uri}} eq 'HASH')
-    {
-        return \($FILES{$self->{uri}}{text});
-    }
-    else
-    {
-        open my $fh, '<', $self->{path} or return;
-        my $text = do { local $/; <$fh> };
-        return \$text;
-    } ## end else [ if (ref $FILES{$self->...})]
-} ## end sub get_full_text
+    return _text_from_uri($self->{uri});
+}
 
 sub get_variables_fast
 {
@@ -788,13 +779,32 @@ sub find_word_under_cursor
         return $range, 1, $package, $filter;
     } ## end if ($element->name eq ...)
 
+    # something like "Package::Name:", we just want Package::Name.
+    if (
+            $element->name eq ':'
+        and ref $element->previous_sibling eq 'PLS::Parser::Element'
+        and (   $element->previous_sibling->{ppi_element}->isa('PPI::Token::Word')
+             or $element->previous_sibling->{ppi_element}->isa('PPI::Token::Label'))
+       )
+    {
+        $element = $element->previous_sibling;
+    } ## end if ($element->name eq ...)
+
     # modify the range so we don't overwrite anything after the cursor.
     my $range = $element->range;
     $range->{end}{character} = $character;
 
     # look at labels as well, because a label looks like a package name before the second colon.
-    my $package = ($element->{ppi_element}->isa('PPI::Token::Word') or $element->{ppi_element}->isa('PPI::Token::Label')) ? $element->name : '';
-    my $name    = $element->name;
+    my $package = '';
+
+    if (   $element->{ppi_element}->isa('PPI::Token::Word')
+        or $element->{ppi_element}->isa('PPI::Token::Label'))
+    {
+        $package = $element->name;
+    }
+
+    my $name = $element->name;
+    $name =~ s/:?:$//;
 
     return $range, 0, $package, $name;
 } ## end sub find_word_under_cursor
