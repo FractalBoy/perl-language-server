@@ -46,7 +46,6 @@ sub new
         # and gets a list of all the functions available.
         #
         # We fork to avoid polluting our own namespace.
-        # This will only work for core modules.
         pipe my $read_fh, my $write_fh;
         my $pid = fork;
 
@@ -112,9 +111,9 @@ else
     Storable::nstore_fd({ok => 0}, $write_fh);
 }
 EOF
-
+            my @inc = map { "-I$_" } @{$PLS::Server::State::CONFIG->{inc} // []};
             $script = sprintf $script, fileno($write_fh), $package;
-            exec $^X, '-e', $script;
+            exec $^X, @inc, '-e', $script;
         } ## end else [ if ($pid) ]
     } ## end if (length $package)
 

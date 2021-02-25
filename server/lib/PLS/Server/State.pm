@@ -5,6 +5,6 @@ use warnings;
 
 our $INITIALIZED = 0;
 our $ROOT_PATH;
-our %CONFIG;
+our $CONFIG;
 
 1;

@@ -568,7 +568,7 @@ sub format_range
         $argv .= $args{formatting_options}{insertSpaces} ? ' -i=' : ' -et=';
         $argv .= $args{formatting_options}{tabSize};
     }
-    my $perltidyrc = glob($PLS::Server::State::CONFIG{perltidyrc} // '~/.perltidyrc');
+    my $perltidyrc = glob($PLS::Server::State::CONFIG->{perltidyrc} // '~/.perltidyrc');
     my $error      = Perl::Tidy::perltidy(source => \$selection, destination => \$formatted, stderr => \$stderr, perltidyrc => $perltidyrc, argv => $argv);
 
     # get the number of lines in the formatted result - we need to modify the range if

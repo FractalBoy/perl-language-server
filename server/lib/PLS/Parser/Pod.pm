@@ -158,7 +158,7 @@ sub get_clean_inc
         } ## end while (my $line = <$perl>...)
     } ## end if (open my $perl, '-|'...)
 
-    unshift @include, @{$PLS::Server::State::CONFIG{inc}} if (ref $PLS::Server::State::CONFIG{inc} eq 'ARRAY');
+    unshift @include, @{$PLS::Server::State::CONFIG->{inc}} if (ref $PLS::Server::State::CONFIG->{inc} eq 'ARRAY');
     unshift @include, $PLS::Server::State::ROOT_PATH;
     return \@include;
 } ## end sub get_clean_inc

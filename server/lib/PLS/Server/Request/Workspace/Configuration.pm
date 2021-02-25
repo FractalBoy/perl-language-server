@@ -5,6 +5,8 @@ use warnings;
 
 use parent 'PLS::Server::Request';
 
+use Scalar::Util;
+
 use PLS::Server::State;
 
 sub new
@@ -24,7 +26,7 @@ sub handle_response
 {
     my ($self, $response) = @_;
 
-    return unless (ref $response eq 'HASH' and ref $response->{result} eq 'ARRAY');
+    return unless (Scalar::Util::reftype $response eq 'HASH' and ref $response->{result} eq 'ARRAY');
     my $config = $response->{result}[0];
     return unless (ref $config eq 'HASH');
     $PLS::Server::State::CONFIG = $config;
