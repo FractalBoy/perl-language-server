@@ -5,6 +5,7 @@ use warnings;
 use feature 'state';
 
 use Coro;
+use Guard;
 use File::Find;
 use File::Path;
 use File::stat;
@@ -62,29 +63,31 @@ sub index_files
     state $indexing_semaphore = Coro::Semaphore->new();
     return unless $indexing_semaphore->try();
 
-    my (undef, $parent_dir) = File::Spec->splitpath($self->{location});
-    File::Path::make_path($parent_dir);
-
-    my $index = $self->index();
-
-    unless (scalar @files)
-    {
-        @files = @{$self->get_all_perl_files()};
-        $self->cleanup_old_files($index);
-    }
-
-    if (-f $self->{location})
-    {
-        my @mtimes = map { {file => $_, mtime => (stat $_)->mtime} } @files;
-
-        # return if all files are older than index
-        return if (all { $_->{mtime} <= $self->{last_mtime} } @mtimes);
-        @files = map { $_->{file} } grep { $_->{mtime} > $self->{last_mtime} } @mtimes;
-    } ## end if (-f $self->{location...})
-
     async
     {
-        my ($self, $index, @files) = @_;
+        my ($self, @files) = @_;
+
+        Guard::scope_guard { $indexing_semaphore->up() };
+
+        my (undef, $parent_dir) = File::Spec->splitpath($self->{location});
+        File::Path::make_path($parent_dir);
+
+        my $index = $self->index();
+
+        unless (scalar @files)
+        {
+            @files = @{$self->get_all_perl_files()};
+            $self->cleanup_old_files($index);
+        }
+
+        if (-f $self->{location})
+        {
+            my @mtimes = map { {file => $_, mtime => (stat $_)->mtime} } @files;
+
+            # return if all files are older than index
+            return if (all { $_->{mtime} <= $self->{last_mtime} } @mtimes);
+            @files = map { $_->{file} } grep { $_->{mtime} > $self->{last_mtime} } @mtimes;
+        } ## end if (-f $self->{location...})
 
         my $total   = scalar @files;
         my $current = 0;
@@ -109,9 +112,8 @@ sub index_files
         Storable::nstore($index, $self->{location});
         $self->{cache}      = $index;
         $self->{last_mtime} = (stat $self->{location})->mtime;
-        $indexing_semaphore->up();
     } ## end async
-    $self, $index, @files;
+    $self, @files;
 } ## end sub index_files
 
 sub index
