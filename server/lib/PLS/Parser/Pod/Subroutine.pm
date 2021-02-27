@@ -33,7 +33,7 @@ sub name
 
 sub find
 {
-    my ($self, $skip_indexing) = @_;
+    my ($self) = @_;
 
     my $definitions;
 
@@ -52,12 +52,12 @@ sub find
             }
         } ## end if (length $path)
 
-        $definitions = $self->{document}{index}->find_package_subroutine($self->{package}, $self->{subroutine}, $skip_indexing);
+        $definitions = $self->{document}{index}->find_package_subroutine($self->{package}, $self->{subroutine});
     } ## end if (length $self->{package...})
 
     unless (ref $definitions eq 'ARRAY' and scalar @$definitions)
     {
-        $definitions = $self->{document}{index}->find_subroutine($self->{subroutine}, $skip_indexing);
+        $definitions = $self->{document}{index}->find_subroutine($self->{subroutine});
     }
 
     my @markdown;

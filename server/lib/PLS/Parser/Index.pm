@@ -2,9 +2,9 @@ package PLS::Parser::Index;
 
 use strict;
 use warnings;
+use feature 'state';
 
 use Coro;
-use Coro::Handle;
 use File::Find;
 use File::Path;
 use File::stat;
@@ -59,6 +59,9 @@ sub index_files
 {
     my ($self, @files) = @_;
 
+    state $indexing_semaphore = Coro::Semaphore->new();
+    return unless $indexing_semaphore->try();
+
     my (undef, $parent_dir) = File::Spec->splitpath($self->{location});
     File::Path::make_path($parent_dir);
 
@@ -74,48 +77,41 @@ sub index_files
     {
         my @mtimes = map { {file => $_, mtime => (stat $_)->mtime} } @files;
 
-        # return existing index if all files are older than index
-        return $index if (all { $_->{mtime} <= $self->{last_mtime} } @mtimes);
+        # return if all files are older than index
+        return if (all { $_->{mtime} <= $self->{last_mtime} } @mtimes);
         @files = map { $_->{file} } grep { $_->{mtime} > $self->{last_mtime} } @mtimes;
     } ## end if (-f $self->{location...})
 
-    my $total     = scalar @files;
-    my $current   = 0;
-    my $semaphore = Coro::Semaphore->new;
-    my @coros;
-
-    foreach my $file (@files)
+    async
     {
-        $current++;
+        my ($self, $index, @files) = @_;
 
-        push @coros, async
+        my $total   = scalar @files;
+        my $current = 0;
+
+        foreach my $file (@files)
         {
-            my ($index, $file, $current) = @_;
-            open my $fh, '<', $file or return;
-            my $size    = (stat $fh)->size;
-            my $coro_fh = Coro::Handle->new_from_fh($fh);
-            $coro_fh->read(my $text, $size) if $coro_fh->readable;
-            return unless (length $text == $size);
+            $current++;
+
+            open my $fh, '<', $file or next;
+            my $text     = do { local $/; <$fh> };
             my $document = PLS::Parser::Document->new(path => $file, text => \$text);
             return unless (ref $document eq 'PLS::Parser::Document');
 
-            $semaphore->down;
+            Coro::cede();
             $self->log("Indexing $file ($current/$total)...");
             $self->update_subroutines($index, $document);
+            Coro::cede();
             $self->update_packages($index, $document);
-            $semaphore->up;
-        } ## end async
-        $index, $file, $current;
-    } ## end foreach my $file (@files)
+            Coro::cede();
+        } ## end foreach my $file (@files)
 
-    foreach my $coro (@coros)
-    {
-        $coro->join;
-    }
-
-    Storable::nstore($index, $self->{location});
-    $self->{cache}      = $index;
-    $self->{last_mtime} = (stat $self->{location})->mtime;
+        Storable::nstore($index, $self->{location});
+        $self->{cache}      = $index;
+        $self->{last_mtime} = (stat $self->{location})->mtime;
+        $indexing_semaphore->up();
+    } ## end async
+    $self, $index, @files;
 } ## end sub index_files
 
 sub index
@@ -254,9 +250,9 @@ sub cleanup_old_files
 
 sub find_package_subroutine
 {
-    my ($self, $package, $subroutine, $skip_indexing) = @_;
+    my ($self, $package, $subroutine) = @_;
 
-    $self->index_files() unless $skip_indexing;
+    $self->index_files();
     my $index     = $self->index();
     my $locations = $index->{packages}{$package};
 
@@ -269,7 +265,7 @@ sub find_package_subroutine
 
     foreach my $file (@$locations)
     {
-        return $self->find_subroutine($subroutine, 1, $file->{file});
+        return $self->find_subroutine($subroutine, $file->{file});
     }
 
     return;
@@ -277,9 +273,9 @@ sub find_package_subroutine
 
 sub find_subroutine
 {
-    my ($self, $subroutine, $skip_indexing, @files) = @_;
+    my ($self, $subroutine, @files) = @_;
 
-    $self->index_files(@files) unless $skip_indexing;
+    $self->index_files(@files);
     my $index = $self->index;
     my $found = $index->{subs}{$subroutine};
     return [] unless (ref $found eq 'ARRAY');
@@ -316,9 +312,9 @@ sub find_subroutine
 
 sub find_package
 {
-    my ($self, $package, $skip_indexing, @files) = @_;
+    my ($self, $package, @files) = @_;
 
-    $self->index_files(@files) unless $skip_indexing;
+    $self->index_files(@files);
     my $index = $self->index;
     my $found = $index->{packages}{$package};
 
