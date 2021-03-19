@@ -99,7 +99,7 @@ sub index_files
             open my $fh, '<', $file or next;
             my $text     = do { local $/; <$fh> };
             my $document = PLS::Parser::Document->new(path => $file, text => \$text);
-            return unless (ref $document eq 'PLS::Parser::Document');
+            next unless (ref $document eq 'PLS::Parser::Document');
 
             Coro::cede();
             $self->log("Indexing $file ($current/$total)...");

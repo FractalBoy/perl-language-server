@@ -44,8 +44,18 @@ sub recv
     die 'no Content-Length header provided' unless $size;
 
     my $raw;
-    my $length = sysread STDIN, $raw, $size;
-    die 'content length does not match header' unless $length == $size;
+    my $bytes_read = -1;
+    my $total_read = 0;
+
+    while ($bytes_read)
+    {
+        $bytes_read = sysread STDIN, $raw, $size - $total_read, $total_read;
+        die "failed to read: $!" unless (defined $bytes_read);
+
+        $total_read += $bytes_read;
+    }
+
+    die 'content length does not match header' if ($total_read != $size);
     my $content = decode_json $raw;
 
     if (length $content->{method})
