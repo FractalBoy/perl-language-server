@@ -595,24 +595,13 @@ sub format_range
     {
         return (0, {code => -32700, message => 'Perltidy failed to format the text.', data => $stderr});
     }
-    if ($error == 2)
+    if (length $stderr)
     {
         return (
                 0,
                 {
                  code    => -32700,
                  message => 'There were warnings or errors when running Perltidy. Formatting aborted.',
-                 data    => $stderr
-                }
-               );
-    } ## end if ($error == 2)
-    if (length $stderr)
-    {
-        return (
-                0,
-                {
-                 code    => -32001,
-                 message => 'Unknown error. View the details below to determine the source of the error.',
                  data    => $stderr
                 }
                );
