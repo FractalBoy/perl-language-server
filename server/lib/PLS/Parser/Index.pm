@@ -62,13 +62,11 @@ sub index_files
 {
     my ($self, @files) = @_;
 
-    $indexing_semaphore->down();
-
     async
     {
         my ($self, @files) = @_;
 
-        Guard::scope_guard { $indexing_semaphore->up() };
+        my $lock = $self->lock();
 
         my (undef, $parent_dir) = File::Spec->splitpath($self->{location});
         File::Path::make_path($parent_dir);
