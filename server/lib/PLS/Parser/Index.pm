@@ -19,6 +19,8 @@ use Trie;
 
 use constant {INDEX_LOCATION => File::Spec->catfile('.pls_cache', 'index')};
 
+my $indexing_semaphore = Coro::Semaphore->new();
+
 sub new
 {
     my ($class, @args) = @_;
@@ -60,7 +62,6 @@ sub index_files
 {
     my ($self, @files) = @_;
 
-    state $indexing_semaphore = Coro::Semaphore->new();
     $indexing_semaphore->down();
 
     async
@@ -115,12 +116,24 @@ sub index_files
             Coro::cede();
         } ## end foreach my $file (@files)
 
-        Storable::nstore($index, $self->{location});
-        $self->{cache}      = $index;
-        $self->{last_mtime} = (stat $self->{location})->mtime;
+        $self->save($index);
     } ## end async
     $self, @files;
 } ## end sub index_files
+
+sub lock
+{
+    return $indexing_semaphore->guard();
+}
+
+sub save
+{
+    my ($self, $index) = @_;
+
+    Storable::nstore($index, $self->{location});
+    $self->{cache}      = $index;
+    $self->{last_mtime} = (stat $self->{location})->mtime;
+}
 
 sub index
 {
@@ -223,8 +236,6 @@ sub update_index
 sub cleanup_old_files
 {
     my ($self, $index) = @_;
-
-    $index = $self->index() unless (ref $index eq 'HASH');
 
     if (ref $index->{files} eq 'HASH')
     {
