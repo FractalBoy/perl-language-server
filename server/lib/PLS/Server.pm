@@ -53,7 +53,7 @@ sub recv
         die "failed to read: $!" unless (defined $bytes_read);
 
         $total_read += $bytes_read;
-    }
+    } ## end while ($bytes_read)
 
     die 'content length does not match header' if ($total_read != $size);
     my $content = decode_json $raw;

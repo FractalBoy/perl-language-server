@@ -16,18 +16,19 @@ sub service
 
     return unless (ref $self->{params}{changes} eq 'ARRAY');
 
-    my $index = PLS::Parser::Document->get_index();
+    my $index       = PLS::Parser::Document->get_index();
     my $any_deletes = any { $_->{type} == 3 } @{$self->{params}{changes}};
 
     if ($any_deletes)
     {
-        async {
-            my $lock = $index->lock();
+        async
+        {
+            my $lock       = $index->lock();
             my $index_hash = $index->index();
             $index->cleanup_old_files($index_hash);
             $index->save($index_hash);
-        }
-    }
+        } ## end async
+    } ## end if ($any_deletes)
 
     my @changed_files;
 

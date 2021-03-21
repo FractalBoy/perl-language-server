@@ -90,7 +90,7 @@ sub index_files
                 return if (all { $_->{mtime} <= $self->{last_mtime} } @mtimes);
                 @files = map { $_->{file} } grep { $_->{mtime} > $self->{last_mtime} } @mtimes;
             } ## end if (-f $self->{location...})
-        }
+        } ## end unless (scalar @files)
 
         Coro::cede();
 
