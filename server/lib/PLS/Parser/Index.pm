@@ -12,6 +12,7 @@ use File::stat;
 use File::Spec;
 use FindBin;
 use List::Util qw(all any);
+use Path::Tiny;
 use Time::Piece;
 use Storable;
 
@@ -78,7 +79,7 @@ sub index_files
             Coro::cede();
 
             @files = @{$self->get_all_perl_files()};
-            $self->cleanup_old_files($index);
+            $self->_cleanup_old_files($index);
 
             Coro::cede();
 
@@ -239,6 +240,19 @@ sub update_index
 
 sub cleanup_old_files
 {
+    my ($self) = @_;
+
+    async
+    {
+        my $lock  = $self->lock();
+        my $index = $self->index();
+        $self->_cleanup_old_files($index);
+        $self->save($index);
+    } ## end async
+} ## end sub cleanup_old_files
+
+sub _cleanup_old_files
+{
     my ($self, $index) = @_;
 
     if (ref $index->{files} eq 'HASH')
@@ -271,7 +285,7 @@ sub cleanup_old_files
             delete $index->{files}{$file};
         } ## end foreach my $file (keys %{$index...})
     } ## end if (ref $index->{files...})
-} ## end sub cleanup_old_files
+} ## end sub _cleanup_old_files
 
 sub find_package_subroutine
 {
@@ -376,6 +390,49 @@ sub find_package
     ];
 } ## end sub find_package
 
+sub get_ignored_files
+{
+    my ($self) = @_;
+
+    my @ignore_files;
+    my $plsignore = File::Spec->catfile($self->{root}, '.plsignore');
+
+    return [] unless (-f $plsignore and -r $plsignore);
+
+    my $mtime = stat($plsignore)->mtime;
+    return $self->{ignored_files} if (length $self->{ignore_file_last_mtime} and $self->{ignore_file_last_mtime} >= $mtime);
+
+    if (open my $fh, '<', File::Spec->catfile($self->{root}, '.plsignore'))
+    {
+        while (my $line = <$fh>)
+        {
+            chomp $line;
+            push @ignore_files, glob File::Spec->catfile($self->{root}, $line);
+        }
+    } ## end if (open my $fh, '<', ...)
+
+    @ignore_files                   = map { path($_)->realpath } @ignore_files;
+    $self->{ignored_files}          = \@ignore_files;
+    $self->{ignore_file_last_mtime} = $mtime;
+
+    return $self->{ignored_files};
+} ## end sub get_ignored_files
+
+sub is_ignored
+{
+    my ($self, $file) = @_;
+
+    my @ignore_files = @{$self->get_ignored_files()};
+    return if not scalar @ignore_files;
+
+    my $real_path = path($file)->realpath;
+
+    return 1 if any { $_ eq $real_path } @ignore_files;
+    return 1 if any { $_->subsumes($real_path) } @ignore_files;
+
+    return;
+} ## end sub is_ignored
+
 sub get_all_perl_files
 {
     my ($self) = @_;
@@ -383,36 +440,21 @@ sub get_all_perl_files
     return unless (length $self->{root});
 
     my @perl_files;
-    my @ignore_files;
-
-    if (open my $plsignore, '<', File::Spec->catfile($self->{root}, '.plsignore'))
-    {
-        while (my $line = <$plsignore>)
-        {
-            chomp $line;
-            push @ignore_files, glob(File::Spec->catfile($self->{root}, $line));
-        }
-    } ## end if (open my $plsignore...)
 
     File::Find::find(
         {
          preprocess => sub {
-             return () if grep { $File::Find::dir eq $_ } @ignore_files;
-             return grep {
-                 my $file = $_;
-                 not scalar @ignore_files or grep { $_ ne $file } @ignore_files
-             } @_;
+             return () if $self->is_ignored($File::Find::dir);
+             return grep { not $self->is_ignored($_) } @_;
          },
          wanted => sub {
-             return unless -f;
-             return if -l;
-             return if /\.t$/;
+             return unless $self->is_perl_file($File::Find::name);
              my @pieces = File::Spec->splitdir($File::Find::name);
 
              # exclude hidden files and files in hidden directories
              return if any { /^\./ } @pieces;
 
-             push @perl_files, $File::Find::name if $self->is_perl_file($File::Find::name);
+             push @perl_files, $File::Find::name;
          }
         },
         $self->{root}
@@ -424,6 +466,10 @@ sub get_all_perl_files
 sub is_perl_file
 {
     my ($class, $file) = @_;
+
+    return if -l $file;
+    return unless -f $file;
+    return if $file =~ /\.t$/;
 
     return 1 if $file =~ /\.p[lm]$/;
     open my $fh, '<', $file or return;
