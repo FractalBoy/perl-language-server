@@ -109,7 +109,13 @@ sub index_files
             next unless (ref $document eq 'PLS::Parser::Document');
 
             Coro::cede();
-            $self->log("Indexing $file ($current/$total)...");
+
+            my $log_message = "Indexing $file";
+            $log_message .= " ($current/$total)" if (scalar @files > 1);
+            $log_message .= '...';
+
+            $self->log($log_message);
+
             $self->update_subroutines($index, $document);
             Coro::cede();
             $self->update_packages($index, $document);
@@ -133,7 +139,7 @@ sub save
     Storable::nstore($index, $self->{location});
     $self->{cache}      = $index;
     $self->{last_mtime} = (stat $self->{location})->mtime;
-}
+} ## end sub save
 
 sub index
 {
