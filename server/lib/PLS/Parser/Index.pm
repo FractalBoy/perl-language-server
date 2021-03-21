@@ -68,8 +68,6 @@ sub index_files
     {
         my ($self, @files) = @_;
 
-        Coro::cede();
-
         Guard::scope_guard { $indexing_semaphore->up() };
 
         my (undef, $parent_dir) = File::Spec->splitpath($self->{location});
@@ -79,20 +77,22 @@ sub index_files
 
         unless (scalar @files)
         {
+            Coro::cede();
+
             @files = @{$self->get_all_perl_files()};
             $self->cleanup_old_files($index);
+
+            Coro::cede();
+
+            if (-f $self->{location})
+            {
+                my @mtimes = map { {file => $_, mtime => (stat $_)->mtime} } @files;
+
+                # return if all files are older than index
+                return if (all { $_->{mtime} <= $self->{last_mtime} } @mtimes);
+                @files = map { $_->{file} } grep { $_->{mtime} > $self->{last_mtime} } @mtimes;
+            } ## end if (-f $self->{location...})
         }
-
-        Coro::cede();
-
-        if (-f $self->{location})
-        {
-            my @mtimes = map { {file => $_, mtime => (stat $_)->mtime} } @files;
-
-            # return if all files are older than index
-            return if (all { $_->{mtime} <= $self->{last_mtime} } @mtimes);
-            @files = map { $_->{file} } grep { $_->{mtime} > $self->{last_mtime} } @mtimes;
-        } ## end if (-f $self->{location...})
 
         Coro::cede();
 
