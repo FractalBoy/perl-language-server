@@ -27,14 +27,15 @@ sub service
         my $file = URI->new($change->{uri});
 
         next unless (ref $file eq 'URI::file');
-        next unless $index->is_perl_file($file->file);
-        next if $index->is_ignored($file->file);
 
         if ($change->{type} == 3)
         {
             $any_deletes = 1;
             next;
         }
+
+        next unless $index->is_perl_file($file->file);
+        next if $index->is_ignored($file->file);
 
         push @changed_files, $file->file;
     } ## end foreach my $change (@{$self...})
