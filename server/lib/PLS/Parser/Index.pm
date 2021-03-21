@@ -11,7 +11,7 @@ use File::Path;
 use File::stat;
 use File::Spec;
 use FindBin;
-use List::Util qw(all);
+use List::Util qw(all any);
 use Time::Piece;
 use Storable;
 
@@ -61,7 +61,7 @@ sub index_files
     my ($self, @files) = @_;
 
     state $indexing_semaphore = Coro::Semaphore->new();
-    return unless $indexing_semaphore->try();
+    $indexing_semaphore->down();
 
     async
     {
@@ -224,6 +224,8 @@ sub cleanup_old_files
 {
     my ($self, $index) = @_;
 
+    $index = $self->index() unless (ref $index eq 'HASH');
+
     if (ref $index->{files} eq 'HASH')
     {
         foreach my $file (keys %{$index->{files}})
@@ -260,7 +262,6 @@ sub find_package_subroutine
 {
     my ($self, $package, $subroutine) = @_;
 
-    $self->index_files();
     my $index     = $self->index();
     my $locations = $index->{packages}{$package};
 
@@ -283,7 +284,6 @@ sub find_subroutine
 {
     my ($self, $subroutine, @files) = @_;
 
-    $self->index_files(@files);
     my $index = $self->index;
     my $found = $index->{subs}{$subroutine};
     return [] unless (ref $found eq 'ARRAY');
@@ -322,7 +322,6 @@ sub find_package
 {
     my ($self, $package, @files) = @_;
 
-    $self->index_files(@files);
     my $index = $self->index;
     my $found = $index->{packages}{$package};
 
@@ -396,17 +395,9 @@ sub get_all_perl_files
              my @pieces = File::Spec->splitdir($File::Find::name);
 
              # exclude hidden files and files in hidden directories
-             return if grep { /^\./ } @pieces;
-             if (/\.p[ml]$/)
-             {
-                 push @perl_files, $File::Find::name;
-                 return;
-             }
-             open my $code, '<', $File::Find::name or return;
-             my $first_line = <$code>;
-             push @perl_files, $File::Find::name
-               if (length $first_line and $first_line =~ /^#!.*perl$/);
-             close $code;
+             return if any { /^\./ } @pieces;
+
+             push @perl_files, $File::Find::name if $self->is_perl_file($File::Find::name);
          }
         },
         $self->{root}
@@ -414,6 +405,18 @@ sub get_all_perl_files
 
     return \@perl_files;
 } ## end sub get_all_perl_files
+
+sub is_perl_file
+{
+    my ($class, $file) = @_;
+
+    return 1 if $file =~ /\.p[lm]$/;
+    open my $fh, '<', $file or return;
+    my $first_line = <$fh>;
+    close $fh;
+    return 1 if (length $first_line and $first_line =~ /^\s*#!.*perl$/);
+    return;
+} ## end sub is_perl_file
 
 sub log
 {

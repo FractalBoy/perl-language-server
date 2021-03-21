@@ -45,14 +45,13 @@ sub new
 
     return unless (length $path and length $uri);
 
-    $INDEX = PLS::Parser::Index->new(root => $PLS::Server::State::ROOT_PATH) unless (ref $INDEX eq 'PLS::Parser::Index');
-
     my $self = bless {
                       path  => $path,
                       uri   => $uri,
                       index => $INDEX
                      }, $class;
 
+    $self->get_index();
     my $document = $self->_get_ppi_document(%args);
     return unless (ref $document eq 'PPI::Document');
     $self->{document} = $document;
@@ -66,6 +65,14 @@ sub set_index
 
     $INDEX = $index;
 }
+
+sub get_index
+{
+    my ($class) = @_;
+
+    $INDEX = PLS::Parser::Index->new(root => $PLS::Server::State::ROOT_PATH) unless (ref $INDEX eq 'PLS::Parser::Index');
+    return $INDEX;
+} ## end sub get_index
 
 sub go_to_definition
 {
@@ -435,7 +442,7 @@ sub get_variables_fast
     my ($self, $text) = @_;
 
     $text = $self->get_full_text() unless (ref $text eq 'SCALAR');
-    return [] unless (ref $text eq 'SCALAR');
+    return []                      unless (ref $text eq 'SCALAR');
 
     my @variable_declarations = $$text =~ /((?&PerlVariableDeclaration))$PPR::GRAMMAR/gx;
     @variable_declarations = grep { defined } @variable_declarations;
@@ -454,7 +461,7 @@ sub get_packages_fast
     my ($self, $text) = @_;
 
     $text = $self->get_full_text() unless (ref $text eq 'SCALAR');
-    return [] unless (ref $text eq 'SCALAR');
+    return []                      unless (ref $text eq 'SCALAR');
 
     my @package_declarations = $$text =~ /((?&PerlPackageDeclaration))$PPR::GRAMMAR/gx;
     @package_declarations = grep { defined } @package_declarations;
@@ -473,12 +480,12 @@ sub get_subroutines_fast
     my ($self, $text) = @_;
 
     $text = $self->get_full_text() unless (ref $text eq 'SCALAR');
-    return [] unless (ref $text eq 'SCALAR');
+    return []                      unless (ref $text eq 'SCALAR');
 
     my @subroutine_declarations = $$text =~ /sub\b(?&PerlOWS)((?&PerlOldQualifiedIdentifier))$PPR::GRAMMAR/gx;
 
     return [
-            map { s/^\s+|\s+$//r }
+            map  { s/^\s+|\s+$//r }
             grep { defined } @subroutine_declarations
            ];
 } ## end sub get_subroutines_fast
@@ -488,7 +495,7 @@ sub get_constants_fast
     my ($self, $text) = @_;
 
     $text = $self->get_full_text() unless (ref $text eq 'SCALAR');
-    return [] unless (ref $text eq 'SCALAR');
+    return []                      unless (ref $text eq 'SCALAR');
 
     my @use_statements = $$text =~ /((?&PerlUseStatement)) $PPR::GRAMMAR/gx;
     @use_statements = grep { defined } @use_statements;
