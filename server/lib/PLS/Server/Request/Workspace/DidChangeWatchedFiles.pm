@@ -6,7 +6,7 @@ use warnings;
 use parent q(PLS::Server::Request::Base);
 
 use Coro;
-use List::Util qw(any);
+use List::Util qw(any uniq);
 
 use PLS::Parser::Document;
 
@@ -42,6 +42,7 @@ sub service
         push @changed_files, $file->file;
     } ## end foreach my $change (@{$self...})
 
+    @changed_files = uniq @changed_files;
     $index->index_files(@changed_files) if (scalar @changed_files);
     return;
 } ## end sub service
