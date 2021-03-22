@@ -13,6 +13,7 @@ use Scalar::Util;
 
 use PLS::Server::Request;
 use PLS::Server::Response;
+use PLS::Server::Response::Cancelled;
 
 sub new
 {
@@ -91,21 +92,43 @@ sub run
 
     my $last_request_id = 0;
     my @pending_requests;
+    my %running_coros;
 
     async
     {
         # check for requests and service them
         while (my $request = $client_requests->get)
         {
-            async
+            # Handle cancellations by cancelling the Coro and sending an error
+            # response indicating the request was cancelled.
+            if ($request->{method} eq '$/cancelRequest')
+            {
+                next unless (exists $running_coros{$request->{params}{id}});
+                my $request_to_cancel = $running_coros{$request->{params}{id}};
+
+                next unless (ref $request_to_cancel eq 'Coro');
+                $request_to_cancel->cancel();
+
+                delete $running_coros{$request->{params}{id}};
+
+                my $canceled_response = PLS::Server::Response::Cancelled->new(id => $request->{params}{id});
+                $server_responses->put($canceled_response);
+
+                next;
+            } ## end if ($request->{method}...)
+
+            my $coro = async
             {
                 my ($request) = @_;
+
                 my $response = $request->service($self);
+                delete $running_coros{$request->{id}};
                 return unless Scalar::Util::blessed($response);
                 $server_responses->put($response);
             } ## end async
             $request;
 
+            $running_coros{$request->{id}} = $coro if (length $request->{id});
             Coro::cede();
         } ## end while (my $request = $client_requests...)
     };
