@@ -122,7 +122,7 @@ sub run
                 my ($request) = @_;
 
                 my $response = $request->service($self);
-                delete $running_coros{$request->{id}};
+                delete $running_coros{$request->{id}} if (length $request->{id});
                 return unless Scalar::Util::blessed($response);
                 $server_responses->put($response);
             } ## end async
