@@ -5,6 +5,7 @@ use warnings;
 use feature 'state';
 
 use Coro;
+use Coro::AnyEvent;
 use Guard;
 use File::Find;
 use File::Path;
@@ -76,12 +77,8 @@ sub index_files
 
         unless (scalar @files)
         {
-            Coro::cede();
-
             @files = @{$self->get_all_perl_files()};
             $self->_cleanup_old_files($index);
-
-            Coro::cede();
 
             if (-f $self->{location})
             {
@@ -92,8 +89,6 @@ sub index_files
                 @files = map { $_->{file} } grep { $_->{mtime} > $self->{last_mtime} } @mtimes;
             } ## end if (-f $self->{location...})
         } ## end unless (scalar @files)
-
-        Coro::cede();
 
         my $total   = scalar @files;
         my $current = 0;
@@ -107,7 +102,7 @@ sub index_files
             my $document = PLS::Parser::Document->new(path => $file, text => \$text);
             next unless (ref $document eq 'PLS::Parser::Document');
 
-            Coro::cede();
+            Coro::AnyEvent::sleep 0.01;
 
             my $log_message = "Indexing $file";
             $log_message .= " ($current/$total)" if (scalar @files > 1);
@@ -116,9 +111,9 @@ sub index_files
             $self->log($log_message);
 
             $self->update_subroutines($index, $document);
-            Coro::cede();
+            Coro::AnyEvent::sleep 0.01;
             $self->update_packages($index, $document);
-            Coro::cede();
+            Coro::AnyEvent::sleep 0.01;
         } ## end foreach my $file (@files)
 
         $self->save($index);
