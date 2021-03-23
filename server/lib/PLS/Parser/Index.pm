@@ -6,7 +6,6 @@ use feature 'state';
 
 use Coro;
 use Coro::AnyEvent;
-use Guard;
 use File::Find;
 use File::Path;
 use File::stat;
@@ -30,12 +29,13 @@ sub new
     my %args = @args;
 
     my %self = (
-                root          => $args{root},
-                location      => File::Spec->catfile($args{root}, INDEX_LOCATION),
-                cache         => {},
-                subs_trie     => Trie->new(),
-                packages_trie => Trie->new(),
-                last_mtime    => 0
+                root                     => $args{root},
+                location                 => File::Spec->catfile($args{root}, INDEX_LOCATION),
+                cache                    => {},
+                subs_trie                => Trie->new(),
+                packages_trie            => Trie->new(),
+                last_mtime               => 0,
+                retrieve_index_semaphore => Coro::Semaphore->new()
                );
 
     return bless \%self, $class;
@@ -131,10 +131,15 @@ sub index
     my ($self) = @_;
 
     return {} unless -f $self->{location};
+
+    # Don't have two coroutines retrieving the index at the same time
+    my $guard = $self->{retrieve_index_semaphore}->guard();
     my $mtime = (stat $self->{location})->mtime;
     return $self->{cache} if ($mtime <= $self->{last_mtime});
+
     $self->{last_mtime} = $mtime;
     $self->{cache}      = Storable::retrieve($self->{location});
+
     return $self->{cache};
 } ## end sub index
 
