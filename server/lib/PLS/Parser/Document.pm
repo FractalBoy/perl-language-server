@@ -108,7 +108,7 @@ sub go_to_definition_of_closest_subroutine
 
     return unless ($word->{ppi_element} isa 'PPI::Token::Word');
     return $self->search_elements_for_definition($line_number, $column_number, $word);
-} ## end sub go_to_definition_for_closest_subroutine
+} ## end sub go_to_definition_of_closest_subroutine
 
 sub search_elements_for_definition
 {
@@ -764,7 +764,9 @@ sub find_word_under_cursor
 
     my @elements = $self->find_elements_at_location($line, $character);
     @elements = map  { $_->tokens } @elements;
-    @elements = grep { $_->{ppi_element}->significant } @elements;
+    @elements = grep { $_->{ppi_element}->isa('PPI::Token::Word') or $_->{ppi_element}->isa('PPI::Token::Label') or $_->{ppi_element}->isa('PPI::Token::Symbol') } @elements;
+    use Data::Dumper;
+    warn Dumper \@elements;
     my $element = $elements[0];
     return unless (ref $element eq 'PLS::Parser::Element');
 
