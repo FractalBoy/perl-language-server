@@ -87,6 +87,29 @@ sub go_to_definition
     return $self->search_elements_for_definition($line_number, $column_number, @matches);
 } ## end sub go_to_definition
 
+sub go_to_definition_of_closest_subroutine
+{
+    my ($self, $line_number, $column_number) = @_;
+
+    my @elements = $self->find_elements_at_location($line_number, $column_number);
+
+    my $word;
+
+    foreach my $element (@elements)
+    {
+        next unless $element->{ppi_element}->isa('PPI::Structure::List');
+        $word = $element;
+
+        while ($word isa 'PLS::Parser::Element' and not $word->{ppi_element} isa 'PPI::Token::Word')
+        {
+            $word = $element->previous_sibling;
+        }
+    } ## end foreach my $element (@elements...)
+
+    return unless ($word->{ppi_element} isa 'PPI::Token::Word');
+    return $self->search_elements_for_definition($line_number, $column_number, $word);
+} ## end sub go_to_definition_for_closest_subroutine
+
 sub search_elements_for_definition
 {
     my ($self, $line_number, $column_number, @matches) = @_;
@@ -389,8 +412,7 @@ sub get_subroutines
             $_[0]->isa('PPI::Statement::Sub') and not $_[0]->isa('PPI::Statement::Scheduled');
         }
     );
-    return [map { PLS::Parser::Element::Subroutine->new(document => $self->{document}, element => $_, file => $self->{path}) }
-            $find->in($self->{document})];
+    return [map { PLS::Parser::Element::Subroutine->new(document => $self->{document}, element => $_, file => $self->{path}) } $find->in($self->{document})];
 } ## end sub get_subroutines
 
 sub get_constants
@@ -434,8 +456,7 @@ sub get_packages
     my ($self) = @_;
 
     my $find = PPI::Find->new(sub { $_[0]->isa('PPI::Statement::Package') });
-    return [map { PLS::Parser::Element::Package->new(document => $self->{document}, element => $_, file => $self->{path}) }
-            $find->in($self->{document})];
+    return [map { PLS::Parser::Element::Package->new(document => $self->{document}, element => $_, file => $self->{path}) } $find->in($self->{document})];
 } ## end sub get_packages
 
 sub get_variable_statements
@@ -443,8 +464,7 @@ sub get_variable_statements
     my ($self) = @_;
 
     my $find = PPI::Find->new(sub { $_[0]->isa('PPI::Statement::Variable') });
-    return [map { PLS::Parser::Element::VariableStatement->new(document => $self->{document}, element => $_, file => $self->{path}) }
-            $find->in($self->{document})];
+    return [map { PLS::Parser::Element::VariableStatement->new(document => $self->{document}, element => $_, file => $self->{path}) } $find->in($self->{document})];
 } ## end sub get_variable_statements
 
 sub get_full_text
@@ -589,7 +609,7 @@ sub format_range
         $argv .= $args{formatting_options}{tabSize};
     }
     my $perltidyrc = glob($PLS::Server::State::CONFIG->{perltidyrc} // '~/.perltidyrc');
-    my $error = Perl::Tidy::perltidy(source => \$selection, destination => \$formatted, stderr => \$stderr, perltidyrc => $perltidyrc, argv => $argv);
+    my $error      = Perl::Tidy::perltidy(source => \$selection, destination => \$formatted, stderr => \$stderr, perltidyrc => $perltidyrc, argv => $argv);
 
     # get the number of lines in the formatted result - we need to modify the range if
     # any lines were added
