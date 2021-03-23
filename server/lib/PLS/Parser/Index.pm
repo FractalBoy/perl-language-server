@@ -68,27 +68,15 @@ sub index_files
     {
         my ($self, @files) = @_;
 
-        my $lock = $self->lock();
-
-        my (undef, $parent_dir) = File::Spec->splitpath($self->{location});
-        File::Path::make_path($parent_dir);
-
+        my $lock  = $self->lock();
         my $index = $self->index();
 
         unless (scalar @files)
         {
             @files = @{$self->get_all_perl_files()};
             $self->_cleanup_old_files($index);
-
-            if (-f $self->{location})
-            {
-                my @mtimes = map { {file => $_, mtime => (stat $_)->mtime} } @files;
-
-                # return if all files are older than index
-                return if (all { $_->{mtime} <= $self->{last_mtime} } @mtimes);
-                @files = map { $_->{file} } grep { $_->{mtime} > $self->{last_mtime} } @mtimes;
-            } ## end if (-f $self->{location...})
-        } ## end unless (scalar @files)
+            @files = grep { $index->{files}{$_}{last_mtime} < stat($_)->mtime } @files;
+        }
 
         my $total   = scalar @files;
         my $current = 0;
@@ -129,6 +117,9 @@ sub lock
 sub save
 {
     my ($self, $index) = @_;
+
+    my (undef, $parent_dir) = File::Spec->splitpath($self->{location});
+    File::Path::make_path($parent_dir);
 
     Storable::nstore($index, $self->{location});
     $self->{cache}      = $index;
@@ -231,6 +222,8 @@ sub update_index
 
         push @{$index->{files}{$file}{$type}}, $reference->name;
     } ## end foreach my $reference (@references...)
+
+    $index->{files}{$file}{last_mtime} = stat($file)->mtime;
 } ## end sub update_index
 
 sub cleanup_old_files
