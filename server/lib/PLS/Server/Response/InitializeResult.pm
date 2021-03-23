@@ -17,7 +17,7 @@ sub new
                                             documentSymbolProvider => \1,
                                             hoverProvider          => \1,
                                             signatureHelpProvider  => {
-                                                                      triggerCharacters => ['(']
+                                                                      triggerCharacters => ['(', ',']
                                                                      },
                                             textDocumentSync => {
                                                                  openClose => \1,

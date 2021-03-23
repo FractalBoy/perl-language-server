@@ -3,6 +3,10 @@ package PLS::Parser::Document;
 use strict;
 use warnings;
 
+use feature 'isa';
+no warnings 'experimental::isa';
+
+use List::Util qw(first);
 use Perl::Critic::Utils ();
 use Perl::Tidy;
 use PPI;
@@ -321,8 +325,9 @@ sub update_file
             my ($starting_text, $ending_text);
 
             # get the text that we're not replacing at the start and end of each selection
-            $starting_text = substr $lines[$change->{range}{start}{line}], 0, $change->{range}{start}{character} if ($#lines >= $change->{range}{start}{line});
-            $ending_text   = substr $lines[$change->{range}{end}{line}],   $change->{range}{end}{character} if ($#lines >= $change->{range}{end}{line});
+            $starting_text = substr $lines[$change->{range}{start}{line}], 0, $change->{range}{start}{character}
+              if ($#lines >= $change->{range}{start}{line});
+            $ending_text = substr $lines[$change->{range}{end}{line}], $change->{range}{end}{character} if ($#lines >= $change->{range}{end}{line});
 
             # append the existing text to the replacement
             if (length $starting_text)
@@ -375,7 +380,8 @@ sub get_subroutines
             $_[0]->isa('PPI::Statement::Sub') and not $_[0]->isa('PPI::Statement::Scheduled');
         }
     );
-    return [map { PLS::Parser::Element::Subroutine->new(document => $self->{document}, element => $_, file => $self->{path}) } $find->in($self->{document})];
+    return [map { PLS::Parser::Element::Subroutine->new(document => $self->{document}, element => $_, file => $self->{path}) }
+            $find->in($self->{document})];
 } ## end sub get_subroutines
 
 sub get_constants
@@ -419,7 +425,8 @@ sub get_packages
     my ($self) = @_;
 
     my $find = PPI::Find->new(sub { $_[0]->isa('PPI::Statement::Package') });
-    return [map { PLS::Parser::Element::Package->new(document => $self->{document}, element => $_, file => $self->{path}) } $find->in($self->{document})];
+    return [map { PLS::Parser::Element::Package->new(document => $self->{document}, element => $_, file => $self->{path}) }
+            $find->in($self->{document})];
 } ## end sub get_packages
 
 sub get_variable_statements
@@ -427,7 +434,8 @@ sub get_variable_statements
     my ($self) = @_;
 
     my $find = PPI::Find->new(sub { $_[0]->isa('PPI::Statement::Variable') });
-    return [map { PLS::Parser::Element::VariableStatement->new(document => $self->{document}, element => $_, file => $self->{path}) } $find->in($self->{document})];
+    return [map { PLS::Parser::Element::VariableStatement->new(document => $self->{document}, element => $_, file => $self->{path}) }
+            $find->in($self->{document})];
 } ## end sub get_variable_statements
 
 sub get_full_text
@@ -572,7 +580,7 @@ sub format_range
         $argv .= $args{formatting_options}{tabSize};
     }
     my $perltidyrc = glob($PLS::Server::State::CONFIG->{perltidyrc} // '~/.perltidyrc');
-    my $error      = Perl::Tidy::perltidy(source => \$selection, destination => \$formatted, stderr => \$stderr, perltidyrc => $perltidyrc, argv => $argv);
+    my $error = Perl::Tidy::perltidy(source => \$selection, destination => \$formatted, stderr => \$stderr, perltidyrc => $perltidyrc, argv => $argv);
 
     # get the number of lines in the formatted result - we need to modify the range if
     # any lines were added
@@ -732,10 +740,12 @@ sub find_word_under_cursor
     return unless (ref $element eq 'PLS::Parser::Element');
 
     # if the cursor is on the word after an arrow, back up to the arrow so we can use any package information before it.
-    if ($element->{ppi_element}->isa('PPI::Token::Word') and ref $element->previous_sibling eq 'PLS::Parser::Element' and $element->previous_sibling->name eq '->')
+    if (    $element->{ppi_element}->isa('PPI::Token::Word')
+        and ref $element->previous_sibling eq 'PLS::Parser::Element'
+        and $element->previous_sibling->name eq '->')
     {
         $element = $element->previous_sibling;
-    }
+    } ## end if ($element->{ppi_element...})
 
     if ($element->name eq '->')
     {
@@ -800,6 +810,49 @@ sub find_word_under_cursor
 
     return $range, 0, $package, $name;
 } ## end sub find_word_under_cursor
+
+sub get_list_index
+{
+    my ($self, $line, $character) = @_;
+
+    my @elements = $self->find_elements_at_location($line, $character);
+    return unless (scalar @elements);
+    $character++;
+
+    my $list;
+    my $find = PPI::Find->new(sub { $_[0] isa 'PPI::Structure::List' });
+
+    foreach my $element (@elements)
+    {
+        ($list) = $find->in($element->{ppi_element});
+        last if ($list isa 'PPI::Structure::List');
+    }
+
+    return unless (ref $list);
+
+    $find = PPI::Find->new(sub { $_[0] isa 'PPI::Statement::Expression' });
+    ($list) = $find->in($list);
+
+    return unless (ref $list);
+
+    my $param_index = -1;
+    my @commas      = grep { $_ isa 'PPI::Token::Operator' and $_ eq ',' } $list->schildren;
+
+    return $param_index unless (scalar @commas);
+
+    foreach my $index (reverse 0 .. $#commas)
+    {
+        my $param = $commas[$index];
+
+        if ($param->column_number <= $character)
+        {
+            $param_index = $index;
+            last;
+        }
+    } ## end foreach my $index (reverse ...)
+
+    return $param_index + 1;
+} ## end sub get_list_index
 
 sub _split_lines
 {

@@ -3,7 +3,8 @@ package PLS::Parser::Element;
 use strict;
 use warnings;
 
-use List::Util qw(any);
+use List::Util qw(any first);
+use PPI::Find;
 use Scalar::Util qw(blessed);
 
 sub new
@@ -127,9 +128,18 @@ sub method_name
 {
     my ($self) = @_;
 
-    my $element = $self->{ppi_element};
-    return unless $element->isa('PPI::Token::Word');
-    return unless (ref $element->sprevious_sibling eq 'PPI::Token::Operator' and $element->sprevious_sibling eq '->');
+    my @elements = ($self->{ppi_element});
+    my $find     = PPI::Find->new(sub { 1 });
+    push @elements, $find->in($self->{ppi_element});
+
+    my $element = first
+    {
+        $_->isa('PPI::Token::Word')
+          and ref $_->sprevious_sibling eq 'PPI::Token::Operator'
+          and $_->sprevious_sibling eq '->'
+    }
+    @elements;
+    return unless (ref $element);
     return $element->content;
 } ## end sub method_name
 
@@ -137,11 +147,20 @@ sub class_method_package_and_name
 {
     my ($self) = @_;
 
-    my $element = $self->{ppi_element};
-    return unless $element->isa('PPI::Token::Word');
-    return unless (ref $element->sprevious_sibling eq 'PPI::Token::Operator' and $element->sprevious_sibling eq '->');
-    return unless (ref $element->sprevious_sibling->sprevious_sibling eq 'PPI::Token::Word');
+    my @elements = ($self->{ppi_element});
+    my $find     = PPI::Find->new(sub { 1 });
+    push @elements, $find->in($self->{ppi_element});
 
+    my $element = first
+    {
+        $_->isa('PPI::Token::Word')
+          and ref $_->sprevious_sibling eq 'PPI::Token::Operator'
+          and $_->sprevious_sibling eq '->'
+          and ref $_->sprevious_sibling->sprevious_sibling eq 'PPI::Token::Word'
+    } ## end first
+    @elements;
+
+    return unless (ref $element);
     return ($element->sprevious_sibling->sprevious_sibling->content, $element->content);
 } ## end sub class_method_package_and_name
 
@@ -149,8 +168,12 @@ sub subroutine_package_and_name
 {
     my ($self) = @_;
 
-    my $element = $self->{ppi_element};
-    return unless Perl::Critic::Utils::is_function_call($element);
+    my @elements = ($self->{ppi_element});
+    my $find     = PPI::Find->new(sub { 1 });
+    push @elements, $find->in($self->{ppi_element});
+
+    my $element = first { Perl::Critic::Utils::is_function_call($_) and $_->isa('PPI::Token::Word') } @elements;
+    return unless (ref $element);
     return unless $element->isa('PPI::Token::Word');
 
     if ($element->content =~ /::/)
@@ -172,8 +195,13 @@ sub variable_name
 {
     my ($self) = @_;
 
-    my $element = $self->{ppi_element};
-    return unless $element->isa('PPI::Token::Symbol');
+    my @elements = ($self->{ppi_element});
+    my $find     = PPI::Find->new(sub { 1 });
+    push @elements, $find->in($self->{ppi_element});
+
+    my $element = first { $_->isa('PPI::Token::Symbol') } @elements;
+
+    return unless (ref $element);
     return $element->symbol;
 } ## end sub variable_name
 
@@ -265,7 +293,7 @@ sub _get_string_from_qw
 
     my ($content) = $element->content =~ /qw[[:graph:]](.+)[[:graph:]]/;
     return unless (length $content);
-    my @words = split /(\s+)/, $content;
+    my @words          = split /(\s+)/, $content;
     my $current_column = $element->column_number + 3;
 
     # Figure out which word the mouse is hovering on.
