@@ -75,7 +75,7 @@ sub index_files
         {
             @files = @{$self->get_all_perl_files()};
             $self->_cleanup_old_files($index);
-            @files = grep { exists $index->{files}{$_}{last_mtime} and length $index->{files}{$_}{last_mtime} and $index->{files}{$_}{last_mtime} < stat($_)->mtime } @files;
+            @files = grep { not exists $index->{files}{$_}{last_mtime} or not length $index->{files}{$_}{last_mtime} and $index->{files}{$_}{last_mtime} < stat($_)->mtime } @files;
         } ## end unless (scalar @files)
 
         my $total   = scalar @files;
