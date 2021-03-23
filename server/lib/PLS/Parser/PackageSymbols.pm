@@ -1,6 +1,6 @@
 package PLS::Parser::PackageSymbols;
 
-use Fcntl ();
+use Fcntl    ();
 use Storable ();
 
 sub get_package_functions
@@ -47,6 +47,7 @@ sub _get_package_functions_script
 
     my $script = << 'EOF';
 use Storable;
+use Sub::Util;
 
 local $SIG{__WARN__} = sub { };
 
@@ -79,6 +80,7 @@ if (length $package and not length $@)
     {
         next if $name =~ /^BEGIN|UNITCHECK|INIT|CHECK|END|VERSION|import$/;
         next unless $package->can($name);
+        next unless Sub::Util::subname(*{$ref->{$name}}{CODE}) eq "${package}::${name}";
         push @functions, $name;
     } ## end foreach my $name (keys %%{$ref...})
 
