@@ -274,6 +274,8 @@ sub find_external_package
 {
     my ($self, $package_name) = @_;
 
+    return unless (length $package_name);
+
     my $include  = PLS::Parser::Pod->get_clean_inc();
     my $metadata = Module::Metadata->new_from_module($package_name, inc => $include);
 
