@@ -102,7 +102,7 @@ sub go_to_definition_of_closest_subroutine
 
         while ($word isa 'PLS::Parser::Element' and not $word->{ppi_element} isa 'PPI::Token::Word')
         {
-            $word = $element->previous_sibling;
+            $word = $word->previous_sibling;
         }
     } ## end foreach my $element (@elements...)
 
@@ -765,8 +765,6 @@ sub find_word_under_cursor
     my @elements = $self->find_elements_at_location($line, $character);
     @elements = map  { $_->tokens } @elements;
     @elements = grep { $_->{ppi_element}->isa('PPI::Token::Word') or $_->{ppi_element}->isa('PPI::Token::Label') or $_->{ppi_element}->isa('PPI::Token::Symbol') } @elements;
-    use Data::Dumper;
-    warn Dumper \@elements;
     my $element = $elements[0];
     return unless (ref $element eq 'PLS::Parser::Element');
 

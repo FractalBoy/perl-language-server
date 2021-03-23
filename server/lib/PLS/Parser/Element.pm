@@ -321,7 +321,7 @@ sub parent
 {
     my ($self) = @_;
 
-    return unless (ref $self->{ppi_element}->parent);
+    return unless $self->{ppi_element}->parent;
     return PLS::Parser::Element->new(file => $self->{file}, element => $self->{ppi_element}->parent);
 } ## end sub parent
 
@@ -329,7 +329,7 @@ sub previous_sibling
 {
     my ($self) = @_;
 
-    return unless (ref $self->{ppi_element}->sprevious_sibling);
+    return unless $self->{ppi_element}->sprevious_sibling;
     return PLS::Parser::Element->new(file => $self->{file}, element => $self->{ppi_element}->sprevious_sibling);
 } ## end sub previous_sibling
 
@@ -337,7 +337,7 @@ sub next_sibling
 {
     my ($self) = @_;
 
-    return unless (ref $self->{ppi_element}->snext_sibling);
+    return unless $self->{ppi_element}->snext_sibling;
     return PLS::Parser::Element->new(file => $self->{file}, element => $self->{ppi_element}->snext_sibling);
 } ## end sub next_sibling
 
