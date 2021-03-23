@@ -27,7 +27,7 @@ sub find
 {
     my ($self) = @_;
 
-    my $definitions = $self->{document}{index}->find_package($self->{package});
+    my $definitions = $self->{index}->find_package($self->{package});
 
     if (ref $definitions eq 'ARRAY' and scalar @$definitions)
     {

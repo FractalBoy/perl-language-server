@@ -20,7 +20,7 @@ sub new
     my %args = @args;
 
     my %self = (
-                document => $args{document},
+                index => $args{index},
                 element  => $args{element}
                );
 

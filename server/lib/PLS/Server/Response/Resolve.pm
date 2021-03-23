@@ -14,14 +14,14 @@ sub new
     my $self = {id => $request->{id}, result => undef};
     bless $self, $class;
 
-    my $document = PLS::Parser::Document->new(uri => $request->{params}{data});
-    return $self unless (ref $document eq 'PLS::Parser::Document');
+    my $index = PLS::Parser::Document->get_index();
+    return $self unless (ref $index eq 'PLS::Parser::Index');
 
     my $kind = $request->{params}{kind};
 
     if ($kind == 7)
     {
-        my $pod = PLS::Parser::Pod::Package->new(document => $document, package => $request->{params}{label});
+        my $pod = PLS::Parser::Pod::Package->new(index => $index, package => $request->{params}{label});
         my $ok  = $pod->find();
 
         if ($ok)
@@ -51,7 +51,7 @@ sub new
             $subroutine = $request->{params}{label};
         }
 
-        my $pod = PLS::Parser::Pod::Subroutine->new(document => $document, package => $package, subroutine => $subroutine);
+        my $pod = PLS::Parser::Pod::Subroutine->new(index => $index, package => $package, subroutine => $subroutine);
         my $ok  = $pod->find();
 
         if ($ok)

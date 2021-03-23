@@ -52,12 +52,12 @@ sub find
             }
         } ## end if (length $path)
 
-        $definitions = $self->{document}{index}->find_package_subroutine($self->{package}, $self->{subroutine});
+        $definitions = $self->{index}->find_package_subroutine($self->{package}, $self->{subroutine});
     } ## end if (length $self->{package...})
 
     unless (ref $definitions eq 'ARRAY' and scalar @$definitions)
     {
-        $definitions = $self->{document}{index}->find_subroutine($self->{subroutine});
+        $definitions = $self->{index}->find_subroutine($self->{subroutine});
     }
 
     my @markdown;

@@ -146,7 +146,7 @@ sub find_pod
         {
             my $pod =
               PLS::Parser::Pod::Subroutine->new(
-                                                document   => $self,
+                                                index      => $self->{index},
                                                 element    => $element,
                                                 package    => $package,
                                                 subroutine => $subroutine
@@ -158,7 +158,7 @@ sub find_pod
         {
             my $pod =
               PLS::Parser::Pod::ClassMethod->new(
-                                                 document   => $self,
+                                                 index      => $self->{index},
                                                  element    => $element,
                                                  package    => $package,
                                                  subroutine => $subroutine
@@ -170,7 +170,7 @@ sub find_pod
         {
             my $pod =
               PLS::Parser::Pod::Method->new(
-                                            document   => $self,
+                                            index      => $self->{index},
                                             element    => $element,
                                             subroutine => $subroutine
                                            );
@@ -179,7 +179,7 @@ sub find_pod
         } ## end if ($subroutine = $element...)
         if (($package, $import) = $element->package_name($column_number))
         {
-            my %args       = (document => $self, element => $element, package => $package);
+            my %args       = (index => $self->{index}, element => $element, package => $package);
             my $class_name = 'PLS::Parser::Pod::Package';
 
             if (length $import)
@@ -204,7 +204,7 @@ sub find_pod
         {
             my $pod =
               PLS::Parser::Pod::Variable->new(
-                                              document => $self->{document},
+                                              index    => $self->{index},
                                               element  => $element,
                                               variable => $variable
                                              );
