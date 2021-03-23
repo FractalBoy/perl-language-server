@@ -11,7 +11,7 @@ sub new
 {
     my ($class, $request) = @_;
 
-    my $document = PLS::Parser::Document->new(uri => $request->{params}{textDocument}{uri});
+    my $document = PLS::Parser::Document->new(uri => $request->{params}{textDocument}{uri}, line => $request->{params}{position}{line});
     my $results = $document->go_to_definition(
                                               $request->{params}{position}{line},
                                               $request->{params}{position}{character} - 1    # we want the word before the open paren
