@@ -84,6 +84,13 @@ sub go_to_definition
 
     my @matches = $self->find_elements_at_location($line_number, $column_number);
 
+    return $self->search_elements_for_definition($line_number, $column_number, @matches);
+} ## end sub go_to_definition
+
+sub search_elements_for_definition
+{
+    my ($self, $line_number, $column_number, @matches) = @_;
+
     foreach my $match (@matches)
     {
         if (my ($package, $subroutine) = $match->subroutine_package_and_name())
@@ -134,7 +141,7 @@ sub go_to_definition
     } ## end foreach my $match (@matches...)
 
     return;
-} ## end sub go_to_definition
+} ## end sub search_elements_for_definition
 
 sub find_pod
 {
@@ -840,7 +847,7 @@ sub get_list_index
     my $param_index = -1;
     my @commas      = grep { $_ isa 'PPI::Token::Operator' and $_ eq ',' } $list->schildren;
 
-    return $param_index unless (scalar @commas);
+    return $param_index + 1 unless (scalar @commas);
 
     foreach my $index (reverse 0 .. $#commas)
     {

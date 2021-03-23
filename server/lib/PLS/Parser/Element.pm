@@ -3,6 +3,9 @@ package PLS::Parser::Element;
 use strict;
 use warnings;
 
+use feature 'isa';
+no warnings 'experimental::isa';
+
 use List::Util qw(any first);
 use PPI::Find;
 use Scalar::Util qw(blessed);
@@ -128,18 +131,13 @@ sub method_name
 {
     my ($self) = @_;
 
-    my @elements = ($self->{ppi_element});
-    my $find     = PPI::Find->new(sub { 1 });
-    push @elements, $find->in($self->{ppi_element});
+    my $element = $self->{ppi_element};
 
-    my $element = first
-    {
-        $_->isa('PPI::Token::Word')
-          and ref $_->sprevious_sibling eq 'PPI::Token::Operator'
-          and $_->sprevious_sibling eq '->'
-    }
-    @elements;
-    return unless (ref $element);
+    return
+      if (   not $element isa 'PPI::Token::Word'
+          or not $element->sprevious_sibling isa 'PPI::Token::Operator'
+          or $element->sprevious_sibling ne '->');
+
     return $element->content;
 } ## end sub method_name
 
@@ -147,20 +145,14 @@ sub class_method_package_and_name
 {
     my ($self) = @_;
 
-    my @elements = ($self->{ppi_element});
-    my $find     = PPI::Find->new(sub { 1 });
-    push @elements, $find->in($self->{ppi_element});
+    my $element = $self->{ppi_element};
 
-    my $element = first
-    {
-        $_->isa('PPI::Token::Word')
-          and ref $_->sprevious_sibling eq 'PPI::Token::Operator'
-          and $_->sprevious_sibling eq '->'
-          and ref $_->sprevious_sibling->sprevious_sibling eq 'PPI::Token::Word'
-    } ## end first
-    @elements;
+    return
+      if (   not $element isa 'PPI::Token::Word'
+          or not $element->sprevious_sibling isa 'PPI::Token::Operator'
+          or not $element->sprevious_sibling eq '->'
+          or not $element->sprevious_sibling->sprevious_sibling isa 'PPI::Token::Word');
 
-    return unless (ref $element);
     return ($element->sprevious_sibling->sprevious_sibling->content, $element->content);
 } ## end sub class_method_package_and_name
 
@@ -168,13 +160,9 @@ sub subroutine_package_and_name
 {
     my ($self) = @_;
 
-    my @elements = ($self->{ppi_element});
-    my $find     = PPI::Find->new(sub { 1 });
-    push @elements, $find->in($self->{ppi_element});
+    my $element = $self->{ppi_element};
 
-    my $element = first { Perl::Critic::Utils::is_function_call($_) and $_->isa('PPI::Token::Word') } @elements;
-    return unless (ref $element);
-    return unless $element->isa('PPI::Token::Word');
+    return if (not Perl::Critic::Utils::is_function_call($element) or not $element isa 'PPI::Token::Word');
 
     if ($element->content =~ /::/)
     {
@@ -195,13 +183,9 @@ sub variable_name
 {
     my ($self) = @_;
 
-    my @elements = ($self->{ppi_element});
-    my $find     = PPI::Find->new(sub { 1 });
-    push @elements, $find->in($self->{ppi_element});
+    my $element = $self->{ppi_element};
+    return unless ($element isa 'PPI::Token::Symbol');
 
-    my $element = first { $_->isa('PPI::Token::Symbol') } @elements;
-
-    return unless (ref $element);
     return $element->symbol;
 } ## end sub variable_name
 
@@ -337,23 +321,25 @@ sub parent
 {
     my ($self) = @_;
 
-    my $parent = PLS::Parser::Element->new(file => $self->{file}, element => $self->{ppi_element}->parent);
-    return $parent;
+    return unless (ref $self->{ppi_element}->parent);
+    return PLS::Parser::Element->new(file => $self->{file}, element => $self->{ppi_element}->parent);
 } ## end sub parent
 
 sub previous_sibling
 {
     my ($self) = @_;
 
+    return unless (ref $self->{ppi_element}->sprevious_sibling);
     return PLS::Parser::Element->new(file => $self->{file}, element => $self->{ppi_element}->sprevious_sibling);
-}
+} ## end sub previous_sibling
 
 sub next_sibling
 {
     my ($self) = @_;
 
+    return unless (ref $self->{ppi_element}->snext_sibling);
     return PLS::Parser::Element->new(file => $self->{file}, element => $self->{ppi_element}->snext_sibling);
-}
+} ## end sub next_sibling
 
 sub children
 {
