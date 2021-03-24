@@ -16,7 +16,7 @@ sub new
 
     my %args = @args;
 
-    my %self = (ppi_element => $args{element}, file => $args{file});
+    my %self = (ppi_element => $args{element}, file => $args{file}, document => $args{document});
     return unless (blessed($args{element}) and $args{element}->isa('PPI::Element'));
     return bless \%self, $class;
 } ## end sub new
@@ -277,7 +277,7 @@ sub _get_string_from_qw
 
     my ($content) = $element->content =~ /qw[[:graph:]](.+)[[:graph:]]/;
     return unless (length $content);
-    my @words          = split /(\s+)/, $content;
+    my @words = split /(\s+)/, $content;
     my $current_column = $element->column_number + 3;
 
     # Figure out which word the mouse is hovering on.

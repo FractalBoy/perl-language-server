@@ -163,8 +163,61 @@ sub search_elements_for_definition
         } ## end if (my ($package, $import...))
     } ## end foreach my $match (@matches...)
 
+    # If all else fails, see if we're on a POD link.
+    if (my $link = $self->pod_link($line_number, $column_number))
+    {
+        my $package = $self->{index}->find_package($link);
+        return $package if (ref $package eq 'ARRAY' and scalar @{$package});
+
+        my @pieces          = split /::/, $link;
+        my $subroutine_name = pop @pieces;
+        my $package_name    = join '::', @pieces;
+        return $self->{index}->find_package_subroutine($package_name, $subroutine_name) if (length $package_name);
+
+        return $self->{index}->find_subroutine($subroutine_name);
+    } ## end if (my $link = $self->...)
+
     return;
 } ## end sub search_elements_for_definition
+
+sub pod_link
+{
+    my ($self, $line_number, $column_number) = @_;
+
+    $line_number++;
+
+    my $find = PPI::Find->new(
+        sub {
+            my ($element) = @_;
+            return 0 unless $element->isa('PPI::Token::Pod');
+            return 0 if $element->line_number > $line_number;
+            return 0 if $element->line_number + scalar($element->lines) < $line_number;
+            return 1;
+        }
+    );
+
+    return unless (scalar $find->in($self->{document}));
+
+    open my $fh, '<', $self->get_full_text() or return;
+
+    while (my $line = <$fh>)
+    {
+        next unless $. == $line_number;
+        chomp $line;
+
+        while ($line =~ /L<(.+?)>/g)
+        {
+            my $offset = $-[1];
+            my $link   = $1;
+
+            return $link if ($column_number >= $offset and $column_number <= $offset + length($link));
+        } ## end while ($line =~ /L<(.+?)>/g...)
+
+        last;
+    } ## end while (my $line = <$fh>)
+
+    return;
+} ## end sub pod_link
 
 sub find_pod
 {
