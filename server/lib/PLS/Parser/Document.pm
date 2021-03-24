@@ -205,19 +205,33 @@ sub pod_link
         next unless $. == $line_number;
         chomp $line;
 
-        while ($line =~ /L<(?:<+\s+)?(.+?)(?:\s+>+)?>/g)
+        while (
+            $line =~ m{
+                L< # starting L<
+                (?:
+                    <+ # optional additional <
+                    \s+ # spaces required if any additional < 
+                )?
+                (.+?) # the actual link content
+                (?:
+                    \s+ # spaces required if any additional >
+                    +>+ # optional additional >
+                )?
+                > # final closing >
+            }gx
+              )
         {
-            my $offset = $-[1];
-            my $link   = $1;
+            my $start = $-[1];
+            my $end   = $+[1];
+            my $link  = $1;
 
-            if ($column_number >= $offset and $column_number <= $offset + length($link))
-            {
-                # Get just the name - remove the text and section parts
-                $link =~ s/^[^<]*\|//;
-                $link =~ s/\/[^>]*$//; 
-                return $link;
-            }
-        } ## end while ($line =~ /L<(.+?)>/g...)
+            next unless ($start <= $column_number <= $end);
+
+            # Get just the name - remove the text and section parts
+            $link =~ s/^[^<]*\|//;
+            $link =~ s/\/[^>]*$//;
+            return $link;
+        } ## end while ($line =~ m{ ) (})
 
         last;
     } ## end while (my $line = <$fh>)
