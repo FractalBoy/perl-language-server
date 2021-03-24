@@ -375,7 +375,7 @@ sub find_package
                                 },
                        end => {
                                line      => $_->{location}{line_number},
-                               character => ($_->{location}{column_number} + length($package) + length('package ') + length(';'))
+                               character => $_->{location}{column_number} + length("package $package;")
                               }
                       }
             }
