@@ -205,12 +205,18 @@ sub pod_link
         next unless $. == $line_number;
         chomp $line;
 
-        while ($line =~ /L<(.+?)>/g)
+        while ($line =~ /L<(?:<+\s+)?(.+?)(?:\s+>+)?>/g)
         {
             my $offset = $-[1];
             my $link   = $1;
 
-            return $link if ($column_number >= $offset and $column_number <= $offset + length($link));
+            if ($column_number >= $offset and $column_number <= $offset + length($link))
+            {
+                # Get just the name - remove the text and section parts
+                $link =~ s/^[^<]*\|//;
+                $link =~ s/\/[^>]*$//; 
+                return $link;
+            }
         } ## end while ($line =~ /L<(.+?)>/g...)
 
         last;
