@@ -3,7 +3,7 @@ package PLS::Server::Message;
 use strict;
 use warnings;
 
-use JSON;
+use JSON::PP;
 
 sub serialize {
     my ($self) = @_;

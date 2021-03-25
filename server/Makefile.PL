@@ -11,7 +11,6 @@ WriteMakefile(
     PREREQ_PM => {
         'AnyEvent' => 7.15,
         'Coro' => 6.54,
-        'JSON' => 4.02,
         'Path::Tiny' => 0.114,
         'Perl::Critic' => 1.138,
         'Pod::Markdown' => 3.200,

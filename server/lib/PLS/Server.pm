@@ -10,9 +10,8 @@ use AnyEvent;
 use AnyEvent::Loop;
 use Coro;
 use Coro::Channel;
-use JSON;
+use JSON::PP;
 use List::Util qw(first);
-use Scalar::Util;
 
 use PLS::Server::Request;
 use PLS::Server::Response;
