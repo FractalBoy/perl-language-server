@@ -10,6 +10,7 @@ use IPC::Open3;
 use Symbol qw(gensym);
 
 use PLS::Parser::Pod;
+use Perl::Critic;
 
 sub new
 {
@@ -17,8 +18,27 @@ sub new
 
     my $uri  = $args{uri};
     my $path = URI->new($uri)->file;
-    my $inc  = PLS::Parser::Pod->get_clean_inc();
-    my @inc  = map { "-I$_" } @{$inc // []};
+
+    my @diagnostics = (@{get_compilation_errors($path)}, @{get_perlcritic_errors($path)});
+
+    my $self = {
+        method => 'textDocument/publishDiagnostics',
+        params => {
+                   uri         => $uri,
+                   diagnostics => \@diagnostics
+                  },
+        notification => 1    # indicates to the server that this should not be assigned an id, and that there will be no response
+               };
+
+    return bless $self, $class;
+} ## end sub new
+
+sub get_compilation_errors
+{
+    my ($path) = @_;
+
+    my $inc = PLS::Parser::Pod->get_clean_inc();
+    my @inc = map { "-I$_" } @{$inc // []};
 
     my @line_lengths;
     my $pid = open my $fh, '<', $path;
@@ -49,8 +69,8 @@ sub new
             push @diagnostics,
               {
                 range => {
-                          start => {line => $line, character => 0},
-                          end   => {line => $line, character => $line_lengths[$line]}
+                          start => {line => $line - 1, character => 0},
+                          end   => {line => $line - 1, character => $line_lengths[$line]}
                          },
                 message  => $error,
                 severity => 1,
@@ -61,16 +81,43 @@ sub new
 
     waitpid $pid, 0;
 
-    my $self = {
-        method => 'textDocument/publishDiagnostics',
-        params => {
-                   uri         => $uri,
-                   diagnostics => \@diagnostics
-                  },
-        notification => 1    # indicates to the server that this should not be assigned an id, and that there will be no response
-               };
+    return \@diagnostics;
+} ## end sub get_compilation_errors
 
-    return bless $self, $class;
-} ## end sub new
+sub get_perlcritic_errors
+{
+    my ($path) = @_;
+
+    my $critic     = Perl::Critic->new(-profile => $PLS::Server::State::CONFIG->{perlcriticrc});
+    my @violations = $critic->critique($path);
+
+    my @diagnostics;
+
+    foreach my $violation (@violations)
+    {
+        my $severity = 5 - $violation->severity;
+        $severity = 1 unless ($severity);
+
+        my $doc = URI->new();
+        $doc->scheme('https');
+        $doc->authority('metacpan.org');
+        $doc->path('pod/' . $violation->policy);
+
+        push @diagnostics,
+          {
+            range => {
+                      start => {line => $violation->line_number - 1, character => $violation->column_number - 1},
+                      end   => {line => $violation->line_number - 1, character => $violation->column_number + length($violation->source) - 1}
+                     },
+            message         => $violation->description,
+            code            => $violation->policy,
+            codeDescription => {href => $doc->as_string},
+            severity        => $severity,
+            source          => 'perlcritic'
+          };
+    } ## end foreach my $violation (@violations...)
+
+    return \@diagnostics;
+} ## end sub get_perlcritic_errors
 
 1;

@@ -35,6 +35,11 @@
 					"default": "~/.perltidyrc",
 					"description": "Path to .perltidyrc"
 				},
+				"perl.perlcriticrc": {
+					"type": "string",
+					"default": "~/.perltidyrc",
+					"description": "Path to .perlcriticrc"
+				},
                 "perl.cwd": {
                     "type": "string",
                     "default": ".",
