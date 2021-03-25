@@ -87,24 +87,33 @@ sub go_to_definition
     return $self->search_elements_for_definition($line_number, $column_number, @matches);
 } ## end sub go_to_definition
 
-sub go_to_definition_of_closest_subroutine
+sub find_current_list
 {
     my ($self, $line_number, $column_number) = @_;
 
     my @elements = $self->find_elements_at_location($line_number, $column_number);
+    my $find     = PPI::Find->new(sub { $_[0]->isa('PPI::Structure::List') });
 
-    my $word;
+    # Find the nearest list structure that completely surrounds the column.
+    return first { $_->lsp_column_number < $column_number < $_->lsp_column_number + length($_->content) }
+    sort  { abs($column_number - $a->lsp_column_number) - abs($column_number - $b->lsp_column_number) }
+      map { PLS::Parser::Element->new(element => $_, document => $self->{document}, file => $self->{path}) }
+      map { $find->in($_->{ppi_element}) } @elements;
+} ## end sub find_current_list
 
-    foreach my $element (@elements)
+sub go_to_definition_of_closest_subroutine
+{
+    my ($self, $list, $line_number, $column_number) = @_;
+
+    return unless ($list isa 'PLS::Parser::Element' and $list->{ppi_element} isa 'PPI::Structure::List');
+
+    # Try to find the closest word before the list - this is the function name.
+    my $word = $list;
+
+    while ($word isa 'PLS::Parser::Element' and not $word->{ppi_element} isa 'PPI::Token::Word')
     {
-        next unless $element->{ppi_element}->isa('PPI::Structure::List');
-        $word = $element;
-
-        while ($word isa 'PLS::Parser::Element' and not $word->{ppi_element} isa 'PPI::Token::Word')
-        {
-            $word = $word->previous_sibling;
-        }
-    } ## end foreach my $element (@elements...)
+        $word = $word->previous_sibling;
+    }
 
     return unless ($word->{ppi_element} isa 'PPI::Token::Word');
     return $self->search_elements_for_definition($line_number, $column_number, $word);
@@ -915,32 +924,21 @@ sub find_word_under_cursor
 
 sub get_list_index
 {
-    my ($self, $line, $character) = @_;
+    my ($self, $list, $line, $character) = @_;
 
-    my @elements = $self->find_elements_at_location($line, $character);
-    return unless (scalar @elements);
-    $character++;
+    return 0 unless ($list isa 'PLS::Parser::Element' and $list->{ppi_element} isa 'PPI::Structure::List');
 
-    my $list;
-    my $find = PPI::Find->new(sub { $_[0] isa 'PPI::Structure::List' });
+    my $find = PPI::Find->new(sub { $_[0] isa 'PPI::Statement::Expression' });
+    my $expr;
+    $expr = $find->match() if $find->start($list->{ppi_element});
 
-    foreach my $element (@elements)
-    {
-        ($list) = $find->in($element->{ppi_element});
-        last if ($list isa 'PPI::Structure::List');
-    }
+    return 0 unless ($expr isa 'PPI::Statement::Expression');
 
-    return unless (ref $list);
+    my @commas = grep { $_ isa 'PPI::Token::Operator' and $_ eq ',' } $expr->schildren;
 
-    $find = PPI::Find->new(sub { $_[0] isa 'PPI::Statement::Expression' });
-    ($list) = $find->in($list);
-
-    return unless (ref $list);
+    return 0 unless (scalar @commas);
 
     my $param_index = -1;
-    my @commas      = grep { $_ isa 'PPI::Token::Operator' and $_ eq ',' } $list->schildren;
-
-    return $param_index + 1 unless (scalar @commas);
 
     foreach my $index (reverse 0 .. $#commas)
     {

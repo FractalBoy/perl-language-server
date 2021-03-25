@@ -17,9 +17,10 @@ sub new
     my ($line, $character) = @{$request->{params}{position}}{qw(line character)};
     my $document = PLS::Parser::Document->new(uri => $request->{params}{textDocument}{uri}, line => $line);
 
-    my $results          = $document->go_to_definition_of_closest_subroutine($line, $character);
+    my $list             = $document->find_current_list($line, $character);
+    my $results          = $document->go_to_definition_of_closest_subroutine($list, $line, $character);
     my @signatures       = map { $_->{signature} } @{$results};
-    my $active_parameter = $document->get_list_index($request->{params}{position}{line}, $request->{params}{position}{character});
+    my $active_parameter = $document->get_list_index($list, $request->{params}{position}{line}, $request->{params}{position}{character});
 
     my %self = (
                 id     => $request->{id},
