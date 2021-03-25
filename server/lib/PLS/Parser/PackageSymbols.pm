@@ -24,8 +24,8 @@ sub get_package_functions
         alarm 10;
         my $result = eval { Storable::fd_retrieve($read_fh) };
         alarm 0;
-        return if ($timeout or ref $result ne 'HASH' or not $result->{ok});
         waitpid $pid, 0;
+        return if ($timeout or ref $result ne 'HASH' or not $result->{ok});
         return $result->{functions};
     } ## end if ($pid)
     else
@@ -80,7 +80,9 @@ if (length $package and not length $@)
     {
         next if $name =~ /^BEGIN|UNITCHECK|INIT|CHECK|END|VERSION|import$/;
         next unless $package->can($name);
-        next unless Sub::Util::subname(*{$ref->{$name}}{CODE}) eq "${package}::${name}";
+        my $code_ref = *{$ref->{$name}}{CODE};
+        next unless (ref $code_ref eq 'CODE');
+        next unless Sub::Util::subname($code_ref) eq "${package}::${name}";
         push @functions, $name;
     } ## end foreach my $name (keys %%{$ref...})
 
