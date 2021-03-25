@@ -26,6 +26,7 @@ sub new
     return $self unless (ref $document eq 'PLS::Parser::Document');
 
     my ($range, $arrow, $package, $filter) = $document->find_word_under_cursor(@{$request->{params}{position}}{qw(line character)});
+    my $retrieve_packages = not $arrow or $filter =~ /^[\$\%\@]/ ? 0 : 1;
 
     if (ref $range eq 'HASH')
     {
@@ -52,12 +53,16 @@ sub new
             my $result = {
                           label    => $name,
                           sortText => $fully_qualified,
+                          filterText => $fully_qualified,
                           kind     => 3
                          };
 
-            unless ($arrow)
+            if ($arrow)
             {
-                $result->{filterText} = $fully_qualified;
+                $result->{insertText} = "->$name";
+            }
+            else
+            {
                 $result->{insertText} = $fully_qualified;
             }
 
@@ -65,18 +70,23 @@ sub new
         } ## end foreach my $name (@{$functions...})
     } ## end if (ref $functions eq ...)
 
-    my $subs     = $document->{index}{subs_trie}->find($filter);
-    my $packages = $document->{index}{packages_trie}->find($filter);
+    my $subs = [];
+    $subs = $document->{index}{subs_trie}->find($filter) unless $package;
+    my $packages = [];
+    $packages = $document->{index}{packages_trie}->find($filter) if $retrieve_packages;
 
-    foreach my $family (keys %Pod::Functions::Kinds)
+    unless (length $package)
     {
-        foreach my $sub (@{$Pod::Functions::Kinds{$family}})
+        foreach my $family (keys %Pod::Functions::Kinds)
         {
-            next if $sub =~ /\s+/;
-            next if $seen_subs{$sub}++;
-            push @results, {label => $sub, kind => 3};
-        } ## end foreach my $sub (@{$Pod::Functions::Kinds...})
-    } ## end foreach my $family (keys %Pod::Functions::Kinds...)
+            foreach my $sub (@{$Pod::Functions::Kinds{$family}})
+            {
+                next if $sub =~ /\s+/;
+                next if $seen_subs{$sub}++;
+                push @results, {label => $sub, kind => 3};
+            } ## end foreach my $sub (@{$Pod::Functions::Kinds...})
+        } ## end foreach my $family (keys %Pod::Functions::Kinds...)
+    } ## end unless (length $package)
 
     my $full_text;
     my %seen_packages;
@@ -99,11 +109,14 @@ sub new
             push @results, {label => $constant, kind => 21};
         }
 
-        foreach my $pack (@{$document->get_packages_fast($full_text)})
+        if ($retrieve_packages)
         {
-            next if $seen_packages{$pack}++;
-            push @results, {label => $pack, kind => 9};
-        }
+            foreach my $pack (@{$document->get_packages_fast($full_text)})
+            {
+                next if $seen_packages{$pack}++;
+                push @results, {label => $pack, kind => 9};
+            }
+        } ## end if ($retrieve_packages...)
     } ## end unless ($filter =~ /^[\$\%\@]/...)
 
     # Can use state here, core and external modules unlikely to change.
@@ -111,20 +124,23 @@ sub new
     state $include      = PLS::Parser::Pod->get_clean_inc();
     state $ext_modules  = [ExtUtils::Installed->new(inc_override => $include)->modules];
 
-    foreach my $module (@{$core_modules}, @{$ext_modules})
+    if ($retrieve_packages)
     {
-        next if $seen_packages{$module}++;
-        push @results,
-          {
-            label => $module,
-            kind  => 7
-          };
-    } ## end foreach my $module (@{$core_modules...})
+        foreach my $module (@{$core_modules}, @{$ext_modules})
+        {
+            next if $seen_packages{$module}++;
+            push @results,
+              {
+                label => $module,
+                kind  => 7
+              };
+        } ## end foreach my $module (@{$core_modules...})
+    } ## end if ($retrieve_packages...)
 
     my %seen_variables;
 
     # Add variables to the list if the current word is obviously a variable.
-    if (not $arrow and $filter =~ /^[\$\@\%]/)
+    if (not $arrow and not length $package and $filter =~ /^[\$\@\%]/)
     {
         $full_text = $document->get_full_text() unless (ref $full_text eq 'SCALAR');
 
