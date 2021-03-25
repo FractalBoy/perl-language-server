@@ -137,8 +137,15 @@ sub run
     {
         while (my $request = $server_requests->get)
         {
-            $request->{id} = ++$last_request_id;
-            push @pending_requests, $request;
+            if ($request->{notification})
+            {
+                delete $request->{notification};
+            }
+            else
+            {
+                $request->{id} = ++$last_request_id;
+                push @pending_requests, $request;
+            }
 
             async
             {

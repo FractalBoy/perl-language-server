@@ -10,10 +10,11 @@ use List::Util qw(any uniq);
 use Path::Tiny;
 
 use PLS::Parser::Document;
+use PLS::Server::Request::Diagnostics::PublishDiagnostics;
 
 sub service
 {
-    my ($self) = @_;
+    my ($self, $server) = @_;
 
     return unless (ref $self->{params}{changes} eq 'ARRAY');
 
@@ -38,6 +39,8 @@ sub service
         next if $index->is_ignored($file->file);
 
         push @changed_files, $file->file;
+
+        $server->{server_requests}->put(PLS::Server::Request::Diagnostics::PublishDiagnostics->new(uri => $change->{uri})) if PLS::Parser::Document->is_open($change->{uri});
     } ## end foreach my $change (@{$self...})
 
     $index->cleanup_old_files() if $any_deletes;

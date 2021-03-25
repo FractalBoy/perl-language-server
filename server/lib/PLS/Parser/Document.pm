@@ -419,6 +419,14 @@ sub open_file
     return;
 } ## end sub open_file
 
+sub is_open
+{
+    my ($class, $uri) = @_;
+
+    return 1 if (exists $FILES{$uri} and ref $FILES{$uri} eq 'HASH');
+    return 0;
+}
+
 sub update_file
 {
     my ($class, @args) = @_;

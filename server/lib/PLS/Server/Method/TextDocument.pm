@@ -3,14 +3,16 @@ package PLS::Server::Method::TextDocument;
 use strict;
 use warnings;
 
+use PLS::Server::Request::TextDocument::Completion;
 use PLS::Server::Request::TextDocument::Definition;
+use PLS::Server::Request::TextDocument::DidChange;
+use PLS::Server::Request::TextDocument::DidClose;
+use PLS::Server::Request::TextDocument::DidOpen;
 use PLS::Server::Request::TextDocument::DocumentSymbol;
+use PLS::Server::Request::TextDocument::Formatting;
 use PLS::Server::Request::TextDocument::Hover;
 use PLS::Server::Request::TextDocument::SignatureHelp;
-use PLS::Server::Request::TextDocument::Formatting;
 use PLS::Server::Request::TextDocument::RangeFormatting;
-use PLS::Server::Request::TextDocument::Completion;
-use PLS::Parser::Document;
 
 sub get_request
 {
@@ -36,17 +38,15 @@ sub get_request
     }
     if ($method eq 'didOpen')
     {
-        my $text_document = $request->{params}{textDocument};
-        PLS::Parser::Document->open_file(%$text_document);
+        return PLS::Server::Request::TextDocument::DidOpen->new($request);
     }
     if ($method eq 'didChange')
     {
-        return unless (ref $request->{params}{contentChanges} eq 'ARRAY');
-        PLS::Parser::Document->update_file(uri => $request->{params}{textDocument}{uri}, changes => $request->{params}{contentChanges});
+        return PLS::Server::Request::TextDocument::DidChange->new($request);
     }
     if ($method eq 'didClose')
     {
-        PLS::Parser::Document->close_file(%{$request->{params}{textDocument}});
+        return PLS::Server::Request::TextDocument::DidClose->new($request);
     }
     if ($method eq 'formatting')
     {
