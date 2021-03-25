@@ -852,17 +852,17 @@ sub find_word_under_cursor
     # Short-circuit if this is a HASH reference subscript.
     my $parent = $element->parent;
     $parent = $parent->parent if ($parent isa 'PLS::Parser::Element');
-    return if ($parent isa 'PLS::Parser::Element' and $parent->{ppi_element}->isa('PPI::Structure::Subscript'));
+    return if ($element->{ppi_element} isa 'PPI::Token::Word' and $parent isa 'PLS::Parser::Element' and $parent->{ppi_element}->isa('PPI::Structure::Subscript'));
 
     # if the cursor is on the word after an arrow, back up to the arrow so we can use any package information before it.
     if (    $element->{ppi_element}->isa('PPI::Token::Word')
-        and ref $element->previous_sibling eq 'PLS::Parser::Element'
+        and $element->previous_sibling isa 'PLS::Parser::Element'
         and $element->previous_sibling->name eq '->')
     {
         $closest_operator = $element->previous_sibling;
     } ## end if ($element->{ppi_element...})
 
-    if ($closest_operator isa 'PLS::Parser::Element' and $closest_operator->name eq '->')
+    if ($closest_operator isa 'PLS::Parser::Element' and $closest_operator->name eq '->' and $element->{ppi_element} isa 'PPI::Token::Word')
     {
         # default to inserting after the arrow
         my $arrow_range = $element->range;
