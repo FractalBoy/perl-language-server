@@ -7,7 +7,6 @@ use feature 'isa';
 no warnings 'experimental::isa';
 
 use List::Util qw(first);
-use Perl::Critic::Utils ();
 use Perl::Tidy;
 use PPI;
 use PPI::Find;

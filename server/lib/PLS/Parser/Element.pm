@@ -7,8 +7,7 @@ use feature 'isa';
 no warnings 'experimental::isa';
 
 use List::Util qw(any first);
-use PPI::Find;
-use Scalar::Util qw(blessed);
+use Perl::Critic::Utils ();
 
 sub new
 {
@@ -17,7 +16,7 @@ sub new
     my %args = @args;
 
     my %self = (ppi_element => $args{element}, file => $args{file}, document => $args{document});
-    return unless (blessed($args{element}) and $args{element}->isa('PPI::Element'));
+    return unless ($args{element} isa 'PPI::Element');
     return bless \%self, $class;
 } ## end sub new
 
@@ -83,8 +82,7 @@ sub package_name
     my $element = $self->{ppi_element};
     $column_number++;
 
-    if (    blessed($element->parent)
-        and $element->parent->isa('PPI::Statement::Include')
+    if (    $element->parent isa 'PPI::Statement::Include'
         and $element->parent->type eq 'use')
     {
         # This is a 'use parent/base' statement. The import is a package, not a subroutine.
@@ -98,7 +96,7 @@ sub package_name
         my $package = $element->parent->module;
         my $import  = _extract_import($element, $column_number);
         return $element->parent->module, $import if (length $import);
-    } ## end if (blessed($element->...))
+    } ## end if ($element->parent isa...)
 
     # Regular use statement, no explicit imports
     if ($element->isa('PPI::Statement::Include') and $element->type eq 'use')
@@ -115,14 +113,13 @@ sub package_name
     } ## end if ($element->isa('PPI::Token::Word'...))
 
     # Declaring parent class using @ISA directly.
-    if (    blessed($element->parent)
-        and $element->parent->isa('PPI::Statement::Variable')
+    if (    $element->parent isa 'PPI::Statement::Variable'
         and $element->parent->type eq 'our'
         and any { $_->symbol eq '@ISA' } $element->parent->symbols)
     {
         my $import = _extract_import($element, $column_number);
         return $import if (length $import);
-    } ## end if (blessed($element->...))
+    } ## end if ($element->parent isa...)
 
     return;
 } ## end sub package_name
