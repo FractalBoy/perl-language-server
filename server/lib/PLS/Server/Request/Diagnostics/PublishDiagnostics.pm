@@ -8,8 +8,10 @@ use parent 'PLS::Server::Request';
 use File::Spec;
 use IPC::Open3;
 use Symbol qw(gensym);
+use URI;
 
 use PLS::Parser::Pod;
+use PLS::Server::State;
 use Perl::Critic;
 
 sub new
@@ -17,7 +19,10 @@ sub new
     my ($class, %args) = @_;
 
     my $uri  = $args{uri};
-    my $path = URI->new($uri)->file;
+    my $path = URI->new($uri);
+
+    return unless (ref $path eq 'URI::file');
+    $path = $path->file;
 
     my @diagnostics = (@{get_compilation_errors($path)}, @{get_perlcritic_errors($path)});
 
@@ -41,7 +46,7 @@ sub get_compilation_errors
     my @inc = map { "-I$_" } @{$inc // []};
 
     my @line_lengths;
-    my $pid = open my $fh, '<', $path;
+    my $pid = open my $fh, '<', $path or return [];
 
     while (my $line = <$fh>)
     {
@@ -51,7 +56,7 @@ sub get_compilation_errors
 
     waitpid $pid, 0;
 
-    $pid = open3 my $in, my $out, my $err = gensym, $^X, @inc, '-c', $path or return;
+    $pid = open3 my $in, my $out, my $err = gensym, $^X, @inc, '-c', $path or return [];
     close $in;
     close $out;
 
@@ -88,7 +93,7 @@ sub get_perlcritic_errors
 {
     my ($path) = @_;
 
-    my $critic     = Perl::Critic->new(-profile => $PLS::Server::State::CONFIG->{perlcriticrc});
+    my $critic     = Perl::Critic->new();
     my @violations = $critic->critique($path);
 
     my @diagnostics;

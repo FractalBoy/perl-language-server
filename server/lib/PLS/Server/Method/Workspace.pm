@@ -2,6 +2,7 @@ package PLS::Server::Method::Workspace;
 
 use strict;
 
+use PLS::Server::Request::Workspace::Configuration;
 use PLS::Server::Request::Workspace::DidChangeConfiguration;
 use PLS::Server::Request::Workspace::DidChangeWatchedFiles;
 
@@ -18,6 +19,10 @@ sub get_request
     if ($method eq 'didChangeWatchedFiles')
     {
         return PLS::Server::Request::Workspace::DidChangeWatchedFiles->new($request);
+    }
+    if ($method eq 'configuration')
+    {
+        return PLS::Server::Request::Workspace::Configuration->new($request);
     }
 } ## end sub get_request
 

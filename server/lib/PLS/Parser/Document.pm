@@ -427,6 +427,11 @@ sub is_open
     return 0;
 }
 
+sub open_files
+{
+    return [keys %FILES];
+}
+
 sub update_file
 {
     my ($class, @args) = @_;

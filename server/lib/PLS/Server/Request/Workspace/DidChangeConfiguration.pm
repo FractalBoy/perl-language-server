@@ -3,7 +3,7 @@ package PLS::Server::Request::Workspace::DidChangeConfiguration;
 use strict;
 use warnings;
 
-use parent q(PLS::Server::Request::Base);
+use parent 'PLS::Server::Request';
 
 use PLS::Server::Request::Workspace::Configuration;
 

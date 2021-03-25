@@ -3,7 +3,7 @@ package PLS::Server::Request::CompletionItem::Resolve;
 use strict;
 use warnings;
 
-use parent 'PLS::Server::Request::Base';
+use parent 'PLS::Server::Request';
 
 use PLS::Server::Response::Resolve;
 

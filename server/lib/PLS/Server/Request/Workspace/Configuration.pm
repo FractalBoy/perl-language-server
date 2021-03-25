@@ -5,9 +5,12 @@ use warnings;
 
 use parent 'PLS::Server::Request';
 
+use Coro;
 use Scalar::Util;
 
+use PLS::Parser::Document;
 use PLS::Server::State;
+use PLS::Server::Request::Diagnostics::PublishDiagnostics;
 
 sub new
 {
@@ -24,7 +27,7 @@ sub new
 
 sub handle_response
 {
-    my ($self, $response) = @_;
+    my ($self, $response, $server) = @_;
 
     return unless (Scalar::Util::reftype $response eq 'HASH' and ref $response->{result} eq 'ARRAY');
     my $config = $response->{result}[0];
@@ -46,6 +49,15 @@ sub handle_response
     }
 
     $PLS::Server::State::CONFIG = $config;
+    
+    # @INC may have changed - republish diagnostics
+    async {
+        foreach my $uri (@{PLS::Parser::Document->open_files()})
+        {
+            $server->{server_requests}->put(PLS::Server::Request::Diagnostics::PublishDiagnostics->new(uri => $uri));
+        }
+    };
+
     return;
 } ## end sub handle_response
 

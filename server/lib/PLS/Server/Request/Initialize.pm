@@ -3,7 +3,7 @@ package PLS::Server::Request::Initialize;
 use strict;
 use warnings;
 
-use parent q(PLS::Server::Request::Base);
+use parent 'PLS::Server::Request';
 
 use PPI::Document;
 use URI;

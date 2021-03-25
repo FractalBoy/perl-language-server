@@ -3,7 +3,7 @@ package PLS::Server::Request::TextDocument::DidClose;
 use strict;
 use warnings;
 
-use parent 'PLS::Server::Request::Base';
+use parent 'PLS::Server::Request';
 
 use PLS::Parser::Document;
 

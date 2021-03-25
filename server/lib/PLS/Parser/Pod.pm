@@ -140,13 +140,11 @@ sub combine_markdown
 
 sub get_clean_inc
 {
-    return \@include if (scalar @include);
-
     # default to including everything except PLS code in search.
-    @include = grep { not /\Q$FindBin::RealBin\E/ } @INC;
+    my @include = grep { not /\Q$FindBin::RealBin\E/ } @INC;
 
     # try to get a clean @INC from the perl we're using
-    if (open my $perl, '-|', $^X, '-e', q{$, = "\n"; print @INC; print "\n"})
+    if (my $pid = open my $perl, '-|', $^X, '-e', q{$, = "\n"; print @INC; print "\n"})
     {
         @include = ();
 
@@ -156,6 +154,8 @@ sub get_clean_inc
             next unless (length $line);
             push @include, $line;
         } ## end while (my $line = <$perl>...)
+
+        waitpid $pid, 0;
     } ## end if (open my $perl, '-|'...)
 
     unshift @include, @{$PLS::Server::State::CONFIG->{inc}} if (ref $PLS::Server::State::CONFIG->{inc} eq 'ARRAY');

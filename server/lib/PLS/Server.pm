@@ -102,14 +102,12 @@ sub run
         {
             my $coro = async
             {
-                my ($request) = @_;
-
                 my $response = $request->service($self);
                 delete $self->{running_coros}{$request->{id}} if (length $request->{id});
                 return unless ($response isa 'PLS::Server::Response');
                 $server_responses->put($response);
-            } ## end async
-            $request;
+            };
+            
 
             $self->{running_coros}{$request->{id}} = $coro if (length $request->{id});
 
@@ -122,13 +120,7 @@ sub run
         # check for responses and send them
         while (my $response = $server_responses->get)
         {
-            async
-            {
-                my ($response) = @_;
-                $self->send($response);
-            }
-            $response;
-
+            async { $self->send($response) };
             Coro::cede();
         } ## end while (my $response = $server_responses...)
     };
@@ -147,13 +139,7 @@ sub run
                 push @pending_requests, $request;
             }
 
-            async
-            {
-                my ($request) = @_;
-                $self->send($request);
-            }
-            $request;
-
+            async { $self->send($request) };
             Coro::cede();
         } ## end while (my $request = $server_requests...)
     };
@@ -166,13 +152,7 @@ sub run
             next unless ($request isa 'PLS::Server::Request');
             @pending_requests = grep { $_->{id} != $response->{id} } @pending_requests;
 
-            async
-            {
-                my ($request, $response) = @_;
-                $request->handle_response($response);
-            }
-            $request, $response;
-
+            async { $request->handle_response($response, $self) };
             Coro::cede();
         } ## end while (my $response = $client_responses...)
     };

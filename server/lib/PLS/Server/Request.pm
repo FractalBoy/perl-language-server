@@ -8,7 +8,7 @@ use parent 'PLS::Server::Message';
 use PLS::Server::Method::CompletionItem;
 use PLS::Server::Method::TextDocument;
 use PLS::Server::Method::Workspace;
-use PLS::Server::Request::Base;
+use PLS::Server::Response::ServerNotInitialized;
 use PLS::Server::Request::Initialize;
 use PLS::Server::Request::Initialized;
 use PLS::Server::Request::CancelRequest;
@@ -16,6 +16,11 @@ use PLS::Server::Request::CancelRequest;
 sub new
 {
     my ($class, $request) = @_;
+
+    if ($class ne __PACKAGE__)
+    {
+        return bless $request, $class;
+    }
 
     my $method = $request->{method};
 
@@ -52,12 +57,18 @@ sub new
         return PLS::Server::Method::CompletionItem::get_request($request);
     }
 
-    return PLS::Server::Request::Base->new($request);
+    return bless $request, $class;
 } ## end sub new
+
+sub service
+{
+    my ($self, $server) = @_;
+    return;
+}
 
 sub handle_response
 {
-    my ($self);
+    my ($self, $response, $server) = @_;
 
     return;
 }
