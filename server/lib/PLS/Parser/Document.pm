@@ -847,7 +847,12 @@ sub find_word_under_cursor
     @elements = map { $_->tokens } @elements;
     my $element          = first { $_->{ppi_element}->isa('PPI::Token::Word') or $_->{ppi_element}->isa('PPI::Token::Label') or $_->{ppi_element}->isa('PPI::Token::Symbol') } @elements;
     my $closest_operator = first { $_->{ppi_element}->isa('PPI::Token::Operator') } @elements;
-    return unless (ref $element eq 'PLS::Parser::Element');
+    return unless ($element isa 'PLS::Parser::Element');
+
+    # Short-circuit if this is a HASH reference subscript.
+    my $parent = $element->parent;
+    $parent = $parent->parent if ($parent isa 'PLS::Parser::Element');
+    return if ($parent isa 'PLS::Parser::Element' and $parent->{ppi_element}->isa('PPI::Structure::Subscript'));
 
     # if the cursor is on the word after an arrow, back up to the arrow so we can use any package information before it.
     if (    $element->{ppi_element}->isa('PPI::Token::Word')

@@ -25,7 +25,9 @@ sub new
     my $document = PLS::Parser::Document->new(uri => $request->{params}{textDocument}{uri}, line => $request->{params}{position}{line});
     return $self unless (ref $document eq 'PLS::Parser::Document');
 
-    my ($range, $arrow, $package, $filter) = $document->find_word_under_cursor(@{$request->{params}{position}}{qw(line character)});
+    my @word_under_cursor_info = $document->find_word_under_cursor(@{$request->{params}{position}}{qw(line character)});
+    return $self unless (scalar @word_under_cursor_info);
+    my ($range, $arrow, $package, $filter) = @word_under_cursor_info;
     my $retrieve_packages = not $arrow or $filter =~ /^[\$\%\@]/ ? 0 : 1;
 
     if (ref $range eq 'HASH')
