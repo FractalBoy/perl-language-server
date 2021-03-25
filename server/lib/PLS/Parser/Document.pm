@@ -844,9 +844,9 @@ sub find_word_under_cursor
     my ($self, $line, $character) = @_;
 
     my @elements = $self->find_elements_at_location($line, $character);
-    @elements = map  { $_->tokens } @elements;
-    @elements = grep { $_->{ppi_element}->isa('PPI::Token::Word') or $_->{ppi_element}->isa('PPI::Token::Label') or $_->{ppi_element}->isa('PPI::Token::Symbol') } @elements;
-    my $element = $elements[0];
+    @elements = map { $_->tokens } @elements;
+    my $element          = first { $_->{ppi_element}->isa('PPI::Token::Word') or $_->{ppi_element}->isa('PPI::Token::Label') or $_->{ppi_element}->isa('PPI::Token::Symbol') } @elements;
+    my $closest_operator = first { $_->{ppi_element}->isa('PPI::Token::Operator') } @elements;
     return unless (ref $element eq 'PLS::Parser::Element');
 
     # if the cursor is on the word after an arrow, back up to the arrow so we can use any package information before it.
@@ -854,10 +854,10 @@ sub find_word_under_cursor
         and ref $element->previous_sibling eq 'PLS::Parser::Element'
         and $element->previous_sibling->name eq '->')
     {
-        $element = $element->previous_sibling;
+        $closest_operator = $element->previous_sibling;
     } ## end if ($element->{ppi_element...})
 
-    if ($element->name eq '->')
+    if ($closest_operator isa 'PLS::Parser::Element' and $closest_operator->name eq '->')
     {
         # default to inserting after the arrow
         my $arrow_range = $element->range;
@@ -871,25 +871,25 @@ sub find_word_under_cursor
         # if the next element is a word, it is likely the start of a method name,
         # so we want to return it as a filter. we also want the range to be that
         # of the next element so that we replace the word when it is selected.
-        if (    ref $element->next_sibling eq 'PLS::Parser::Element'
-            and $element->next_sibling->{ppi_element}->isa('PPI::Token::Word')
-            and $element->ppi_line_number == $element->next_sibling->ppi_line_number)
+        if (    ref $closest_operator->next_sibling eq 'PLS::Parser::Element'
+            and $closest_operator->next_sibling->{ppi_element}->isa('PPI::Token::Word')
+            and $closest_operator->ppi_line_number == $closest_operator->next_sibling->ppi_line_number)
         {
-            $filter = $element->next_sibling->name;
-            $range  = $element->next_sibling->range;
-        } ## end if (ref $element->next_sibling...)
+            $filter = $closest_operator->next_sibling->name;
+            $range  = $closest_operator->next_sibling->range;
+        } ## end if (ref $closest_operator...)
 
         # if the previous element is a word, it's possibly a class name,
         # so we return that to use for searching for that class's methods.
         my $package = '';
-        if (ref $element->previous_sibling eq 'PLS::Parser::Element' and $element->previous_sibling->{ppi_element}->isa('PPI::Token::Word'))
+        if (ref $closest_operator->previous_sibling eq 'PLS::Parser::Element' and $closest_operator->previous_sibling->{ppi_element}->isa('PPI::Token::Word'))
         {
-            $package = $element->previous_sibling->name;
+            $package = $closest_operator->previous_sibling->name;
         }
 
         # the 1 indicates that the current token is an arrow, due to the special logic needed.
         return $range, 1, $package, $filter;
-    } ## end if ($element->name eq ...)
+    } ## end if ($closest_operator ...)
 
     # something like "Package::Name:", we just want Package::Name.
     if (
