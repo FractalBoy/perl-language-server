@@ -3,6 +3,9 @@ package PLS::Server;
 use strict;
 use warnings;
 
+use feature 'isa';
+no warnings 'experimental::isa';
+
 use AnyEvent;
 use AnyEvent::Loop;
 use Coro;
@@ -13,7 +16,6 @@ use Scalar::Util;
 
 use PLS::Server::Request;
 use PLS::Server::Response;
-use PLS::Server::Response::Cancelled;
 
 sub new
 {
@@ -89,46 +91,29 @@ sub run
     my $client_responses = Coro::Channel->new;
 
     $self->{server_requests} = $server_requests;
+    $self->{running_coros}   = {};
 
     my $last_request_id = 0;
     my @pending_requests;
-    my %running_coros;
 
     async
     {
         # check for requests and service them
         while (my $request = $client_requests->get)
         {
-            # Handle cancellations by cancelling the Coro and sending an error
-            # response indicating the request was cancelled.
-            if ($request->{method} eq '$/cancelRequest')
-            {
-                next unless (exists $running_coros{$request->{params}{id}});
-                my $request_to_cancel = $running_coros{$request->{params}{id}};
-
-                next unless (ref $request_to_cancel eq 'Coro');
-                $request_to_cancel->cancel();
-
-                delete $running_coros{$request->{params}{id}};
-
-                my $canceled_response = PLS::Server::Response::Cancelled->new(id => $request->{params}{id});
-                $server_responses->put($canceled_response);
-
-                next;
-            } ## end if ($request->{method}...)
-
             my $coro = async
             {
                 my ($request) = @_;
 
                 my $response = $request->service($self);
-                delete $running_coros{$request->{id}} if (length $request->{id});
-                return unless Scalar::Util::blessed($response);
+                delete $self->{running_coros}{$request->{id}} if (length $request->{id});
+                return unless ($response isa 'PLS::Server::Response');
                 $server_responses->put($response);
             } ## end async
             $request;
 
-            $running_coros{$request->{id}} = $coro if (length $request->{id});
+            $self->{running_coros}{$request->{id}} = $coro if (length $request->{id});
+
             Coro::cede();
         } ## end while (my $request = $client_requests...)
     };
@@ -172,7 +157,7 @@ sub run
         while (my $response = $client_responses->get)
         {
             my $request = first { $_->{id} == $response->{id} } @pending_requests;
-            next unless Scalar::Util::blessed($request);
+            next unless ($request isa 'PLS::Server::Request');
             @pending_requests = grep { $_->{id} != $response->{id} } @pending_requests;
 
             async
@@ -191,13 +176,12 @@ sub run
         poll => 'r',
         cb   => sub {
             my $message = $self->recv();
-            return unless Scalar::Util::blessed($message);
 
-            if ($message->isa('PLS::Server::Request'))
+            if ($message isa 'PLS::Server::Request')
             {
                 $client_requests->put($message);
             }
-            if ($message->isa('PLS::Server::Response'))
+            if ($message isa 'PLS::Server::Response')
             {
                 $client_responses->put($message);
             }

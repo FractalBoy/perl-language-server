@@ -3,20 +3,27 @@ package PLS::Server::Request::CancelRequest;
 use strict;
 use warnings;
 
+use feature 'isa';
+no warnings 'experimental::isa';
+
 use parent q(PLS::Server::Request::Base);
 
-use PLS::Server::State;
+use PLS::Server::Response::Cancelled;
 
 sub service
 {
-    my ($self) = @_;
+    my ($self, $server) = @_;
 
-    # right now, we don't do anything with a cancelled request
-    # we don't yet have the ability to cancel a request in flight.
-    # according to the specification, the server is still supposed to send
-    # a response even if it was canceled.
+    my $id = $self->{params}{id};
+    return unless (exists $server->{running_coros}{$id});
+    my $request_to_cancel = $server->{running_coros}{$id};
 
-    return;
+    return unless ($request_to_cancel isa 'Coro');
+    eval { $request_to_cancel->safe_cancel() };
+
+    delete $server->{running_coros}{$id};
+
+    return PLS::Server::Response::Cancelled->new(id => $id);
 } ## end sub service
 
 1;
