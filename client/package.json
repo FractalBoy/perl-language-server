@@ -5,7 +5,7 @@
 	"publisher": "FractalBoy",
 	"repository": "https://github.com/FractalBoy/perl-language-server/",
 	"license": "MIT",
-	"version": "0.0.1",
+	"version": "0.0.2",
 	"engines": {
 		"vscode": "^1.50.0"
 	},
@@ -34,7 +34,12 @@
 					"type": "string",
 					"default": "~/.perltidyrc",
 					"description": "Path to .perltidyrc"
-				}
+				},
+                "perl.cwd": {
+                    "type": "string",
+                    "default": ".",
+                    "description": "Current working directory to use"
+                }
 			}
 		}
 	},

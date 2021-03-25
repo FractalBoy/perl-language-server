@@ -39,6 +39,12 @@ sub handle_response
         }
     }
 
+    if (exists $config->{cwd} and length $config->{cwd})
+    {
+        $config->{cwd} =~ s/\$ROOT_PATH/$PLS::Server::State::ROOT_PATH/g;
+        chdir $config->{cwd};
+    }
+
     $PLS::Server::State::CONFIG = $config;
     return;
 } ## end sub handle_response
