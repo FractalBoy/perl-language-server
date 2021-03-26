@@ -859,6 +859,7 @@ sub find_word_under_cursor
 
     my @elements = $self->find_elements_at_location($line, $character);
     @elements = map { $_->tokens } @elements;
+    @elements = grep { $_->lsp_column_number < $character } @elements;
     my $element          = first { $_->{ppi_element}->isa('PPI::Token::Word') or $_->{ppi_element}->isa('PPI::Token::Label') or $_->{ppi_element}->isa('PPI::Token::Symbol') } @elements;
     my $closest_operator = first { $_->{ppi_element}->isa('PPI::Token::Operator') } @elements;
     return unless ($element isa 'PLS::Parser::Element');
