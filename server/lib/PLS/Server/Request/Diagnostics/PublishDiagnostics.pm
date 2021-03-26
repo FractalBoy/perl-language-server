@@ -26,9 +26,10 @@ sub new
 
     my @diagnostics;
 
-    if (not $args{close} and $PLS::Server::State::CONFIG->{perlcritic}{enabled})
+    if (not $args{close})
     {
-        @diagnostics = (@{get_compilation_errors($path)}, @{get_perlcritic_errors($path)});
+        @diagnostics = (@{get_compilation_errors($path)});
+        push @diagnostics, @{get_perlcritic_errors($path)} if $PLS::Server::State::CONFIG->{perlcritic}{enabled};
     }
 
     my $self = {
