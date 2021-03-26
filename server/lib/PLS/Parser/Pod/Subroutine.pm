@@ -8,6 +8,7 @@ use parent 'PLS::Parser::Pod';
 use Pod::Find;
 use Pod::Markdown;
 
+use PLS::Parser::Pod::Builtin;
 use PLS::Server::State;
 
 sub new
@@ -18,6 +19,7 @@ sub new
     my $self = $class->SUPER::new(%args);
     $self->{subroutine} = $args{subroutine};
     $self->{package}    = $args{package};
+    $self->{include_builtins} = $args{include_builtins};
 
     return $self;
 } ## end sub new
@@ -65,9 +67,12 @@ sub find
     my ($ok, $markdown) = $self->find_pod_in_definitions($definitions);
     push @markdown, $$markdown if $ok;
 
-    # see if it's a built-in
-    ($ok, $markdown) = $self->run_perldoc_command('-Tuf', $self->{subroutine});
-    push @markdown, $$markdown if $ok;
+    if ($self->{include_builtins})
+    {
+        my $builtin = PLS::Parser::Pod::Builtin->new(function => $self->{subroutine});
+        $ok = $builtin->find();
+        unshift @markdown, ${$builtin->{markdown}} if $ok;
+    }
 
     if (scalar @markdown)
     {

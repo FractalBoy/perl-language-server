@@ -264,7 +264,8 @@ sub find_pod
                                                 index      => $self->{index},
                                                 element    => $element,
                                                 package    => $package,
-                                                subroutine => $subroutine
+                                                subroutine => $subroutine,
+                                                include_builtins => 1
                                                );
             my $ok = $pod->find();
             return (1, $pod) if $ok;

@@ -10,8 +10,6 @@ use Symbol qw(gensym);
 
 use PLS::Server::State;
 
-my @include;
-
 sub new
 {
     my ($class, @args) = @_;

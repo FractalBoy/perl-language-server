@@ -6,6 +6,9 @@ use warnings;
 use parent 'PLS::Server::Response';
 
 use PLS::Parser::Document;
+use PLS::Parser::Pod::Package;
+use PLS::Parser::Pod::Subroutine;
+use PLS::Parser::Pod::Builtin;
 
 sub new
 {
@@ -30,7 +33,7 @@ sub new
             $self->{result}{documentation} = {kind => 'markdown', value => ${$pod->{markdown}}};
         }
     } ## end if ($kind == 7)
-    elsif ($kind == 3 or $kind == 21 or $kind == 14)
+    elsif ($kind == 3 or $kind == 21)
     {
         my ($package, $subroutine);
 
@@ -60,6 +63,17 @@ sub new
             $self->{result}{documentation} = {kind => 'markdown', value => ${$pod->{markdown}}};
         }
     } ## end elsif ($kind == 3 or $kind...)
+    elsif ($kind == 14)
+    {
+        my $pod = PLS::Parser::Pod::Builtin->new(function => $request->{params}{label});
+        my $ok = $pod->find();
+
+        if ($ok)
+        {
+            $self->{result} = $request->{params};
+            $self->{result}{documentation} = {kind => 'markdown', value => ${$pod->{markdown}}};
+        }
+    }
 
     return $self;
 } ## end sub new

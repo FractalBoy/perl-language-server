@@ -72,11 +72,9 @@ sub new
         } ## end foreach my $name (@{$functions...})
     } ## end if (ref $functions eq ...)
 
-    my $subs = [];
-    $subs = $document->{index}{subs_trie}->find($filter) unless $package;
+    my $subs = $document->{index}{subs_trie}->find($filter);
     my $packages = [];
     $packages = $document->{index}{packages_trie}->find($filter) if $retrieve_packages;
-    state @builtins;
     state @keywords;
 
     my $full_text;
@@ -84,39 +82,33 @@ sub new
 
     unless ($filter =~ /^[\$\%\@]/)
     {
-        if (scalar @builtins)
-        {
-            push @results, @builtins;
-        }
-        else
-        {
-            foreach my $family (keys %Pod::Functions::Kinds)
-            {
-                foreach my $sub (@{$Pod::Functions::Kinds{$family}})
-                {
-                    next if $sub =~ /\s+/;
-                    next if $seen_subs{$sub}++;
-                    push @builtins, {label => $sub, kind => 3};
-                } ## end foreach my $sub (@{$Pod::Functions::Kinds...})
-            } ## end foreach my $family (keys %Pod::Functions::Kinds...)
-
-            push @results, @builtins;
-        } ## end else [ if (scalar @builtins) ]
-
         if (scalar @keywords)
         {
             push @results, @keywords;
         }
         else
         {
+            my %seen_keywords;
+
+            foreach my $family (keys %Pod::Functions::Kinds)
+            {
+                foreach my $sub (@{$Pod::Functions::Kinds{$family}})
+                {
+                    next if $sub =~ /\s+/;
+                    next if $seen_keywords{$sub}++;
+                    push @keywords, {label => $sub, kind => 14};
+                } ## end foreach my $sub (@{$Pod::Functions::Kinds...})
+            } ## end foreach my $family (keys %Pod::Functions::Kinds...)
+
             foreach my $keyword (
                   qw(cmp continue default do else elsif eq for foreach ge given gt if le lock lt ne not or package sub unless until when while x xor))
             {
+                next if $seen_keywords{$keyword}++;
                 push @keywords, {label => $keyword, kind => 14};
             }
 
             push @results, @keywords;
-        } ## end else [ if (scalar @keywords) ]
+        } ## end else [ if (scalar @builtins) ]
 
         $full_text = $document->get_full_text();
 
