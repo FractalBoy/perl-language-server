@@ -54,19 +54,15 @@ local $SIG{__WARN__} = sub { };
 open my $write_fh, '>>&=', %d;
 my $package = '%s';
 
-# check to see if we can import it
 eval "require $package";
 
 if (length $@)
 {
-    my @parts = split /::/, $package;
-    $package = join '::', @parts[0 .. $#parts - 1];
-    eval "require $package";
-} ## end if (length $@)
-
-if (length $package and not length $@)
+    Storable::nstore_fd({ok => 0}, $write_fh);
+}
+else
 {
-    my $ref = \%%::;
+    my $ref = \%% ::;
     my @module_parts = split /::/, $package;
 
     foreach my $part (@module_parts)
@@ -87,11 +83,7 @@ if (length $package and not length $@)
     } ## end foreach my $name (keys %%{$ref...})
 
     Storable::nstore_fd({ok => 1, functions => \@functions}, $write_fh);
-} ## end if (length $package and...)
-else
-{
-    Storable::nstore_fd({ok => 0}, $write_fh);
-}
+} ## end else [ if (length $@) ]
 EOF
 
     return sprintf $script, $fileno, $package;
