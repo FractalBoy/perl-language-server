@@ -7,7 +7,6 @@ use feature 'isa';
 no warnings 'experimental::isa';
 
 use List::Util qw(any first);
-use Perl::Critic::Utils ();
 
 sub new
 {
@@ -159,7 +158,7 @@ sub subroutine_package_and_name
 
     my $element = $self->{ppi_element};
 
-    return if (not Perl::Critic::Utils::is_function_call($element) or not $element isa 'PPI::Token::Word');
+    return if (not $element isa 'PPI::Token::Word');
 
     if ($element->content =~ /::/)
     {
@@ -274,7 +273,7 @@ sub _get_string_from_qw
 
     my ($content) = $element->content =~ /qw[[:graph:]](.+)[[:graph:]]/;
     return unless (length $content);
-    my @words = split /(\s+)/, $content;
+    my @words          = split /(\s+)/, $content;
     my $current_column = $element->column_number + 3;
 
     # Figure out which word the mouse is hovering on.

@@ -30,7 +30,7 @@ sub new
             $self->{result}{documentation} = {kind => 'markdown', value => ${$pod->{markdown}}};
         }
     } ## end if ($kind == 7)
-    elsif ($kind == 3 or $kind == 21)
+    elsif ($kind == 3 or $kind == 21 or $kind == 14)
     {
         my ($package, $subroutine);
 

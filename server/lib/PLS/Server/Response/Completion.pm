@@ -53,10 +53,10 @@ sub new
 
             my $fully_qualified = join $separator, $package, $name;
             my $result = {
-                          label    => $name,
-                          sortText => $fully_qualified,
+                          label      => $name,
+                          sortText   => $fully_qualified,
                           filterText => $fully_qualified,
-                          kind     => 3
+                          kind       => 3
                          };
 
             if ($arrow)
@@ -76,22 +76,48 @@ sub new
     $subs = $document->{index}{subs_trie}->find($filter) unless $package;
     my $packages = [];
     $packages = $document->{index}{packages_trie}->find($filter) if $retrieve_packages;
-
-    foreach my $family (keys %Pod::Functions::Kinds)
-    {
-        foreach my $sub (@{$Pod::Functions::Kinds{$family}})
-        {
-            next if $sub =~ /\s+/;
-            next if $seen_subs{$sub}++;
-            push @results, {label => $sub, kind => 3};
-        } ## end foreach my $sub (@{$Pod::Functions::Kinds...})
-    } ## end foreach my $family (keys %Pod::Functions::Kinds...)
+    state @builtins;
+    state @keywords;
 
     my $full_text;
     my %seen_packages;
 
     unless ($filter =~ /^[\$\%\@]/)
     {
+        if (scalar @builtins)
+        {
+            push @results, @builtins;
+        }
+        else
+        {
+            foreach my $family (keys %Pod::Functions::Kinds)
+            {
+                foreach my $sub (@{$Pod::Functions::Kinds{$family}})
+                {
+                    next if $sub =~ /\s+/;
+                    next if $seen_subs{$sub}++;
+                    push @builtins, {label => $sub, kind => 3};
+                } ## end foreach my $sub (@{$Pod::Functions::Kinds...})
+            } ## end foreach my $family (keys %Pod::Functions::Kinds...)
+
+            push @results, @builtins;
+        } ## end else [ if (scalar @builtins) ]
+
+        if (scalar @keywords)
+        {
+            push @results, @keywords;
+        }
+        else
+        {
+            foreach my $keyword (
+                  qw(cmp continue default do else elsif eq for foreach ge given gt if le lock lt ne not or package sub unless until when while x xor))
+            {
+                push @keywords, {label => $keyword, kind => 14};
+            }
+
+            push @results, @keywords;
+        } ## end else [ if (scalar @keywords) ]
+
         $full_text = $document->get_full_text();
 
         foreach my $sub (@{$document->get_subroutines_fast($full_text)})
@@ -166,7 +192,7 @@ sub new
                   };
             } ## end if ($variable =~ /^[\@\%]/...)
         } ## end foreach my $variable (@{$document...})
-    } ## end if (not $arrow and $filter...)
+    } ## end if (not $arrow and not...)
 
     $subs     = [] unless (ref $subs eq 'ARRAY');
     $packages = [] unless (ref $packages eq 'ARRAY');
