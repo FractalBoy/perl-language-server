@@ -8,7 +8,6 @@ use IPC::Open3;
 use Pod::Markdown;
 use Symbol qw(gensym);
 
-use PLS::Parser::Document;
 use PLS::Server::State;
 
 my @include;

@@ -13,7 +13,7 @@ use Coro::Channel;
 use JSON::PP;
 use List::Util qw(first);
 
-use PLS::Server::Request;
+use PLS::Server::Request::Factory;
 use PLS::Server::Response;
 
 sub new
@@ -62,7 +62,7 @@ sub recv
 
     if (length $content->{method})
     {
-        return PLS::Server::Request->new($content);
+        return PLS::Server::Request::Factory->new($content);
     }
     else
     {
