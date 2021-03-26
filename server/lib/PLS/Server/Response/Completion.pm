@@ -77,18 +77,15 @@ sub new
     my $packages = [];
     $packages = $document->{index}{packages_trie}->find($filter) if $retrieve_packages;
 
-    unless (length $package)
+    foreach my $family (keys %Pod::Functions::Kinds)
     {
-        foreach my $family (keys %Pod::Functions::Kinds)
+        foreach my $sub (@{$Pod::Functions::Kinds{$family}})
         {
-            foreach my $sub (@{$Pod::Functions::Kinds{$family}})
-            {
-                next if $sub =~ /\s+/;
-                next if $seen_subs{$sub}++;
-                push @results, {label => $sub, kind => 3};
-            } ## end foreach my $sub (@{$Pod::Functions::Kinds...})
-        } ## end foreach my $family (keys %Pod::Functions::Kinds...)
-    } ## end unless (length $package)
+            next if $sub =~ /\s+/;
+            next if $seen_subs{$sub}++;
+            push @results, {label => $sub, kind => 3};
+        } ## end foreach my $sub (@{$Pod::Functions::Kinds...})
+    } ## end foreach my $family (keys %Pod::Functions::Kinds...)
 
     my $full_text;
     my %seen_packages;
