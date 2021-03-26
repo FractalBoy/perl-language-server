@@ -10,7 +10,7 @@ sub new
     my ($class, $request) = @_;
 
     return bless $request, $class;
-} ## end sub new
+}
 
 sub service
 {

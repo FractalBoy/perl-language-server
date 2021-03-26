@@ -20,7 +20,7 @@ sub new
 
     if ($method eq '' or $method eq '$' or not $PLS::Server::State::INITIALIZED)
     {
-        return PLS::Server::Method::ServerMethod::get_request($request); 
+        return PLS::Server::Method::ServerMethod::get_request($request);
     }
     elsif ($method eq 'textDocument')
     {

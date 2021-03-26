@@ -25,7 +25,7 @@ sub new
     $path = $path->file;
 
     my @diagnostics;
-    
+
     @diagnostics = (@{get_compilation_errors($path)}, @{get_perlcritic_errors($path)}) unless $args{close};
 
     my $self = {
@@ -68,8 +68,10 @@ sub get_compilation_errors
     {
         chomp $line;
         next if $line =~ /syntax OK$/;
+
         # Hide warnings from circular references
         next if $line =~ /Subroutine .+ redefined/;
+
         # Hide "BEGIN failed" and "Compilation failed" messages - these provide no useful info.
         next if $line =~ /^BEGIN failed/;
         next if $line =~ /^Compilation failed/;
