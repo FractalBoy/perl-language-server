@@ -8,6 +8,7 @@ use PLS::Server::Request::TextDocument::Definition;
 use PLS::Server::Request::TextDocument::DidChange;
 use PLS::Server::Request::TextDocument::DidClose;
 use PLS::Server::Request::TextDocument::DidOpen;
+use PLS::Server::Request::TextDocument::DidSave;
 use PLS::Server::Request::TextDocument::DocumentSymbol;
 use PLS::Server::Request::TextDocument::Formatting;
 use PLS::Server::Request::TextDocument::Hover;
@@ -47,6 +48,10 @@ sub get_request
     if ($method eq 'didClose')
     {
         return PLS::Server::Request::TextDocument::DidClose->new($request);
+    }
+    if ($method eq 'didSave')
+    {
+        return PLS::Server::Request::TextDocument::DidSave->new($request);
     }
     if ($method eq 'formatting')
     {

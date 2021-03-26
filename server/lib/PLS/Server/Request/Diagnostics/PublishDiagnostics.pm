@@ -24,7 +24,9 @@ sub new
     return unless (ref $path eq 'URI::file');
     $path = $path->file;
 
-    my @diagnostics = (@{get_compilation_errors($path)}, @{get_perlcritic_errors($path)});
+    my @diagnostics;
+    
+    @diagnostics = (@{get_compilation_errors($path)}, @{get_perlcritic_errors($path)}) unless $args{close};
 
     my $self = {
         method => 'textDocument/publishDiagnostics',
@@ -66,10 +68,16 @@ sub get_compilation_errors
     {
         chomp $line;
         next if $line =~ /syntax OK$/;
+        # Hide warnings from circular references
+        next if $line =~ /Subroutine .+ redefined/;
+        # Hide "BEGIN failed" and "Compilation failed" messages - these provide no useful info.
+        next if $line =~ /^BEGIN failed/;
+        next if $line =~ /^Compilation failed/;
         if (my ($error, $file, $line, $area) = $line =~ /^(.+) at (.+) line (\d+)(, .+)?/)
         {
             $error .= $area if (length $area);
             $line = int $line;
+            next if $file ne $path;
 
             push @diagnostics,
               {

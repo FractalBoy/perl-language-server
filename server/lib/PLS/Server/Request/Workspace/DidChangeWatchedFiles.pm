@@ -21,7 +21,6 @@ sub service
     my $index = PLS::Parser::Document->get_index();
 
     my @changed_files;
-    my @changed_uris;
     my $any_deletes;
 
     foreach my $change (@{$self->{params}{changes}})
@@ -40,18 +39,7 @@ sub service
         next if $index->is_ignored($file->file);
 
         push @changed_files, $file->file;
-        push @changed_uris, $change->{uri};
-
     } ## end foreach my $change (@{$self...})
-
-    @changed_uris = uniq @changed_uris;
-
-    async {
-        foreach my $uri (@changed_uris)
-        {
-            $server->{server_requests}->put(PLS::Server::Request::Diagnostics::PublishDiagnostics->new(uri => $uri)) if PLS::Parser::Document->is_open($uri);
-        }
-    }; 
 
     $index->cleanup_old_files() if $any_deletes;
 
