@@ -425,7 +425,7 @@ sub is_open
 
     return 1 if (exists $FILES{$uri} and ref $FILES{$uri} eq 'HASH');
     return 0;
-}
+} ## end sub is_open
 
 sub open_files
 {
@@ -702,8 +702,9 @@ sub format_range
         $argv .= $args{formatting_options}{insertSpaces} ? ' -i=' : ' -et=';
         $argv .= $args{formatting_options}{tabSize};
     }
-    my $perltidyrc = glob($PLS::Server::State::CONFIG->{perltidyrc} // '~/.perltidyrc');
-    my $error      = Perl::Tidy::perltidy(source => \$selection, destination => \$formatted, stderr => \$stderr, perltidyrc => $perltidyrc, argv => $argv);
+    my ($perltidyrc) = glob $PLS::Server::State::CONFIG->{perltidyrc};
+    undef $perltidyrc if (not length $perltidyrc or not -f $perltidyrc or not -r $perltidyrc);
+    my $error = Perl::Tidy::perltidy(source => \$selection, destination => \$formatted, stderr => \$stderr, perltidyrc => $perltidyrc, argv => $argv);
 
     # get the number of lines in the formatted result - we need to modify the range if
     # any lines were added

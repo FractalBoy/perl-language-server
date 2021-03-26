@@ -26,7 +26,10 @@ sub new
 
     my @diagnostics;
 
-    @diagnostics = (@{get_compilation_errors($path)}, @{get_perlcritic_errors($path)}) unless $args{close};
+    if (not $args{close} and $PLS::Server::State::CONFIG->{perlcritic}{enabled})
+    {
+        @diagnostics = (@{get_compilation_errors($path)}, @{get_perlcritic_errors($path)});
+    }
 
     my $self = {
         method => 'textDocument/publishDiagnostics',
@@ -103,7 +106,9 @@ sub get_perlcritic_errors
 {
     my ($path) = @_;
 
-    my $critic     = Perl::Critic->new();
+    my ($profile) = glob $PLS::Server::State::CONFIG->{perlcritic}{perlcriticrc};
+    undef $profile if (not length $profile or not -f $profile or not -r $profile);
+    my $critic     = Perl::Critic->new(-profile => $profile);
     my @violations = $critic->critique($path);
 
     my @diagnostics;

@@ -5,7 +5,7 @@
 	"publisher": "FractalBoy",
 	"repository": "https://github.com/FractalBoy/perl-language-server/",
 	"license": "MIT",
-	"version": "0.0.2",
+	"version": "0.0.3",
 	"engines": {
 		"vscode": "^1.50.0"
 	},
@@ -35,10 +35,15 @@
 					"default": "~/.perltidyrc",
 					"description": "Path to .perltidyrc"
 				},
-				"perl.perlcriticrc": {
+                "perl.perlcritic.perlcriticrc": {
 					"type": "string",
-					"default": "~/.perltidyrc",
+					"default": "~/.perlcriticrc",
 					"description": "Path to .perlcriticrc"
+				},
+                "perl.perlcritic.enabled": {
+					"type": "boolean",
+					"default": true,
+					"description": "Enable perlcritic"
 				},
                 "perl.cwd": {
                     "type": "string",
