@@ -116,7 +116,7 @@ sub go_to_definition_of_closest_subroutine
         $word = $word->previous_sibling;
     }
 
-    return unless ($word->type eq 'PPI::Token::Word');
+    return unless ($word->element isa 'PPI::Token::Word');
     return $self->search_elements_for_definition($line_number, $column_number, $word);
 } ## end sub go_to_definition_of_closest_subroutine
 
@@ -421,14 +421,6 @@ sub open_file
 
     return;
 } ## end sub open_file
-
-sub is_open
-{
-    my ($class, $uri) = @_;
-
-    return 1 if (exists $FILES{$uri} and ref $FILES{$uri} eq 'HASH');
-    return 0;
-} ## end sub is_open
 
 sub open_files
 {
