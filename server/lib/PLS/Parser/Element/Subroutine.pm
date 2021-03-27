@@ -23,7 +23,7 @@ sub signature
 {
     my ($self) = @_;
 
-    my $block = $self->{ppi_element}->block;
+    my $block = $self->element->block;
     return unless (ref $block eq 'PPI::Structure::Block');
 
     # only looking at first variable statement, for performance sake.
@@ -45,7 +45,7 @@ sub name
 {
     my ($self) = @_;
 
-    return $self->{ppi_element}->name;
+    return $self->element->name;
 }
 
 sub length

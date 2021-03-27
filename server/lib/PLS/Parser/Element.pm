@@ -3,8 +3,7 @@ package PLS::Parser::Element;
 use strict;
 use warnings;
 
-use feature 'isa';
-no warnings 'experimental::isa';
+use experimental 'isa';
 
 use List::Util qw(any first);
 
@@ -23,14 +22,14 @@ sub ppi_line_number
 {
     my ($self) = @_;
 
-    return $self->{ppi_element}->line_number;
+    return $self->element->line_number;
 }
 
 sub ppi_column_number
 {
     my ($self) = @_;
 
-    return $self->{ppi_element}->column_number;
+    return $self->element->column_number;
 }
 
 sub lsp_line_number
@@ -64,7 +63,7 @@ sub content
 {
     my ($self) = @_;
 
-    return $self->{ppi_element}->content;
+    return $self->element->content;
 }
 
 sub name
@@ -78,7 +77,7 @@ sub package_name
 {
     my ($self, $column_number) = @_;
 
-    my $element = $self->{ppi_element};
+    my $element = $self->element;
     $column_number++;
 
     if (    $element->parent isa 'PPI::Statement::Include'
@@ -127,7 +126,7 @@ sub method_name
 {
     my ($self) = @_;
 
-    my $element = $self->{ppi_element};
+    my $element = $self->element;
 
     return
       if (   not $element isa 'PPI::Token::Word'
@@ -141,7 +140,7 @@ sub class_method_package_and_name
 {
     my ($self) = @_;
 
-    my $element = $self->{ppi_element};
+    my $element = $self->element;
 
     return
       if (   not $element isa 'PPI::Token::Word'
@@ -156,7 +155,7 @@ sub subroutine_package_and_name
 {
     my ($self) = @_;
 
-    my $element = $self->{ppi_element};
+    my $element = $self->element;
 
     return if (not $element isa 'PPI::Token::Word');
 
@@ -179,7 +178,7 @@ sub variable_name
 {
     my ($self) = @_;
 
-    my $element = $self->{ppi_element};
+    my $element = $self->element;
     return unless ($element isa 'PPI::Token::Symbol');
 
     return $element->symbol;
@@ -189,7 +188,7 @@ sub cursor_on_package
 {
     my ($self, $column_number) = @_;
 
-    my $element = $self->{ppi_element};
+    my $element = $self->element;
 
     my $index         = $column_number - $element->column_number;
     my @parts         = split /::/, $element->content;
@@ -273,7 +272,7 @@ sub _get_string_from_qw
 
     my ($content) = $element->content =~ /qw[[:graph:]](.+)[[:graph:]]/;
     return unless (length $content);
-    my @words          = split /(\s+)/, $content;
+    my @words = split /(\s+)/, $content;
     my $current_column = $element->column_number + 3;
 
     # Figure out which word the mouse is hovering on.
@@ -317,39 +316,53 @@ sub parent
 {
     my ($self) = @_;
 
-    return unless $self->{ppi_element}->parent;
-    return PLS::Parser::Element->new(file => $self->{file}, element => $self->{ppi_element}->parent);
+    return unless $self->element->parent;
+    return PLS::Parser::Element->new(file => $self->{file}, element => $self->element->parent);
 } ## end sub parent
 
 sub previous_sibling
 {
     my ($self) = @_;
 
-    return unless $self->{ppi_element}->sprevious_sibling;
-    return PLS::Parser::Element->new(file => $self->{file}, element => $self->{ppi_element}->sprevious_sibling);
+    return unless $self->element->sprevious_sibling;
+    return PLS::Parser::Element->new(file => $self->{file}, element => $self->element->sprevious_sibling);
 } ## end sub previous_sibling
 
 sub next_sibling
 {
     my ($self) = @_;
 
-    return unless $self->{ppi_element}->snext_sibling;
-    return PLS::Parser::Element->new(file => $self->{file}, element => $self->{ppi_element}->snext_sibling);
+    return unless $self->element->snext_sibling;
+    return PLS::Parser::Element->new(file => $self->{file}, element => $self->element->snext_sibling);
 } ## end sub next_sibling
 
 sub children
 {
     my ($self) = @_;
 
-    return unless $self->{ppi_element}->can('children');
-    return map { PLS::Parser::Element->new(file => $self->{file}, element => $_) } $self->{ppi_element}->children;
+    return unless $self->element->can('children');
+    return map { PLS::Parser::Element->new(file => $self->{file}, element => $_) } $self->element->children;
 } ## end sub children
 
 sub tokens
 {
     my ($self) = @_;
 
-    return map { PLS::Parser::Element->new(file => $self->{file}, element => $_) } $self->{ppi_element}->tokens;
+    return map { PLS::Parser::Element->new(file => $self->{file}, element => $_) } $self->element->tokens;
+}
+
+sub element
+{
+    my ($self) = @_;
+
+    return $self->{ppi_element};
+}
+
+sub type
+{
+    my ($self) = @_;
+
+    return ref $self->element;
 }
 
 1;

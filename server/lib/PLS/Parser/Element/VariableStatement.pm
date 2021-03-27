@@ -14,10 +14,17 @@ sub new
     my $self = $class->SUPER::new(@args);
     $self->{symbols} = [
                         map  { PLS::Parser::Element::Variable->new(document => $self->{document}, element => $_, file => $self->{file}) }
-                        grep { ref $_ eq 'PPI::Token::Symbol' } $self->{ppi_element}->symbols
+                        grep { ref $_ eq 'PPI::Token::Symbol' } $self->element->symbols
                        ];
 
     return $self;
 } ## end sub new
+
+sub symbols
+{
+    my ($self) = @_;
+
+    return $self->{symbols};
+}
 
 1;

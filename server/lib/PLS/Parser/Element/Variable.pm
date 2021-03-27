@@ -9,7 +9,7 @@ sub name
 {
     my ($self) = @_;
 
-    return $self->{ppi_element}->symbol;
+    return $self->element->symbol;
 }
 
 1;

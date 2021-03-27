@@ -9,7 +9,7 @@ sub name
 {
     my ($self) = @_;
 
-    return $self->{ppi_element}->namespace;
+    return $self->element->namespace;
 }
 
 sub length

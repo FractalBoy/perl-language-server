@@ -99,24 +99,24 @@ sub find_current_list
     return first { $_->lsp_column_number < $column_number < $_->lsp_column_number + length($_->content) }
     sort  { abs($column_number - $a->lsp_column_number) - abs($column_number - $b->lsp_column_number) }
       map { PLS::Parser::Element->new(element => $_, document => $self->{document}, file => $self->{path}) }
-      map { $find->in($_->{ppi_element}) } @elements;
+      map { $find->in($_->element) } @elements;
 } ## end sub find_current_list
 
 sub go_to_definition_of_closest_subroutine
 {
     my ($self, $list, $line_number, $column_number) = @_;
 
-    return unless ($list isa 'PLS::Parser::Element' and $list->{ppi_element} isa 'PPI::Structure::List');
+    return unless ($list isa 'PLS::Parser::Element' and $list->type eq 'PPI::Structure::List');
 
     # Try to find the closest word before the list - this is the function name.
     my $word = $list;
 
-    while ($word isa 'PLS::Parser::Element' and not $word->{ppi_element} isa 'PPI::Token::Word')
+    while ($word isa 'PLS::Parser::Element' and not $word->type eq 'PPI::Token::Word')
     {
         $word = $word->previous_sibling;
     }
 
-    return unless ($word->{ppi_element} isa 'PPI::Token::Word');
+    return unless ($word->type eq 'PPI::Token::Word');
     return $self->search_elements_for_definition($line_number, $column_number, $word);
 } ## end sub go_to_definition_of_closest_subroutine
 
@@ -863,24 +863,24 @@ sub find_word_under_cursor
     my @elements = $self->find_elements_at_location($line, $character);
     @elements = map  { $_->tokens } @elements;
     @elements = grep { $_->lsp_column_number < $character } @elements;
-    my $element          = first { $_->{ppi_element}->isa('PPI::Token::Word') or $_->{ppi_element}->isa('PPI::Token::Label') or $_->{ppi_element}->isa('PPI::Token::Symbol') } @elements;
-    my $closest_operator = first { $_->{ppi_element}->isa('PPI::Token::Operator') } @elements;
+    my $element          = first { $_->type eq 'PPI::Token::Word' or $_->type eq 'PPI::Token::Label' or $_->type eq 'PPI::Token::Symbol' } @elements;
+    my $closest_operator = first { $_->type eq 'PPI::Token::Operator' } @elements;
     return unless ($element isa 'PLS::Parser::Element');
 
     # Short-circuit if this is a HASH reference subscript.
     my $parent = $element->parent;
     $parent = $parent->parent if ($parent isa 'PLS::Parser::Element');
-    return if ($element->{ppi_element} isa 'PPI::Token::Word' and $parent isa 'PLS::Parser::Element' and $parent->{ppi_element}->isa('PPI::Structure::Subscript'));
+    return if ($element->type eq 'PPI::Token::Word' and $parent isa 'PLS::Parser::Element' and $parent->type eq 'PPI::Structure::Subscript');
 
     # if the cursor is on the word after an arrow, back up to the arrow so we can use any package information before it.
-    if (    $element->{ppi_element}->isa('PPI::Token::Word')
+    if (    $element->type eq 'PPI::Token::Word'
         and $element->previous_sibling isa 'PLS::Parser::Element'
         and $element->previous_sibling->name eq '->')
     {
         $closest_operator = $element->previous_sibling;
-    } ## end if ($element->{ppi_element...})
+    } ## end if ($element->type eq ...)
 
-    if ($closest_operator isa 'PLS::Parser::Element' and $closest_operator->name eq '->' and $element->{ppi_element} isa 'PPI::Token::Word')
+    if ($closest_operator isa 'PLS::Parser::Element' and $closest_operator->name eq '->' and $element->type eq 'PPI::Token::Word')
     {
         # default to inserting after the arrow
         my $arrow_range = $element->range;
@@ -894,18 +894,18 @@ sub find_word_under_cursor
         # if the next element is a word, it is likely the start of a method name,
         # so we want to return it as a filter. we also want the range to be that
         # of the next element so that we replace the word when it is selected.
-        if (    ref $closest_operator->next_sibling eq 'PLS::Parser::Element'
-            and $closest_operator->next_sibling->{ppi_element}->isa('PPI::Token::Word')
+        if (    $closest_operator->next_sibling isa 'PLS::Parser::Element'
+            and $closest_operator->next_sibling->type eq 'PPI::Token::Word'
             and $closest_operator->ppi_line_number == $closest_operator->next_sibling->ppi_line_number)
         {
             $filter = $closest_operator->next_sibling->name;
             $range  = $closest_operator->next_sibling->range;
-        } ## end if (ref $closest_operator...)
+        } ## end if ($closest_operator->...)
 
         # if the previous element is a word, it's possibly a class name,
         # so we return that to use for searching for that class's methods.
         my $package = '';
-        if (ref $closest_operator->previous_sibling eq 'PLS::Parser::Element' and $closest_operator->previous_sibling->{ppi_element}->isa('PPI::Token::Word'))
+        if ($closest_operator->previous_sibling isa 'PLS::Parser::Element' and $closest_operator->previous_sibling->type eq 'PPI::Token::Word')
         {
             $package = $closest_operator->previous_sibling->name;
         }
@@ -917,9 +917,9 @@ sub find_word_under_cursor
     # something like "Package::Name:", we just want Package::Name.
     if (
             $element->name eq ':'
-        and ref $element->previous_sibling eq 'PLS::Parser::Element'
-        and (   $element->previous_sibling->{ppi_element}->isa('PPI::Token::Word')
-             or $element->previous_sibling->{ppi_element}->isa('PPI::Token::Label'))
+        and $element->previous_sibling isa 'PLS::Parser::Element'
+        and (   $element->previous_sibling->type eq 'PPI::Token::Word'
+             or $element->previous_sibling->type eq 'PPI::Token::Label')
        )
     {
         $element = $element->previous_sibling;
@@ -932,8 +932,8 @@ sub find_word_under_cursor
     # look at labels as well, because a label looks like a package name before the second colon.
     my $package = '';
 
-    if (   $element->{ppi_element}->isa('PPI::Token::Word')
-        or $element->{ppi_element}->isa('PPI::Token::Label'))
+    if (   $element->type eq 'PPI::Token::Word'
+        or $element->type eq 'PPI::Token::Label')
     {
         $package = $element->name;
     }
@@ -948,11 +948,11 @@ sub get_list_index
 {
     my ($self, $list, $line, $character) = @_;
 
-    return 0 unless ($list isa 'PLS::Parser::Element' and $list->{ppi_element} isa 'PPI::Structure::List');
+    return 0 unless ($list isa 'PLS::Parser::Element' and $list->type eq 'PPI::Structure::List');
 
     my $find = PPI::Find->new(sub { $_[0] isa 'PPI::Statement::Expression' });
     my $expr;
-    $expr = $find->match() if $find->start($list->{ppi_element});
+    $expr = $find->match() if $find->start($list->element);
 
     return 0 unless ($expr isa 'PPI::Statement::Expression');
 
