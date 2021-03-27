@@ -3,8 +3,7 @@ package PLS::Server;
 use strict;
 use warnings;
 
-use feature 'isa';
-no warnings 'experimental::isa';
+use experimental 'isa';
 
 use AnyEvent;
 use AnyEvent::Loop;

@@ -6,12 +6,12 @@ use warnings;
 use experimental 'isa';
 
 use ExtUtils::Installed;
-use Module::CoreList;
 use List::Util qw(first any);
-use Perl::Tidy;
+use Module::CoreList;
 use PPI;
 use PPI::Find;
 use PPR;
+use Perl::Tidy;
 use URI;
 use URI::file;
 
