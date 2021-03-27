@@ -91,7 +91,7 @@ else
 } ## end else [ if (length $@) ]
 EOF
 
-    return sprintf $script, $fileno, $package;
+    return sprintf $script, $fileno, quotemeta($package);
 } ## end sub _get_package_functions_script
 
 1;
