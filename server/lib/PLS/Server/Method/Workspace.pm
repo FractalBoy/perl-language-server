@@ -1,10 +1,12 @@
 package PLS::Server::Method::Workspace;
 
 use strict;
+use warnings;
 
 use PLS::Server::Request::Workspace::Configuration;
 use PLS::Server::Request::Workspace::DidChangeConfiguration;
 use PLS::Server::Request::Workspace::DidChangeWatchedFiles;
+use PLS::Server::Request::Workspace::ExecuteCommand;
 
 sub get_request
 {
@@ -23,6 +25,10 @@ sub get_request
     if ($method eq 'configuration')
     {
         return PLS::Server::Request::Workspace::Configuration->new($request);
+    }
+    if ($method eq 'executeCommand')
+    {
+        return PLS::Server::Request::Workspace::ExecuteCommand->new($request);
     }
 } ## end sub get_request
 

@@ -3,10 +3,11 @@ package PLS::Parser::Document;
 use strict;
 use warnings;
 
-use feature 'isa';
-no warnings 'experimental::isa';
+use experimental 'isa';
 
-use List::Util qw(first);
+use ExtUtils::Installed;
+use Module::CoreList;
+use List::Util qw(first any);
 use Perl::Tidy;
 use PPI;
 use PPI::Find;
@@ -37,15 +38,16 @@ sub new
 
     if (length $args{uri})
     {
-        $path = URI->new($args{uri})->file;
-        $uri  = $args{uri};
-    }
+        $path       = URI->new($args{uri})->file;
+        $args{path} = $path;
+        $uri        = $args{uri};
+    } ## end if (length $args{uri})
     elsif (length $args{path})
     {
-        $path = $args{path};
-        $uri  = URI::file->new($path)->as_string;
-    }
-
+        $path      = $args{path};
+        $uri       = URI::file->new($path)->as_string;
+        $args{uri} = $uri;
+    } ## end elsif (length $args{path}...)
     return unless (length $path and length $uri);
 
     my $self = bless {
@@ -261,10 +263,10 @@ sub find_pod
         {
             my $pod =
               PLS::Parser::Pod::Subroutine->new(
-                                                index      => $self->{index},
-                                                element    => $element,
-                                                package    => $package,
-                                                subroutine => $subroutine,
+                                                index            => $self->{index},
+                                                element          => $element,
+                                                package          => $package,
+                                                subroutine       => $subroutine,
                                                 include_builtins => 1
                                                );
             my $ok = $pod->find();
@@ -859,7 +861,7 @@ sub find_word_under_cursor
     my ($self, $line, $character) = @_;
 
     my @elements = $self->find_elements_at_location($line, $character);
-    @elements = map { $_->tokens } @elements;
+    @elements = map  { $_->tokens } @elements;
     @elements = grep { $_->lsp_column_number < $character } @elements;
     my $element          = first { $_->{ppi_element}->isa('PPI::Token::Word') or $_->{ppi_element}->isa('PPI::Token::Label') or $_->{ppi_element}->isa('PPI::Token::Symbol') } @elements;
     my $closest_operator = first { $_->{ppi_element}->isa('PPI::Token::Operator') } @elements;
@@ -973,6 +975,102 @@ sub get_list_index
 
     return $param_index + 1;
 } ## end sub get_list_index
+
+sub sort_imports
+{
+    my ($self) = @_;
+
+    my $doc       = $self->{document}->clone();
+    my @installed = ExtUtils::Installed->new->modules;
+
+    # Just strict and warnings - I like them to be first and in their own group
+    my @special_pragmas;
+
+    # The rest of the pragmas
+    my @pragmas;
+
+    # Group of any modules that are installed (either core or external)
+    my @installed_modules;
+
+    # Group of modules that are part of this project,
+    # though it gets tricky if this project is also installed
+    my @internal_modules;
+
+    my $insert_after;
+
+    foreach my $child ($doc->children)
+    {
+        my $seqno;
+        next unless ($seqno = ($child->isa('PPI::Statement::Include') .. (not $child->isa('PPI::Statement::Include') and not $child->isa('PPI::Token::Whitespace'))));
+        last                                     if ($seqno =~ /E0/);
+        $insert_after = $child->previous_sibling if ($seqno eq '1');
+
+        if ($child->isa('PPI::Token::Whitespace'))
+        {
+            $child->delete;
+            next;
+        }
+
+        if ($child->pragma eq 'strict' or $child->pragma eq 'warnings')
+        {
+            push @special_pragmas, $child;
+        }
+        elsif (length $child->pragma)
+        {
+            push @pragmas, $child;
+        }
+        else
+        {
+            if (Module::CoreList::is_core($child->module) or any { $child->module =~ /^\Q$_\E/ } @installed)
+            {
+                push @installed_modules, $child;
+            }
+            else
+            {
+                push @internal_modules, $child;
+            }
+        } ## end else [ if ($child->pragma eq ...)]
+
+        $child->remove;
+    } ## end foreach my $child ($doc->children...)
+
+    @special_pragmas   = _pad_imports(sort _sort_imports @special_pragmas)   if (scalar @special_pragmas);
+    @pragmas           = _pad_imports(sort _sort_imports @pragmas)           if (scalar @pragmas);
+    @installed_modules = _pad_imports(sort _sort_imports @installed_modules) if (scalar @installed_modules);
+    @internal_modules  = _pad_imports(sort _sort_imports @internal_modules)  if (scalar @internal_modules);
+
+    # There doesn't seem to be a better way to do this other than to use this private method.
+    $insert_after->__insert_after(@special_pragmas, @pragmas, @installed_modules, @internal_modules);
+
+    open my $fh, '<', $self->get_full_text();
+
+    my $lines;
+
+    while (my $line = <$fh>)
+    {
+        $lines = $.;
+    }
+
+    return \($doc->serialize), $lines;
+} ## end sub sort_imports
+
+sub _sort_imports
+{
+    return $b->type cmp $a->type || $a->module cmp $b->module;
+}
+
+sub _pad_imports
+{
+    my @imports = @_;
+
+    # Newlines between the imports
+    @imports = map { $_, PPI::Token::Whitespace->new("\n") } @imports;
+
+    # An extra newline at the end of the section
+    push @imports, PPI::Token::Whitespace->new("\n");
+
+    return @imports;
+} ## end sub _pad_imports
 
 sub _split_lines
 {

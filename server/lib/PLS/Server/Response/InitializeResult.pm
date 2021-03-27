@@ -29,7 +29,12 @@ sub new
                                             completionProvider              => {
                                                                    triggerCharacters => ['>', ':', '$', '@', '%'],
                                                                    resolveProvider   => \1
-                                                                  }
+                                                                  },
+                                            executeCommandProvider => {
+                                                commands => [
+                                                    'perl.sortImports'
+                                                ]
+                                            }
                                            }
                           }
                );
