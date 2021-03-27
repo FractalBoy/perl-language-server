@@ -136,14 +136,14 @@ sub search_elements_for_definition
             if (length $package)
             {
                 my $results = $self->{index}->find_package_subroutine($package, $subroutine);
-                return $results if (ref $results eq 'ARRAY' and scalar @$results);
+                return $results if (ref $results eq 'ARRAY' and scalar @{$results});
 
                 my $external = $self->find_external_subroutine($package, $subroutine);
                 return [$external] if (ref $external eq 'HASH');
-                return [];
             } ## end if (length $package)
 
-            return $self->{index}->find_subroutine($subroutine);
+            my $results = $self->{index}->find_subroutine($subroutine);
+            return $results if (ref $results eq 'ARRAY' and scalar @{$results});
         } ## end if (my ($package, $subroutine...))
         if (my ($class, $method) = $match->class_method_package_and_name())
         {
