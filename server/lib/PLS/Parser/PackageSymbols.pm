@@ -1,5 +1,8 @@
 package PLS::Parser::PackageSymbols;
 
+use strict;
+use warnings;
+
 use Fcntl    ();
 use Storable ();
 
@@ -46,10 +49,12 @@ sub _get_package_functions_script
     my ($fileno, $package) = @_;
 
     my $script = << 'EOF';
+use File::Spec;
 use Storable;
 use Sub::Util;
 
-local $SIG{__WARN__} = sub { };
+open STDOUT, '>', File::Spec->devnull;
+open STDERR, '>', File::Spec->devnull;
 
 open my $write_fh, '>>&=', %d;
 my $package = '%s';
