@@ -300,7 +300,7 @@ sub range
                      },
             end => {
                     line      => $self->lsp_line_number,
-                    character => $self->lsp_column_number + $self->length
+                    character => $self->lsp_column_number + $self->length - 1
                    }
            };
 } ## end sub range

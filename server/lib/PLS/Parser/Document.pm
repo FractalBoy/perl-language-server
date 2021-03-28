@@ -116,7 +116,7 @@ sub go_to_definition_of_closest_subroutine
         $word = $word->previous_sibling;
     }
 
-    return unless ($word->element isa 'PPI::Token::Word');
+    return if (not $word isa 'PLS::Parser::Element' or not $word->element isa 'PPI::Token::Word');
     return $self->search_elements_for_definition($line_number, $column_number, $word);
 } ## end sub go_to_definition_of_closest_subroutine
 
@@ -171,6 +171,10 @@ sub search_elements_for_definition
                 return $self->{index}->find_package($package);
             }
         } ## end if (my ($package, $import...))
+        if (my $variable = $match->variable_name())
+        {
+            return $self->go_to_variable_definition($variable, $match, $line_number, $column_number);
+        }
     } ## end foreach my $match (@matches...)
 
     # If all else fails, see if we're on a POD link.
@@ -410,6 +414,96 @@ sub find_external_package
 
     return;
 } ## end sub find_external_package
+
+sub go_to_variable_definition
+{
+    my ($self, $variable, $element, $line_number, $column_number) = @_;
+
+    my $cursor = $element->element;
+    my $prev_cursor;
+    my $document = $cursor->top;
+
+    my $declaration;
+    use Data::Dumper;
+
+  OUTER: while (1)
+    {
+        $prev_cursor = $cursor;
+        $cursor      = $cursor->parent;
+
+        if ($cursor isa 'PPI::Structure::Block' or $cursor isa 'PPI::Document')
+        {
+          CHILDREN: foreach my $child ($cursor->children)
+            {
+                last CHILDREN if $child == $prev_cursor;
+
+                if ($child isa 'PPI::Statement::Variable' and any { $_ eq $variable } $child->variables)
+                {
+                    $declaration = $child;
+                    last OUTER;
+                }
+                if ($child isa 'PPI::Statement::Include' and $child->type eq 'use' and $child->pragma eq 'vars')
+                {
+                    my @variables = grep { defined } $child =~ /((?&PerlVariable))$PPR::GRAMMAR/gx;
+
+                    if (any { $_ eq $variable } @variables)
+                    {
+                        $declaration = $child;
+                        last OUTER;
+                    }
+                } ## end if ($child isa 'PPI::Statement::Include'...)
+            } ## end foreach my $child ($cursor->...)
+        } ## end if ($cursor isa 'PPI::Structure::Block'...)
+        elsif ($cursor isa 'PPI::Statement::Compound')
+        {
+            if ($cursor->type eq 'foreach')
+            {
+              CHILDREN: foreach my $child ($cursor->children)
+                {
+                    last CHILDREN if $child == $prev_cursor;
+
+                    if ($child isa 'PPI::Token::Word' and $child =~ /^my|our|local|state$/)
+                    {
+                        if ($child->snext_sibling isa 'PPI::Token::Symbol' and $child->snext_sibling->symbol eq $variable)
+                        {
+                            $declaration = $cursor;
+                            last OUTER;
+                        }
+                    } ## end if ($child isa 'PPI::Token::Word'...)
+                } ## end foreach my $child ($cursor->...)
+            } ## end if ($cursor->type eq 'foreach'...)
+            else
+            {
+                my $condition = first { $_ isa 'PPI::Structure::Condition' } $cursor->children;
+                next OUTER unless ($condition isa 'PPI::Structure::Condition');
+
+              CHILDREN: foreach my $child ($condition->children)
+                {
+                    last CHILDREN if $child == $prev_cursor;
+
+                    if ($child isa 'PPI::Statement::Variable')
+                    {
+                        $declaration = $child;
+                        last OUTER;
+                    }
+                } ## end foreach my $child ($condition...)
+            } ## end else [ if ($cursor->type eq 'foreach'...)]
+        } ## end elsif ($cursor isa 'PPI::Statement::Compound'...)
+
+        last if $cursor == $document;
+    } ## end while (1)
+
+    return unless ($declaration isa 'PPI::Element');
+
+    $element = PLS::Parser::Element->new(file => $self->{path}, document => $self->{document}, element => $declaration);
+
+    return [
+            {
+             uri   => $self->{uri},
+             range => $element->range()
+            }
+           ];
+} ## end sub go_to_variable_definition
 
 sub open_file
 {
