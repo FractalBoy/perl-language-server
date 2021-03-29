@@ -57,7 +57,7 @@ open STDOUT, '>', File::Spec->devnull;
 open STDERR, '>', File::Spec->devnull;
 
 open my $write_fh, '>>&=', %d;
-my $package = '%s';
+my $package = q{%s} =~ s/['"]//gr;
 
 eval "require $package";
 
@@ -80,8 +80,7 @@ else
     foreach my $name (keys %%{$ref})
     {
         next if $name =~ /^BEGIN|UNITCHECK|INIT|CHECK|END|VERSION|import$/;
-        next unless $package->can($name);
-        my $code_ref = *{$ref->{$name}}{CODE};
+        my $code_ref = $package->can($name);
         next unless (ref $code_ref eq 'CODE');
         next unless Sub::Util::subname($code_ref) eq "${package}::${name}";
         push @functions, $name;
@@ -91,7 +90,7 @@ else
 } ## end else [ if (length $@) ]
 EOF
 
-    return sprintf $script, $fileno, quotemeta($package);
+    return sprintf $script, $fileno, $package;
 } ## end sub _get_package_functions_script
 
 1;
