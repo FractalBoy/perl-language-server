@@ -4,7 +4,9 @@ use strict;
 use warnings;
 
 use experimental 'isa';
+use feature 'state';
 
+use Digest::SHA;
 use ExtUtils::Installed;
 use List::Util qw(first any);
 use Module::CoreList;
@@ -12,6 +14,7 @@ use PPI;
 use PPI::Find;
 use PPR;
 use Perl::Tidy;
+use Time::Seconds;
 use URI;
 use URI::file;
 
@@ -424,7 +427,6 @@ sub go_to_variable_definition
     my $document = $cursor->top;
 
     my $declaration;
-    use Data::Dumper;
 
   OUTER: while (1)
     {
@@ -882,21 +884,29 @@ sub _get_ppi_document
     my ($self, %args) = @_;
 
     my $file;
+    my $sha = Digest::SHA->new(256);
+    my $digest;
 
     if (length $args{uri})
     {
         if (ref $FILES{$args{uri}} eq 'HASH')
         {
             $file = \($FILES{$args{uri}}{text});
+            $sha->add($$file);
+            $digest = $sha->hexdigest();
         }
         else
         {
             $file = URI->new($args{uri})->file;
+            $sha->addfile($file);
+            $digest = $sha->hexdigest();
         }
     } ## end if (length $args{uri})
     elsif ($args{text})
     {
         $file = $args{text};
+        $sha->add($$file);
+        $digest = $sha->hexdigest();
     }
 
     if (length $args{line})
@@ -927,9 +937,24 @@ sub _get_ppi_document
         } ## end elsif (open $fh, '<', $file...)
     } ## end if (length $args{line}...)
 
+    state %documents;
+
+    if (length $digest and exists $documents{$digest} and $documents{$digest}{document} isa 'PPI::Document')
+    {
+        return $documents{$digest}{document};
+    }
+
     my $document = PPI::Document->new($file, readonly => 1);
     return unless (ref $document eq 'PPI::Document');
     $document->index_locations();
+    $documents{$digest} = {document => $document, time => time} if (length $digest);
+
+    # Clear cache after one minute
+    foreach my $digest (keys %documents)
+    {
+        delete $documents{$digest} if (time - $documents{$digest}{time} >= Time::Seconds::ONE_MINUTE);
+    }
+
     return $document;
 } ## end sub _get_ppi_document
 
