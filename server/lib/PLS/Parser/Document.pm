@@ -885,28 +885,21 @@ sub _get_ppi_document
 
     my $file;
     my $sha = Digest::SHA->new(256);
-    my $digest;
 
     if (length $args{uri})
     {
         if (ref $FILES{$args{uri}} eq 'HASH')
         {
             $file = \($FILES{$args{uri}}{text});
-            $sha->add($$file);
-            $digest = $sha->hexdigest();
         }
         else
         {
             $file = URI->new($args{uri})->file;
-            $sha->addfile($file);
-            $digest = $sha->hexdigest();
         }
     } ## end if (length $args{uri})
     elsif ($args{text})
     {
         $file = $args{text};
-        $sha->add($$file);
-        $digest = $sha->hexdigest();
     }
 
     if (length $args{line})
@@ -939,7 +932,18 @@ sub _get_ppi_document
 
     state %documents;
 
-    if (length $digest and exists $documents{$digest} and $documents{$digest}{document} isa 'PPI::Document')
+    if (ref $file eq 'SCALAR')
+    {
+        $sha->add($$file);
+    }
+    else
+    {
+        $sha->addfile($file);
+    } 
+
+    my $digest = $sha->hexdigest();
+
+    if (exists $documents{$digest} and $documents{$digest}{document} isa 'PPI::Document')
     {
         return $documents{$digest}{document};
     }
