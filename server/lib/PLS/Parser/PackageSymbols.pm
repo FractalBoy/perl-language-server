@@ -82,7 +82,7 @@ else
         next if $name =~ /^BEGIN|UNITCHECK|INIT|CHECK|END|VERSION|import$/;
         my $code_ref = $package->can($name);
         next unless (ref $code_ref eq 'CODE');
-        next unless Sub::Util::subname($code_ref) eq "${package}::${name}";
+        next if Sub::Util::subname($code_ref) !~ /^${package}::.*::${name}$/;
         push @functions, $name;
     } ## end foreach my $name (keys %%{$ref...})
 
