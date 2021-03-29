@@ -1097,6 +1097,9 @@ sub sort_imports
     # Just strict and warnings - I like them to be first and in their own group
     my @special_pragmas;
 
+    # parent and base - I like them to be after strict and warnings and in their own group.
+    my @isa_pragmas;
+
     # The rest of the pragmas
     my @pragmas;
 
@@ -1106,6 +1109,9 @@ sub sort_imports
     # Group of modules that are part of this project,
     # though it gets tricky if this project is also installed
     my @internal_modules;
+
+    # Put constant pragmas at the very end of all imports
+    my @constant_pragmas;
 
     my $insert_after;
 
@@ -1125,6 +1131,14 @@ sub sort_imports
         if ($child->pragma eq 'strict' or $child->pragma eq 'warnings')
         {
             push @special_pragmas, $child;
+        }
+        elsif ($child->pragma eq 'parent' or $child->pragma eq 'base')
+        {
+            push @isa_pragmas, $child;
+        }
+        elsif ($child->pragma eq 'constant')
+        {
+            push @constant_pragmas, $child;
         }
         elsif (length $child->pragma)
         {
@@ -1146,12 +1160,14 @@ sub sort_imports
     } ## end foreach my $child ($doc->children...)
 
     @special_pragmas   = _pad_imports(sort _sort_imports @special_pragmas)   if (scalar @special_pragmas);
+    @isa_pragmas   = _pad_imports(sort _sort_imports @isa_pragmas)   if (scalar @isa_pragmas);
     @pragmas           = _pad_imports(sort _sort_imports @pragmas)           if (scalar @pragmas);
     @installed_modules = _pad_imports(sort _sort_imports @installed_modules) if (scalar @installed_modules);
     @internal_modules  = _pad_imports(sort _sort_imports @internal_modules)  if (scalar @internal_modules);
+    @constant_pragmas = _pad_imports(sort _sort_imports @constant_pragmas)  if (scalar @constant_pragmas);
 
     # There doesn't seem to be a better way to do this other than to use this private method.
-    $insert_after->__insert_after(@special_pragmas, @pragmas, @installed_modules, @internal_modules);
+    $insert_after->__insert_after(@special_pragmas, @isa_pragmas, @pragmas, @installed_modules, @internal_modules, @constant_pragmas);
 
     open my $fh, '<', $self->get_full_text();
 
