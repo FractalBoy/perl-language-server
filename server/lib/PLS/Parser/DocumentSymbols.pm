@@ -3,9 +3,6 @@ package PLS::Parser::DocumentSymbols;
 use strict;
 use warnings;
 
-use PPI;
-use PPI::Find;
-
 use PLS::Parser::Document;
 
 use constant {
