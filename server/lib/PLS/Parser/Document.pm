@@ -266,42 +266,6 @@ sub find_pod
     {
         my ($package, $subroutine, $variable, $import);
 
-        if (($package, $subroutine) = $element->subroutine_package_and_name())
-        {
-            my $pod =
-              PLS::Parser::Pod::Subroutine->new(
-                                                index            => $self->{index},
-                                                element          => $element,
-                                                package          => $package,
-                                                subroutine       => $subroutine,
-                                                include_builtins => 1
-                                               );
-            my $ok = $pod->find();
-            return (1, $pod) if $ok;
-        } ## end if (($package, $subroutine...))
-        if (($package, $subroutine) = $element->class_method_package_and_name())
-        {
-            my $pod =
-              PLS::Parser::Pod::ClassMethod->new(
-                                                 index      => $self->{index},
-                                                 element    => $element,
-                                                 package    => $package,
-                                                 subroutine => $subroutine
-                                                );
-            my $ok = $pod->find();
-            return (1, $pod) if $ok;
-        } ## end if (($package, $subroutine...))
-        if ($subroutine = $element->method_name())
-        {
-            my $pod =
-              PLS::Parser::Pod::Method->new(
-                                            index      => $self->{index},
-                                            element    => $element,
-                                            subroutine => $subroutine
-                                           );
-            my $ok = $pod->find();
-            return (1, $pod) if $ok;
-        } ## end if ($subroutine = $element...)
         if (($package, $import) = $element->package_name($column_number))
         {
             my %args       = (index => $self->{index}, element => $element, package => $package);
@@ -325,6 +289,42 @@ sub find_pod
             my $ok  = $pod->find();
             return (1, $pod) if $ok;
         } ## end if (($package, $import...))
+        if (($package, $subroutine) = $element->class_method_package_and_name())
+        {
+            my $pod =
+              PLS::Parser::Pod::ClassMethod->new(
+                                                 index      => $self->{index},
+                                                 element    => $element,
+                                                 package    => $package,
+                                                 subroutine => $subroutine
+                                                );
+            my $ok = $pod->find();
+            return (1, $pod) if $ok;
+        } ## end if (($package, $subroutine...))
+        if ($subroutine = $element->method_name())
+        {
+            my $pod =
+              PLS::Parser::Pod::Method->new(
+                                            index      => $self->{index},
+                                            element    => $element,
+                                            subroutine => $subroutine
+                                           );
+            my $ok = $pod->find();
+            return (1, $pod) if $ok;
+        } ## end if ($subroutine = $element...)
+        if (($package, $subroutine) = $element->subroutine_package_and_name())
+        {
+            my $pod =
+              PLS::Parser::Pod::Subroutine->new(
+                                                index            => $self->{index},
+                                                element          => $element,
+                                                package          => $package,
+                                                subroutine       => $subroutine,
+                                                include_builtins => 1
+                                               );
+            my $ok = $pod->find();
+            return (1, $pod) if $ok;
+        } ## end if (($package, $subroutine...))
         if ($variable = $element->variable_name())
         {
             my $pod =

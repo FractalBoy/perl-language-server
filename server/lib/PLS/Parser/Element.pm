@@ -80,26 +80,26 @@ sub package_name
     my $element = $self->element;
     $column_number++;
 
-    if (    $element->parent isa 'PPI::Statement::Include'
-        and $element->parent->type eq 'use')
+    if (    $element->statement isa 'PPI::Statement::Include'
+        and $element->statement->type eq 'use')
     {
         # This is a 'use parent/base' statement. The import is a package, not a subroutine.
-        if ($element->parent->module eq 'parent' or $element->parent->module eq 'base')
+        if ($element->statement->module eq 'parent' or $element->statement->module eq 'base')
         {
             my $import = _extract_import($element, $column_number);
             return $import if (length $import);
         }
 
         # This is likely a 'use' statement with an explicit subroutine import.
-        my $package = $element->parent->module;
+        my $package = $element->statement->module;
         my $import  = _extract_import($element, $column_number);
-        return $element->parent->module, $import if (length $import);
+        return $element->statement->module, $import if (length $import);
     } ## end if ($element->parent isa...)
 
     # Regular use statement, no explicit imports
-    if ($element->isa('PPI::Statement::Include') and $element->type eq 'use')
+    if ($element->statement isa 'PPI::Statement::Include' and $element->statement->type eq 'use')
     {
-        return $element->module;
+        return $element->statement->module;
     }
 
     # Class method call, cursor is over the package name
@@ -111,9 +111,9 @@ sub package_name
     } ## end if ($element->isa('PPI::Token::Word'...))
 
     # Declaring parent class using @ISA directly.
-    if (    $element->parent isa 'PPI::Statement::Variable'
-        and $element->parent->type eq 'our'
-        and any { $_->symbol eq '@ISA' } $element->parent->symbols)
+    if (    $element->statement isa 'PPI::Statement::Variable'
+        and $element->statement->type eq 'our'
+        and any { $_->symbol eq '@ISA' } $element->statement->symbols)
     {
         my $import = _extract_import($element, $column_number);
         return $import if (length $import);
