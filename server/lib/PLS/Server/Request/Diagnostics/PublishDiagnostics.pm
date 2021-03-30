@@ -5,8 +5,10 @@ use warnings;
 
 use parent 'PLS::Server::Request';
 
+use Fcntl ();
 use File::Spec;
 use IPC::Open3;
+use Storable;
 use Symbol qw(gensym);
 use URI;
 
@@ -107,7 +109,44 @@ sub get_perlcritic_errors
 {
     my ($path) = @_;
 
-    my ($profile) = glob $PLS::Server::State::CONFIG->{perlcritic}{perlcriticrc};
+    my $diagnostics;
+
+    pipe my $read_fh, my $write_fh;
+
+    # Fork and re-exec to run perlcritic - this avoids weird bugs with
+    # Devel::StackTrace, which I cannot figure out how to fix.
+    my $pid = fork;
+
+    if ($pid)
+    {
+        close $write_fh;
+        $diagnostics = Storable::retrieve_fd($read_fh);
+        $diagnostics = [] unless (ref $diagnostics eq 'ARRAY');
+        waitpid $pid, 0;
+    } ## end if ($pid)
+    else
+    {
+        close $read_fh;
+
+        my $flags = fcntl $write_fh, Fcntl::F_GETFD, 0;
+        fcntl $write_fh, Fcntl::F_SETFD, $flags & ~Fcntl::FD_CLOEXEC;
+
+        my ($profile) = glob $PLS::Server::State::CONFIG->{perlcritic}{perlcriticrc};
+
+        my $fileno = fileno $write_fh;
+        my @inc    = map { "-I$_" } @INC;
+        exec $^X, @inc, '-M' . __PACKAGE__, '-e', __PACKAGE__ . "::run_perlcritic($fileno, '$profile', '$path')";
+    } ## end else [ if ($pid) ]
+
+    return $diagnostics;
+} ## end sub get_perlcritic_errors
+
+sub run_perlcritic
+{
+    my ($fileno, $profile, $path) = @_;
+
+    open my $write_fh, '>>&=', $fileno;
+
     undef $profile if (not length $profile or not -f $profile or not -r $profile);
     my $critic     = Perl::Critic->new(-profile => $profile);
     my @violations = $critic->critique($path);
@@ -138,7 +177,7 @@ sub get_perlcritic_errors
           };
     } ## end foreach my $violation (@violations...)
 
-    return \@diagnostics;
-} ## end sub get_perlcritic_errors
+    Storable::nstore_fd(\@diagnostics, $write_fh);
+} ## end sub run_perlcritic
 
 1;

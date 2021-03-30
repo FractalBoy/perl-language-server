@@ -16,10 +16,7 @@ sub service
     my $text_document = $self->{params}{textDocument};
     PLS::Parser::Document->close_file(%{$text_document});
 
-    async
-    {
-        $server->{server_requests}->put(PLS::Server::Request::Diagnostics::PublishDiagnostics->new(uri => $self->{params}{textDocument}{uri}, close => 1));
-    };
+    $server->{server_requests}->put(PLS::Server::Request::Diagnostics::PublishDiagnostics->new(uri => $self->{params}{textDocument}{uri}, close => 1));
 
     return;
 } ## end sub service

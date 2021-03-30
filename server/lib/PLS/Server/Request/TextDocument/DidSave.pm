@@ -14,10 +14,7 @@ sub service
 {
     my ($self, $server) = @_;
 
-    async
-    {
-        $server->{server_requests}->put(PLS::Server::Request::Diagnostics::PublishDiagnostics->new(uri => $self->{params}{textDocument}{uri}));
-    };
+    $server->{server_requests}->put(PLS::Server::Request::Diagnostics::PublishDiagnostics->new(uri => $self->{params}{textDocument}{uri}));
 
     return;
 } ## end sub service
