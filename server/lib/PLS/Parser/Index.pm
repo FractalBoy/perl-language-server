@@ -87,7 +87,7 @@ sub index_files
 
             open my $fh, '<', $file or next;
             my $text     = do { local $/; <$fh> };
-            my $document = PLS::Parser::Document->new(path => $file, text => \$text);
+            my $document = PLS::Parser::Document->new(path => $file, text => \$text, no_cache => 1);
             next unless (ref $document eq 'PLS::Parser::Document');
 
             Coro::AnyEvent::sleep 0.01;

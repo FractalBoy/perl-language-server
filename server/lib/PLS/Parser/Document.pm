@@ -943,7 +943,7 @@ sub _get_ppi_document
 
     my $digest = $sha->hexdigest();
 
-    if (exists $documents{$digest} and $documents{$digest}{document} isa 'PPI::Document')
+    if (exists $documents{$digest} and $documents{$digest}{document} isa 'PPI::Document' and not $args{no_cache})
     {
         return $documents{$digest}{document};
     }
@@ -951,7 +951,7 @@ sub _get_ppi_document
     my $document = PPI::Document->new($file, readonly => 1);
     return unless (ref $document eq 'PPI::Document');
     $document->index_locations();
-    $documents{$digest} = {document => $document, time => time} if (length $digest);
+    $documents{$digest} = {document => $document, time => time} if (length $digest and not $args{no_cache});
 
     # Clear cache after one minute
     foreach my $digest (keys %documents)
