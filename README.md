@@ -5,6 +5,17 @@ PLS implements features of the [Language Server Protocol](https://microsoft.gith
 
 It is still very much in its early stages and Pull Requests are more than welcome.
 
+The features currently implemented are:
+
+* Go to definition (for packages, subroutines, and variables)
+* Listing all symbols in a document
+* Hovering to show documentation
+* Signature help (showing parameters for a function as you type)
+* Formatting
+* Range Formatting
+* Auto-completion
+* Sorting imports
+
 ## Installation
 
 This Visual Studio Code extension is not anywhere, so you will need to perform some manual steps in order to use it.
