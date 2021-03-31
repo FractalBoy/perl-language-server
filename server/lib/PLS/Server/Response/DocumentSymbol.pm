@@ -11,7 +11,8 @@ sub new
 {
     my ($class, $request) = @_;
 
-    my $results = PLS::Parser::DocumentSymbols::get_all_document_symbols($request->{params}{textDocument}{uri});
+    my $symbols = PLS::Parser::DocumentSymbols->new($request->{params}{textDocument}{uri});
+    my $results = $symbols->get_all_document_symbols();
 
     my %self = (
                 id     => $request->{id},

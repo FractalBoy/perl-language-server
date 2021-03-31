@@ -3,6 +3,8 @@ package PLS::Parser::DocumentSymbols;
 use strict;
 use warnings;
 
+use experimental 'isa';
+
 use PLS::Parser::Document;
 
 use constant {
@@ -12,97 +14,91 @@ use constant {
               CONSTANT => 14
              };
 
-sub get_all_document_symbols
+sub new
 {
-    my ($uri) = @_;
+    my ($class, $uri) = @_;
 
     my $document = PLS::Parser::Document->new(uri => $uri);
-    return [] unless (ref $document eq 'PLS::Parser::Document');
+    return unless (ref $document eq 'PLS::Parser::Document');
+    return bless {document => $document}, $class;
+} ## end sub new
 
-    return [@{get_all_packages($document)}, @{get_all_subroutines($document)}, @{get_all_variables($document)}, @{get_all_constants($document)}];
-} ## end sub get_all_document_symbols
-
-sub get_all_packages
+sub get_all_document_symbols
 {
-    my ($document) = @_;
+    my ($self) = @_;
 
-    my $packages = $document->get_packages();
-    my @results;
+    my @roots;
+    $self->_get_all_document_symbols($self->document->{document}, \@roots);
 
-    foreach my $match (@$packages)
+    my @package_roots;
+
+    my $packages = $self->document->get_packages();
+
+    foreach my $index (0 .. $#{$packages})
     {
-        my $range = $match->range;
+        my $line_start = $packages->[$index]->lsp_line_number;
+        my $line_end   = $index == $#{$packages} ? undef : $packages->[$index + 1]->lsp_line_number;
+        my $range      = $packages->[$index]->range();
 
-        push @results,
+        push @package_roots,
           {
-            name           => $match->name,
+            name           => $packages->[$index]->name,
             kind           => PACKAGE,
             range          => $range,
-            selectionRange => $range
+            selectionRange => $range,
+            children       => [grep { $_->{range}{start}{line} > $line_start and (not defined $line_end or $_->{range}{end}{line} < $line_end) } @roots]
           };
-    } ## end foreach my $match (@$packages...)
+    } ## end foreach my $index (0 .. $#{...})
 
-    return \@results;
-} ## end sub get_all_packages
+    return scalar @package_roots ? \@package_roots : \@roots;
+} ## end sub get_all_document_symbols
 
-sub get_all_variables
+sub _get_all_document_symbols
 {
-    my ($document) = @_;
+    my ($self, $scope, $roots, $current) = @_;
 
-    my $statements = $document->get_variable_statements();
-    my @results;
+    my $array = ref $current eq 'HASH' ? $current->{children} : $roots;
 
-    foreach my $statement (@$statements)
+    if ($scope isa 'PPI::Document' or $scope isa 'PPI::Structure::Block')
     {
-        foreach my $symbol (@{$statement->{symbols}})
+        foreach my $child ($scope->children)
         {
-            my $range = $symbol->range;
-
-            push @results,
-              {
-                name           => $symbol->name,
-                kind           => VARIABLE,
-                range          => $range,
-                selectionRange => $range
-              };
-        } ## end foreach my $symbol (@{$statement...})
-    } ## end foreach my $statement (@$statements...)
-
-    return \@results;
-} ## end sub get_all_variables
-
-sub get_all_subroutines
-{
-    my ($document) = @_;
-
-    my $subroutines = $document->get_subroutines();
-    my @results;
-
-    foreach my $match (@$subroutines)
+            $self->_get_all_document_symbols($child, $roots, $current);
+        }
+    } ## end if ($scope isa 'PPI::Document'...)
+    elsif ($scope isa 'PPI::Statement::Sub' or $scope isa 'PPI::Statement::Scheduled')
     {
-        my $range = $match->range;
+        my $range = PLS::Parser::Element->new(element => $scope)->range();
 
-        push @results,
-          {
-            name           => $match->name,
-            kind           => FUNCTION,
-            range          => $range,
-            selectionRange => $range
-          };
-    } ## end foreach my $match (@$subroutines...)
+        $current = {
+                    name           => $scope isa 'PPI::Statement::Sub' ? $scope->name : $scope->type,
+                    kind           => FUNCTION,
+                    range          => $range,
+                    selectionRange => $range,
+                    children       => []
+                   };
 
-    return \@results;
-} ## end sub get_all_subroutines
+        push @{$array}, $current;
 
-sub get_all_constants
-{
-    my ($document) = @_;
+        $self->_get_all_document_symbols($scope->block, $roots, $current);
+    } ## end elsif ($scope isa 'PPI::Statement::Sub'...)
+    elsif ($scope isa 'PPI::Statement::Variable')
+    {
+        push @{$array}, map {
+            my $range = $_->range();
 
-    my $constants = $document->get_constants();
-
-    return [
-        map {
-            my $range = $_->range;
+            {
+             name           => $_->name,
+             kind           => VARIABLE,
+             range          => $range,
+             selectionRange => $range
+            }
+        } map { @{$_->symbols} } @{$self->document->get_variable_statements($scope)};
+    } ## end elsif ($scope isa 'PPI::Statement::Variable'...)
+    elsif ($scope isa 'PPI::Statement::Include' and $scope->type eq 'use' and $scope->pragma eq 'constant')
+    {
+        push @{$array}, map {
+            my $range = $_->range();
 
             {
              name           => $_->name,
@@ -110,8 +106,15 @@ sub get_all_constants
              range          => $range,
              selectionRange => $range
             }
-          } @$constants
-    ];
-} ## end sub get_all_constants
+        } @{$self->document->get_constants($scope)};
+    } ## end elsif ($scope isa 'PPI::Statement::Include'...)
+} ## end sub _get_all_document_symbols
+
+sub document
+{
+    my ($self) = @_;
+
+    return $self->{document};
+}
 
 1;

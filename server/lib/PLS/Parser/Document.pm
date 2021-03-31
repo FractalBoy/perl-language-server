@@ -602,19 +602,29 @@ sub get_subroutines
 
 sub get_constants
 {
-    my ($self) = @_;
+    my ($self, $element) = @_;
 
-    my $find = PPI::Find->new(
-        sub {
-            my ($element) = @_;
+    my @matches;
 
-            return 0 unless $element->isa('PPI::Statement::Include');
-            return   unless $element->type eq 'use';
-            return (length $element->module and $element->module eq 'constant');
-        }
-    );
+    if ($element isa 'PPI::Statement::Include')
+    {
+        @matches = ($element);
+    }
+    else
+    {
+        my $find = PPI::Find->new(
+            sub {
+                my ($element) = @_;
 
-    my @matches = $find->in($self->{document});
+                return 0 unless $element->isa('PPI::Statement::Include');
+                return   unless $element->type eq 'use';
+                return (length $element->module and $element->module eq 'constant');
+            }
+        );
+
+        @matches = $find->in($self->{document});
+    } ## end else [ if ($element isa 'PPI::Statement::Include'...)]
+
     my @constants;
 
     foreach my $match (@matches)
@@ -646,10 +656,21 @@ sub get_packages
 
 sub get_variable_statements
 {
-    my ($self) = @_;
+    my ($self, $element) = @_;
 
-    my $find = PPI::Find->new(sub { $_[0]->isa('PPI::Statement::Variable') });
-    return [map { PLS::Parser::Element::VariableStatement->new(document => $self->{document}, element => $_, file => $self->{path}) } $find->in($self->{document})];
+    my @elements;
+
+    if ($element isa 'PPI::Statement::Variable')
+    {
+        @elements = ($element);
+    }
+    else
+    {
+        my $find = PPI::Find->new(sub { $_[0]->isa('PPI::Statement::Variable') });
+        @elements = $find->in($self->{document});
+    }
+
+    return [map { PLS::Parser::Element::VariableStatement->new(document => $self->{document}, element => $_, file => $self->{path}) } @elements];
 } ## end sub get_variable_statements
 
 sub get_full_text
@@ -939,7 +960,7 @@ sub _get_ppi_document
     else
     {
         $sha->addfile($file);
-    } 
+    }
 
     my $digest = $sha->hexdigest();
 
@@ -1164,11 +1185,11 @@ sub sort_imports
     } ## end foreach my $child ($doc->children...)
 
     @special_pragmas   = _pad_imports(sort _sort_imports @special_pragmas)   if (scalar @special_pragmas);
-    @isa_pragmas   = _pad_imports(sort _sort_imports @isa_pragmas)   if (scalar @isa_pragmas);
+    @isa_pragmas       = _pad_imports(sort _sort_imports @isa_pragmas)       if (scalar @isa_pragmas);
     @pragmas           = _pad_imports(sort _sort_imports @pragmas)           if (scalar @pragmas);
     @installed_modules = _pad_imports(sort _sort_imports @installed_modules) if (scalar @installed_modules);
     @internal_modules  = _pad_imports(sort _sort_imports @internal_modules)  if (scalar @internal_modules);
-    @constant_pragmas = _pad_imports(sort _sort_imports @constant_pragmas)  if (scalar @constant_pragmas);
+    @constant_pragmas  = _pad_imports(sort _sort_imports @constant_pragmas)  if (scalar @constant_pragmas);
 
     # There doesn't seem to be a better way to do this other than to use this private method.
     $insert_after->__insert_after(@special_pragmas, @isa_pragmas, @pragmas, @installed_modules, @internal_modules, @constant_pragmas);
