@@ -7,6 +7,7 @@ use experimental 'isa';
 use feature 'state';
 
 use Digest::SHA;
+use Encode;
 use ExtUtils::Installed;
 use List::Util qw(first any);
 use Module::CoreList;
@@ -955,7 +956,7 @@ sub _get_ppi_document
 
     if (ref $file eq 'SCALAR')
     {
-        $sha->add($$file);
+        $sha->add(Encode::encode_utf8($$file));
     }
     else
     {
