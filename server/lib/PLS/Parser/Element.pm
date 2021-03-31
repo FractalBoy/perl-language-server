@@ -94,7 +94,7 @@ sub package_name
         my $package = $element->statement->module;
         my $import  = _extract_import($element, $column_number);
         return $element->statement->module, $import if (length $import);
-    } ## end if ($element->parent isa...)
+    } ## end if ($element->statement...)
 
     # Regular use statement, no explicit imports
     if ($element->statement isa 'PPI::Statement::Include' and $element->statement->type eq 'use')
@@ -117,7 +117,7 @@ sub package_name
     {
         my $import = _extract_import($element, $column_number);
         return $import if (length $import);
-    } ## end if ($element->parent isa...)
+    } ## end if ($element->statement...)
 
     return;
 } ## end sub package_name
@@ -293,14 +293,18 @@ sub range
 {
     my ($self) = @_;
 
+    my $lines = () = $self->element->content =~ m{($/)}g;
+    my ($last_line) = $self->element->content =~ m{(.+)$/$};
+    my $last_line_length = defined $last_line ? length $last_line : length $self->element->content;
+
     return {
             start => {
                       line      => $self->lsp_line_number,
                       character => $self->lsp_column_number
                      },
             end => {
-                    line      => $self->lsp_line_number,
-                    character => $self->lsp_column_number + $self->length - 1
+                    line      => $self->lsp_line_number + $lines,
+                    character => $lines == 0 ? $self->lsp_column_number + $last_line_length : $last_line_length
                    }
            };
 } ## end sub range
