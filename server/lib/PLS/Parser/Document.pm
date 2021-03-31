@@ -594,7 +594,7 @@ sub get_subroutines
 
     my $find = PPI::Find->new(
         sub {
-            $_[0]->isa('PPI::Statement::Sub') and not $_[0]->isa('PPI::Statement::Scheduled');
+            $_[0]->isa('PPI::Statement::Sub') and not $_[0]->isa('PPI::Statement::Scheduled') and $_[0]->block isa 'PPI::Structure::Block';
         }
     );
     return [map { PLS::Parser::Element::Subroutine->new(document => $self->{document}, element => $_, file => $self->{path}) } $find->in($self->{document})];

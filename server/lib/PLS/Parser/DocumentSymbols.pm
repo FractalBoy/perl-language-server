@@ -82,6 +82,8 @@ sub _get_all_document_symbols
     } ## end if ($scope isa 'PPI::Document'...)
     elsif ($scope isa 'PPI::Statement::Sub' or $scope isa 'PPI::Statement::Scheduled')
     {
+        # Don't show subroutine forward declarations
+        return unless ($scope->block isa 'PPI::Structure::Block');
         my $range = PLS::Parser::Element->new(element => $scope)->range();
 
         $current = {
