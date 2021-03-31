@@ -50,7 +50,21 @@ sub get_all_document_symbols
           };
     } ## end foreach my $index (0 .. $#{...})
 
-    return scalar @package_roots ? \@package_roots : \@roots;
+    unless (scalar @package_roots)
+    {
+        my $range = PLS::Parser::Element->new(element => $self->document->{document})->range();
+
+        push @package_roots,
+          {
+            name           => 'main',
+            kind           => PACKAGE,
+            range          => $range,
+            selectionRange => $range,
+            children       => \@roots
+          };
+    } ## end unless (scalar @package_roots...)
+
+    return \@package_roots;
 } ## end sub get_all_document_symbols
 
 sub _get_all_document_symbols
