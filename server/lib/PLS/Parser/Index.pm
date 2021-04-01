@@ -278,6 +278,22 @@ sub _cleanup_old_files
             delete $index->{files}{$file};
         } ## end foreach my $file (keys %{$index...})
     } ## end if (ref $index->{files...})
+
+    foreach my $type (keys %{$index})
+    {
+        my $refs_cleaned = 0;
+
+        foreach my $ref (keys %{$index->{$type}})
+        {
+            next unless (ref $index->{$type}{$ref} eq 'ARRAY');
+            my $count_before = scalar @{$index->{$type}{$ref}};
+            @{$index->{$type}{$ref}} = grep { -e $_->{file} } @{$index->{$type}{$ref}};
+            my $count_after = scalar @{$index->{$type}{$ref}};
+            $refs_cleaned++ if ($count_after < $count_before);
+        }
+
+        $self->log("Cleaning up $type references from index...") if ($refs_cleaned);
+    }
 } ## end sub _cleanup_old_files
 
 sub find_package_subroutine
