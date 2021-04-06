@@ -827,15 +827,15 @@ sub format_range
     # if the selection length has increased due to formatting, update the end.
     $range->{end}{line} = $lines if ($whole_file and $lines > $range->{end}{line});
 
-    $formatted =~ s/\s+$//gm if ($args{formatting_options}{trimTrailingWhitespace});
+    $formatted =~ s/\h+$//gm if ($args{formatting_options}{trimTrailingWhitespace});
 
     if ($args{formatting_options}{insertFinalNewline})
     {
         $formatted .= "\n" unless ($formatted =~ /\n$/);
     }
-    elsif ($args{formatting_options}{trimFinalNewlines})
+    if ($args{formatting_options}{trimFinalNewlines})
     {
-        $formatted =~ s/\n+$//;
+        $formatted =~ s/\n+$/\n/;
     }
 
     $stderr =~ s/^<source_stream>:\s*//gm;
