@@ -3,14 +3,13 @@ package PLS::Server;
 use strict;
 use warnings;
 
-use experimental 'isa';
-
 use AnyEvent;
 use AnyEvent::Loop;
 use Coro;
 use Coro::Channel;
 use JSON::PP;
 use List::Util qw(first);
+use Scalar::Util qw(blessed);
 
 use PLS::Server::Request::Factory;
 use PLS::Server::Response;
@@ -103,10 +102,9 @@ sub run
             {
                 my $response = $request->service($self);
                 delete $self->{running_coros}{$request->{id}} if (length $request->{id});
-                return unless ($response isa 'PLS::Server::Response');
+                return                                        if (not blessed($response) or not $response->isa('PLS::Server::Response'));
                 $server_responses->put($response);
             };
-            
 
             $self->{running_coros}{$request->{id}} = $coro if (length $request->{id});
 
@@ -121,7 +119,7 @@ sub run
         {
             async { $self->send($response) };
             Coro::cede();
-        } ## end while (my $response = $server_responses...)
+        }
     };
 
     async
@@ -148,7 +146,7 @@ sub run
         while (my $response = $client_responses->get)
         {
             my $request = first { $_->{id} == $response->{id} } @pending_requests;
-            next unless ($request isa 'PLS::Server::Request');
+            next if (not blessed($request) or not $request->isa('PLS::Server::Request'));
             @pending_requests = grep { $_->{id} != $response->{id} } @pending_requests;
 
             async { $request->handle_response($response, $self) };
@@ -161,15 +159,10 @@ sub run
         poll => 'r',
         cb   => sub {
             my $message = $self->recv();
+            return unless blessed($message);
 
-            if ($message isa 'PLS::Server::Request')
-            {
-                $client_requests->put($message);
-            }
-            if ($message isa 'PLS::Server::Response')
-            {
-                $client_responses->put($message);
-            }
+            $client_requests->put($message)  if $message->isa('PLS::Server::Request');
+            $client_responses->put($message) if $message->isa('PLS::Server::Response');
         }
     );
 

@@ -3,7 +3,7 @@ package PLS::Parser::DocumentSymbols;
 use strict;
 use warnings;
 
-use experimental 'isa';
+use Scalar::Util qw(blessed);
 
 use PLS::Parser::Document;
 
@@ -72,22 +72,24 @@ sub _get_all_document_symbols
     my ($self, $scope, $roots, $current) = @_;
 
     my $array = ref $current eq 'HASH' ? $current->{children} : $roots;
+    return unless blessed($scope);
 
-    if ($scope isa 'PPI::Document' or $scope isa 'PPI::Structure::Block')
+    if ($scope->isa('PPI::Document') or $scope->isa('PPI::Structure::Block'))
     {
         foreach my $child ($scope->children)
         {
             $self->_get_all_document_symbols($child, $roots, $current);
         }
-    } ## end if ($scope isa 'PPI::Document'...)
-    elsif ($scope isa 'PPI::Statement::Sub' or $scope isa 'PPI::Statement::Scheduled')
+    } ## end if ($scope->isa('PPI::Document'...))
+    elsif ($scope->isa('PPI::Statement::Sub') or $scope->isa('PPI::Statement::Scheduled'))
     {
         # Don't show subroutine forward declarations
-        return unless ($scope->block isa 'PPI::Structure::Block');
+        return unless blessed($scope->block);
+        return unless $scope->block->isa('PPI::Structure::Block');
         my $range = PLS::Parser::Element->new(element => $scope)->range();
 
         $current = {
-                    name           => $scope isa 'PPI::Statement::Sub' ? $scope->name : $scope->type,
+                    name           => $scope->isa('PPI::Statement::Sub') ? $scope->name : $scope->type,
                     kind           => FUNCTION,
                     range          => $range,
                     selectionRange => $range,
@@ -97,8 +99,8 @@ sub _get_all_document_symbols
         push @{$array}, $current;
 
         $self->_get_all_document_symbols($scope->block, $roots, $current);
-    } ## end elsif ($scope isa 'PPI::Statement::Sub'...)
-    elsif ($scope isa 'PPI::Statement::Variable')
+    } ## end elsif ($scope->isa('PPI::Statement::Sub'...))
+    elsif ($scope->isa('PPI::Statement::Variable'))
     {
         push @{$array}, map {
             my $range = $_->range();
@@ -110,8 +112,8 @@ sub _get_all_document_symbols
              selectionRange => $range
             }
         } map { @{$_->symbols} } @{$self->document->get_variable_statements($scope)};
-    } ## end elsif ($scope isa 'PPI::Statement::Variable'...)
-    elsif ($scope isa 'PPI::Statement::Include' and $scope->type eq 'use' and $scope->pragma eq 'constant')
+    } ## end elsif ($scope->isa('PPI::Statement::Variable'...))
+    elsif ($scope->isa('PPI::Statement::Include') and $scope->type eq 'use' and $scope->pragma eq 'constant')
     {
         push @{$array}, map {
             my $range = $_->range();
@@ -123,7 +125,7 @@ sub _get_all_document_symbols
              selectionRange => $range
             }
         } @{$self->document->get_constants($scope)};
-    } ## end elsif ($scope isa 'PPI::Statement::Include'...)
+    } ## end elsif ($scope->isa('PPI::Statement::Include'...))
 } ## end sub _get_all_document_symbols
 
 sub document

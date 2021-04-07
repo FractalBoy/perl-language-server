@@ -3,9 +3,8 @@ package PLS::Parser::Element;
 use strict;
 use warnings;
 
-use experimental 'isa';
-
 use List::Util qw(any first);
+use Scalar::Util qw(blessed);
 
 sub new
 {
@@ -14,7 +13,7 @@ sub new
     my %args = @args;
 
     my %self = (ppi_element => $args{element}, file => $args{file}, document => $args{document});
-    return unless ($args{element} isa 'PPI::Element');
+    return if (not blessed($args{element}) or not $args{element}->isa('PPI::Element'));
     return bless \%self, $class;
 } ## end sub new
 
@@ -80,7 +79,8 @@ sub package_name
     my $element = $self->element;
     $column_number++;
 
-    if (    $element->statement isa 'PPI::Statement::Include'
+    if (    blessed($element->statement)
+        and $element->statement->isa('PPI::Statement::Include')
         and $element->statement->type eq 'use')
     {
         # This is a 'use parent/base' statement. The import is a package, not a subroutine.
@@ -94,10 +94,10 @@ sub package_name
         my $package = $element->statement->module;
         my $import  = _extract_import($element, $column_number);
         return $element->statement->module, $import if (length $import);
-    } ## end if ($element->statement...)
+    } ## end if (blessed($element->...))
 
     # Regular use statement, no explicit imports
-    if ($element->statement isa 'PPI::Statement::Include' and $element->statement->type eq 'use')
+    if (blessed($element->statement) and $element->statement->isa('PPI::Statement::Include') and $element->statement->type eq 'use')
     {
         return $element->statement->module;
     }
@@ -111,13 +111,14 @@ sub package_name
     } ## end if ($element->isa('PPI::Token::Word'...))
 
     # Declaring parent class using @ISA directly.
-    if (    $element->statement isa 'PPI::Statement::Variable'
+    if (    blessed($element->statement)
+        and $element->statement->isa('PPI::Statement::Variable')
         and $element->statement->type eq 'our'
         and any { $_->symbol eq '@ISA' } $element->statement->symbols)
     {
         my $import = _extract_import($element, $column_number);
         return $import if (length $import);
-    } ## end if ($element->statement...)
+    } ## end if (blessed($element->...))
 
     return;
 } ## end sub package_name
@@ -129,8 +130,10 @@ sub method_name
     my $element = $self->element;
 
     return
-      if (   not $element isa 'PPI::Token::Word'
-          or not $element->sprevious_sibling isa 'PPI::Token::Operator'
+      if (   not blessed($element)
+          or not $element->isa('PPI::Token::Word')
+          or not blessed($element->sprevious_sibling)
+          or not $element->sprevious_sibling->isa('PPI::Token::Operator')
           or $element->sprevious_sibling ne '->');
 
     return $element->content;
@@ -143,10 +146,13 @@ sub class_method_package_and_name
     my $element = $self->element;
 
     return
-      if (   not $element isa 'PPI::Token::Word'
-          or not $element->sprevious_sibling isa 'PPI::Token::Operator'
+      if (   not blessed($element)
+          or not $element->isa('PPI::Token::Word')
+          or not blessed($element->sprevious_sibling)
+          or not $element->sprevious_sibling->isa('PPI::Token::Operator')
           or not $element->sprevious_sibling eq '->'
-          or not $element->sprevious_sibling->sprevious_sibling isa 'PPI::Token::Word');
+          or not blessed($element->sprevious_sibling->sprevious_sibling)
+          or not $element->sprevious_sibling->sprevious_sibling->isa('PPI::Token::Word'));
 
     return ($element->sprevious_sibling->sprevious_sibling->content, $element->content);
 } ## end sub class_method_package_and_name
@@ -157,7 +163,7 @@ sub subroutine_package_and_name
 
     my $element = $self->element;
 
-    return if (not $element isa 'PPI::Token::Word');
+    return if (not blessed($element) or not $element->isa('PPI::Token::Word'));
 
     if ($element->content =~ /::/)
     {
@@ -179,7 +185,7 @@ sub variable_name
     my ($self) = @_;
 
     my $element = $self->element;
-    return unless ($element isa 'PPI::Token::Symbol');
+    return if (not blessed($element) or not $element->isa('PPI::Token::Symbol'));
 
     return $element->symbol;
 } ## end sub variable_name
@@ -272,7 +278,7 @@ sub _get_string_from_qw
 
     my ($content) = $element->content =~ /qw[[:graph:]](.+)[[:graph:]]/;
     return unless (length $content);
-    my @words = split /(\s+)/, $content;
+    my @words          = split /(\s+)/, $content;
     my $current_column = $element->column_number + 3;
 
     # Figure out which word the mouse is hovering on.
@@ -293,8 +299,8 @@ sub range
 {
     my ($self) = @_;
 
-    my $lines = () = $self->element->content =~ m{($/)}g;
-    my ($last_line) = $self->element->content =~ m{(.+)$/$};
+    my $lines            = () = $self->element->content =~ m{($/)}g;
+    my ($last_line)      = $self->element->content =~ m{(.+)$/$};
     my $last_line_length = defined $last_line ? length $last_line : length $self->element->content;
 
     return {
@@ -320,6 +326,7 @@ sub parent
 {
     my ($self) = @_;
 
+    return $self->{_parent} if (ref $self->{_parent} eq 'PLS::Parser::Element');
     return unless $self->element->parent;
     return PLS::Parser::Element->new(file => $self->{file}, element => $self->element->parent);
 } ## end sub parent
@@ -328,32 +335,41 @@ sub previous_sibling
 {
     my ($self) = @_;
 
+    return $self->{_previous_sibling} if (ref $self->{_previous_sibling} eq 'PLS::Parser::Element');
     return unless $self->element->sprevious_sibling;
-    return PLS::Parser::Element->new(file => $self->{file}, element => $self->element->sprevious_sibling);
+    $self->{_previous_sibling} = PLS::Parser::Element->new(file => $self->{file}, element => $self->element->sprevious_sibling);
+    return $self->{_previous_sibling};
 } ## end sub previous_sibling
 
 sub next_sibling
 {
     my ($self) = @_;
 
+    return $self->{_next_sibling} if (ref $self->{_next_sibling} eq 'PLS::Parser::Element');
     return unless $self->element->snext_sibling;
-    return PLS::Parser::Element->new(file => $self->{file}, element => $self->element->snext_sibling);
+    $self->{_next_sibling} = PLS::Parser::Element->new(file => $self->{file}, element => $self->element->snext_sibling);
+    return $self->{_next_sibling};
 } ## end sub next_sibling
 
 sub children
 {
     my ($self) = @_;
 
+    return @{$self->{_children}} if (ref $self->{_children} eq 'ARRAY');
     return unless $self->element->can('children');
-    return map { PLS::Parser::Element->new(file => $self->{file}, element => $_) } $self->element->children;
+    $self->{_children} = [map { PLS::Parser::Element->new(file => $self->{file}, element => $_) } $self->element->children];
+    return @{$self->{_children}};
 } ## end sub children
 
 sub tokens
 {
     my ($self) = @_;
 
-    return map { PLS::Parser::Element->new(file => $self->{file}, element => $_) } $self->element->tokens;
-}
+    return @{$self->{_tokens}} if (ref $self->{_tokens} eq 'ARRAY');
+    return unless $self->element->can('tokens');
+    $self->{_tokens} = [map { PLS::Parser::Element->new(file => $self->{file}, element => $_) } $self->element->tokens];
+    return @{$self->{_tokens}};
+} ## end sub tokens
 
 sub element
 {

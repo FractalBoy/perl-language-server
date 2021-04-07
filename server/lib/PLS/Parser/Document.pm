@@ -3,7 +3,6 @@ package PLS::Parser::Document;
 use strict;
 use warnings;
 
-use experimental 'isa';
 use feature 'state';
 
 use Digest::SHA;
@@ -15,6 +14,7 @@ use PPI;
 use PPI::Find;
 use PPR;
 use Perl::Tidy;
+use Scalar::Util qw(blessed);
 use Time::Seconds;
 use URI;
 use URI::file;
@@ -110,17 +110,17 @@ sub go_to_definition_of_closest_subroutine
 {
     my ($self, $list, $line_number, $column_number) = @_;
 
-    return unless ($list isa 'PLS::Parser::Element' and $list->type eq 'PPI::Structure::List');
+    return if (not blessed($list) or not $list->isa('PLS::Parser::Element') and $list->type eq 'PPI::Structure::List');
 
     # Try to find the closest word before the list - this is the function name.
     my $word = $list;
 
-    while ($word isa 'PLS::Parser::Element' and not $word->type eq 'PPI::Token::Word')
+    while (blessed($word) and $word->isa('PLS::Parser::Element') and not $word->element->isa('PPI::Token::Word'))
     {
         $word = $word->previous_sibling;
     }
 
-    return if (not $word isa 'PLS::Parser::Element' or not $word->element isa 'PPI::Token::Word');
+    return if (not blessed($word) or not $word->isa('PLS::Parser::Element') or not $word->element->isa('PPI::Token::Word'));
     return $self->search_elements_for_definition($line_number, $column_number, $word);
 } ## end sub go_to_definition_of_closest_subroutine
 
@@ -228,7 +228,7 @@ sub pod_link
                 L< # starting L<
                 (?:
                     <+ # optional additional <
-                    \s+ # spaces required if any additional < 
+                    \s+ # spaces required if any additional <
                 )?
                 (.+?) # the actual link content
                 (?:
@@ -434,18 +434,21 @@ sub go_to_variable_definition
         $prev_cursor = $cursor;
         $cursor      = $cursor->parent;
 
-        if ($cursor isa 'PPI::Structure::Block' or $cursor isa 'PPI::Document')
+        next unless blessed($cursor);
+
+        if ($cursor->isa('PPI::Structure::Block') or $cursor->isa('PPI::Document'))
         {
           CHILDREN: foreach my $child ($cursor->children)
             {
                 last CHILDREN if $child == $prev_cursor;
+                next unless blessed($child);
 
-                if ($child isa 'PPI::Statement::Variable' and any { $_ eq $variable } $child->variables)
+                if ($child->isa('PPI::Statement::Variable') and any { $_ eq $variable } $child->variables)
                 {
                     $declaration = $child;
                     last OUTER;
                 }
-                if ($child isa 'PPI::Statement::Include' and $child->type eq 'use' and $child->pragma eq 'vars')
+                if ($child->isa('PPI::Statement::Include') and $child->type eq 'use' and $child->pragma eq 'vars')
                 {
                     my @variables = grep { defined } $child =~ /((?&PerlVariable))$PPR::GRAMMAR/gx;
 
@@ -454,49 +457,51 @@ sub go_to_variable_definition
                         $declaration = $child;
                         last OUTER;
                     }
-                } ## end if ($child isa 'PPI::Statement::Include'...)
+                } ## end if ($child->isa('PPI::Statement::Include'...))
             } ## end foreach my $child ($cursor->...)
-        } ## end if ($cursor isa 'PPI::Structure::Block'...)
-        elsif ($cursor isa 'PPI::Statement::Compound')
+        } ## end if ($cursor->isa('PPI::Structure::Block'...))
+        elsif ($cursor->isa('PPI::Statement::Compound'))
         {
             if ($cursor->type eq 'foreach')
             {
               CHILDREN: foreach my $child ($cursor->children)
                 {
                     last CHILDREN if $child == $prev_cursor;
+                    next unless blessed($child);
 
-                    if ($child isa 'PPI::Token::Word' and $child =~ /^my|our|local|state$/)
+                    if ($child->isa('PPI::Token::Word') and $child =~ /^my|our|local|state$/)
                     {
-                        if ($child->snext_sibling isa 'PPI::Token::Symbol' and $child->snext_sibling->symbol eq $variable)
+                        if (blessed($child->snext_sibling) and $child->snext_sibling->isa('PPI::Token::Symbol') and $child->snext_sibling->symbol eq $variable)
                         {
                             $declaration = $cursor;
                             last OUTER;
                         }
-                    } ## end if ($child isa 'PPI::Token::Word'...)
+                    } ## end if ($child->isa('PPI::Token::Word'...))
                 } ## end foreach my $child ($cursor->...)
             } ## end if ($cursor->type eq 'foreach'...)
             else
             {
-                my $condition = first { $_ isa 'PPI::Structure::Condition' } $cursor->children;
-                next OUTER unless ($condition isa 'PPI::Structure::Condition');
+                my $condition = first { $_->isa('PPI::Structure::Condition') } grep { blessed($_) } $cursor->children;
+                next OUTER unless ($condition->isa('PPI::Structure::Condition'));
 
               CHILDREN: foreach my $child ($condition->children)
                 {
                     last CHILDREN if $child == $prev_cursor;
+                    next unless blessed($child);
 
-                    if ($child isa 'PPI::Statement::Variable')
+                    if ($child->isa('PPI::Statement::Variable'))
                     {
                         $declaration = $child;
                         last OUTER;
                     }
                 } ## end foreach my $child ($condition...)
             } ## end else [ if ($cursor->type eq 'foreach'...)]
-        } ## end elsif ($cursor isa 'PPI::Statement::Compound'...)
+        } ## end elsif ($cursor->isa('PPI::Statement::Compound'...))
 
         last if $cursor == $document;
     } ## end while (1)
 
-    return unless ($declaration isa 'PPI::Element');
+    return if (not blessed($declaration) or not $declaration->isa('PPI::Element'));
 
     $element = PLS::Parser::Element->new(file => $self->{path}, document => $self->{document}, element => $declaration);
 
@@ -595,7 +600,7 @@ sub get_subroutines
 
     my $find = PPI::Find->new(
         sub {
-            $_[0]->isa('PPI::Statement::Sub') and not $_[0]->isa('PPI::Statement::Scheduled') and $_[0]->block isa 'PPI::Structure::Block';
+            $_[0]->isa('PPI::Statement::Sub') and not $_[0]->isa('PPI::Statement::Scheduled') and ref $_[0]->block eq 'PPI::Structure::Block';
         }
     );
     return [map { PLS::Parser::Element::Subroutine->new(document => $self->{document}, element => $_, file => $self->{path}) } $find->in($self->{document})];
@@ -607,7 +612,7 @@ sub get_constants
 
     my @matches;
 
-    if ($element isa 'PPI::Statement::Include')
+    if (ref $element eq 'PPI::Statement::Include')
     {
         @matches = ($element);
     }
@@ -624,7 +629,7 @@ sub get_constants
         );
 
         @matches = $find->in($self->{document});
-    } ## end else [ if ($element isa 'PPI::Statement::Include'...)]
+    } ## end else [ if (ref $element eq 'PPI::Statement::Include'...)]
 
     my @constants;
 
@@ -661,7 +666,7 @@ sub get_variable_statements
 
     my @elements;
 
-    if ($element isa 'PPI::Statement::Variable')
+    if (blessed($element) and $element->isa('PPI::Statement::Variable'))
     {
         @elements = ($element);
     }
@@ -965,13 +970,13 @@ sub _get_ppi_document
 
     my $digest = $sha->hexdigest();
 
-    if (exists $documents{$digest} and $documents{$digest}{document} isa 'PPI::Document' and not $args{no_cache})
+    if (exists $documents{$digest} and blessed($documents{$digest}{document}) and $documents{$digest}{document}->isa('PPI::Document') and not $args{no_cache})
     {
         return $documents{$digest}{document};
     }
 
     my $document = PPI::Document->new($file, readonly => 1);
-    return unless (ref $document eq 'PPI::Document');
+    return if (not blessed($document) or not $document->isa('PPI::Document'));
     $document->index_locations();
     $documents{$digest} = {document => $document, time => time} if (length $digest and not $args{no_cache});
 
@@ -1002,22 +1007,23 @@ sub find_word_under_cursor
     @elements = grep { $_->lsp_column_number < $character } @elements;
     my $element          = first { $_->type eq 'PPI::Token::Word' or $_->type eq 'PPI::Token::Label' or $_->type eq 'PPI::Token::Symbol' } @elements;
     my $closest_operator = first { $_->type eq 'PPI::Token::Operator' } @elements;
-    return unless ($element isa 'PLS::Parser::Element');
+    return if (not blessed($element) or not $element->isa('PLS::Parser::Element'));
 
     # Short-circuit if this is a HASH reference subscript.
     my $parent = $element->parent;
-    $parent = $parent->parent if ($parent isa 'PLS::Parser::Element');
-    return if ($element->type eq 'PPI::Token::Word' and $parent isa 'PLS::Parser::Element' and $parent->type eq 'PPI::Structure::Subscript');
+    $parent = $parent->parent if (blessed($parent) and ref $parent eq 'PLS::Parser::Element');
+    return if ($element->type eq 'PPI::Token::Word' and blessed($parent) and $parent->isa('PLS::Parser::Element') and $parent->type eq 'PPI::Structure::Subscript');
 
     # if the cursor is on the word after an arrow, back up to the arrow so we can use any package information before it.
     if (    $element->type eq 'PPI::Token::Word'
-        and $element->previous_sibling isa 'PLS::Parser::Element'
+        and blessed($element->previous_sibling)
+        and $element->previous_sibling->isa('PLS::Parser::Element')
         and $element->previous_sibling->name eq '->')
     {
         $closest_operator = $element->previous_sibling;
     } ## end if ($element->type eq ...)
 
-    if ($closest_operator isa 'PLS::Parser::Element' and $closest_operator->name eq '->' and $element->type eq 'PPI::Token::Word')
+    if (blessed($closest_operator) and $closest_operator->isa('PLS::Parser::Element') and $closest_operator->name eq '->' and $element->type eq 'PPI::Token::Word')
     {
         # default to inserting after the arrow
         my $arrow_range = $element->range;
@@ -1031,30 +1037,34 @@ sub find_word_under_cursor
         # if the next element is a word, it is likely the start of a method name,
         # so we want to return it as a filter. we also want the range to be that
         # of the next element so that we replace the word when it is selected.
-        if (    $closest_operator->next_sibling isa 'PLS::Parser::Element'
+        if (    blessed($closest_operator->next_sibling)
+            and $closest_operator->next_sibling->isa('PLS::Parser::Element')
             and $closest_operator->next_sibling->type eq 'PPI::Token::Word'
             and $closest_operator->ppi_line_number == $closest_operator->next_sibling->ppi_line_number)
         {
             $filter = $closest_operator->next_sibling->name;
             $range  = $closest_operator->next_sibling->range;
-        } ## end if ($closest_operator->...)
+        } ## end if (blessed($closest_operator...))
 
         # if the previous element is a word, it's possibly a class name,
         # so we return that to use for searching for that class's methods.
         my $package = '';
-        if ($closest_operator->previous_sibling isa 'PLS::Parser::Element' and $closest_operator->previous_sibling->type eq 'PPI::Token::Word')
+        if (    blessed($closest_operator->previous_sibling)
+            and $closest_operator->previous_sibling->isa('PLS::Parser::Element')
+            and $closest_operator->previous_sibling->type eq 'PPI::Token::Word')
         {
             $package = $closest_operator->previous_sibling->name;
-        }
+        } ## end if (blessed($closest_operator...))
 
         # the 1 indicates that the current token is an arrow, due to the special logic needed.
         return $range, 1, $package, $filter;
-    } ## end if ($closest_operator ...)
+    } ## end if (blessed($closest_operator...))
 
     # something like "Package::Name:", we just want Package::Name.
     if (
             $element->name eq ':'
-        and $element->previous_sibling isa 'PLS::Parser::Element'
+        and blessed($element->previous_sibling)
+        and $element->previous_sibling->isa('PLS::Parser::Element')
         and (   $element->previous_sibling->type eq 'PPI::Token::Word'
              or $element->previous_sibling->type eq 'PPI::Token::Label')
        )
@@ -1085,15 +1095,15 @@ sub get_list_index
 {
     my ($self, $list, $line, $character) = @_;
 
-    return 0 unless ($list isa 'PLS::Parser::Element' and $list->type eq 'PPI::Structure::List');
+    return 0 if (not blessed($list) or not $list->isa('PLS::Parser::Element') or $list->type ne 'PPI::Structure::List');
 
-    my $find = PPI::Find->new(sub { $_[0] isa 'PPI::Statement::Expression' });
+    my $find = PPI::Find->new(sub { $_[0]->isa('PPI::Statement::Expression') });
     my $expr;
     $expr = $find->match() if $find->start($list->element);
 
-    return 0 unless ($expr isa 'PPI::Statement::Expression');
+    return 0 if (not blessed($expr) or not $expr->isa('PPI::Statement::Expression'));
 
-    my @commas = grep { $_ isa 'PPI::Token::Operator' and $_ eq ',' } $expr->schildren;
+    my @commas = grep { $_->isa('PPI::Token::Operator') and $_ eq ',' } $expr->schildren;
 
     return 0 unless (scalar @commas);
 

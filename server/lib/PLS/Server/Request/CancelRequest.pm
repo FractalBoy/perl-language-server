@@ -3,9 +3,6 @@ package PLS::Server::Request::CancelRequest;
 use strict;
 use warnings;
 
-use feature 'isa';
-no warnings 'experimental::isa';
-
 use parent 'PLS::Server::Request';
 
 use PLS::Server::Response::Cancelled;
@@ -18,7 +15,7 @@ sub service
     return unless (exists $server->{running_coros}{$id});
     my $request_to_cancel = $server->{running_coros}{$id};
 
-    return unless ($request_to_cancel isa 'Coro');
+    return unless (blessed($request_to_cancel) and $request_to_cancel->isa('Coro'));
     eval { $request_to_cancel->safe_cancel() };
 
     delete $server->{running_coros}{$id};

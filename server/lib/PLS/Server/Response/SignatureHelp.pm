@@ -3,9 +3,6 @@ package PLS::Server::Response::SignatureHelp;
 use strict;
 use warnings;
 
-use feature 'isa';
-no warnings 'experimental::isa';
-
 use parent q(PLS::Server::Response);
 
 use PLS::Parser::Document;
