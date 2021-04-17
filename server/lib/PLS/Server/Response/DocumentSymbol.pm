@@ -3,7 +3,7 @@ package PLS::Server::Response::DocumentSymbol;
 use strict;
 use warnings;
 
-use parent q(PLS::Server::Response);
+use parent 'PLS::Server::Response';
 
 use PLS::Parser::DocumentSymbols;
 
@@ -11,15 +11,14 @@ sub new
 {
     my ($class, $request) = @_;
 
+    my $self = bless {id => $request->{id}, result => undef}, $class;
+
     my $symbols = PLS::Parser::DocumentSymbols->new($request->{params}{textDocument}{uri});
-    my $results = $symbols->get_all_document_symbols();
+    return $self if (ref $symbols ne 'PLS::Parser::DocumentSymbols');
 
-    my %self = (
-                id     => $request->{id},
-                result => $results
-               );
+    $self->{result} = $symbols->get_all_document_symbols();
 
-    return bless \%self, $class;
+    return $self;
 } ## end sub new
 
 1;
