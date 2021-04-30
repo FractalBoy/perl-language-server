@@ -198,6 +198,9 @@ sub update_index
 {
     my ($self, $index, $type, $file, @references) = @_;
 
+    my $stat = stat $file;
+    return unless (ref $stat eq 'File::stat');
+
     my $trie = $self->{"${type}_trie"};
 
     foreach my $reference (@references)
@@ -228,7 +231,7 @@ sub update_index
         push @{$index->{files}{$file}{$type}}, $reference->name;
     } ## end foreach my $reference (@references...)
 
-    $index->{files}{$file}{last_mtime} = stat($file)->mtime;
+    $index->{files}{$file}{last_mtime} = $stat->mtime;
 } ## end sub update_index
 
 sub cleanup_old_files

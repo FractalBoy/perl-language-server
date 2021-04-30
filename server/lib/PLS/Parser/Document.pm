@@ -482,7 +482,7 @@ sub go_to_variable_definition
             else
             {
                 my $condition = first { $_->isa('PPI::Structure::Condition') } grep { blessed($_) } $cursor->children;
-                next OUTER unless ($condition->isa('PPI::Structure::Condition'));
+                next OUTER if (not blessed($condition) or not $condition->isa('PPI::Structure::Condition'));
 
               CHILDREN: foreach my $child ($condition->children)
                 {

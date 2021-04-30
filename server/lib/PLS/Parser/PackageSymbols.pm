@@ -27,8 +27,9 @@ sub get_package_functions
         alarm 10;
         my $result = eval { Storable::fd_retrieve($read_fh) };
         alarm 0;
+        return if $timeout;
         waitpid $pid, 0;
-        return if ($timeout or ref $result ne 'HASH' or not $result->{ok});
+        return if (ref $result ne 'HASH' or not $result->{ok});
         return $result->{functions};
     } ## end if ($pid)
     else
@@ -59,23 +60,24 @@ open STDERR, '>', File::Spec->devnull;
 open my $write_fh, '>>&=', %d;
 my $package = q{%s} =~ s/['"]//gr;
 
-eval "require $package";
+my @module_parts = split /::/, $package;
+my @parent_module_parts = @module_parts;
+pop @parent_module_parts;
 
-if (length $@)
-{
-    Storable::nstore_fd({ok => 0}, $write_fh);
-}
-else
-{
-    my $ref = \%% ::;
-    my @module_parts = split /::/, $package;
+my @functions;
 
-    foreach my $part (@module_parts)
+foreach my $parts (\@parent_module_parts, \@module_parts)
+{
+    my $package = join '::', @{$parts};
+    eval "require $package";
+    next if $@;
+
+    my $ref = \%%::;
+
+    foreach my $part (@{$parts})
     {
         $ref = $ref->{"${part}::"};
     }
-
-    my @functions;
 
     foreach my $name (keys %%{$ref})
     {
@@ -85,9 +87,9 @@ else
         next if Sub::Util::subname($code_ref) !~ /^${package}(?:::.+)*::${name}$/;
         push @functions, $name;
     } ## end foreach my $name (keys %%{$ref...})
+}
 
-    Storable::nstore_fd({ok => 1, functions => \@functions}, $write_fh);
-} ## end else [ if (length $@) ]
+Storable::nstore_fd({ok => 1, functions => \@functions}, $write_fh);
 EOF
 
     return sprintf $script, $fileno, $package;
