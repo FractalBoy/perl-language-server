@@ -14,6 +14,8 @@ The features currently implemented are:
 * Formatting
 * Range Formatting
 * Auto-completion
+* Syntax checking
+* Linting (using perlcritic)
 * Sorting imports
 
 ## Installation
