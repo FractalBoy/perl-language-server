@@ -13,10 +13,11 @@ WriteMakefile(
         'Coro' => 6.54,
         'Path::Tiny' => 0.114,
         'Perl::Critic' => 1.138,
+        'Perl::Tidy' => 20210402,
+        'Pod::Find' => 1.63,
         'Pod::Markdown' => 3.200,
         'PPI' => 1.264,
         'PPR' => 0.000028,
-        'Test::More' => 1.302073,
         'URI' => 1.76
     }
 );
