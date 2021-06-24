@@ -1,4 +1,7 @@
-*
-*/**
-!out/**
-!package.json
+node_modules
+src
+test
+tslint.json
+tsconfig.json
+vsc-extension-quickstart.md
+.gitignore
