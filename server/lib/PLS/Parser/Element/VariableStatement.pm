@@ -7,6 +7,16 @@ use parent 'PLS::Parser::Element';
 
 use PLS::Parser::Element::Variable;
 
+=head1 NAME
+
+PLS::Parser::Element::Variable
+
+=head2 DESCRIPTION
+
+Subclass of L<PLS::Parser::Element> representing a variable statement.
+
+=cut
+
 sub new
 {
     my ($class, @args) = @_;

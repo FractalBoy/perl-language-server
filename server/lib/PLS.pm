@@ -1,7 +1,8 @@
 package PLS;
 
-our $VERSION = '0.1';
+use strict;
+use warnings;
 
-use PLS::Server;
+our $VERSION = '0.1';
 
 1;

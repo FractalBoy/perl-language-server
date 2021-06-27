@@ -7,6 +7,17 @@ use parent q(PLS::Server::Response);
 
 use PLS::Parser::Document;
 
+=head1 NAME
+
+PLS::Server::Response::SignatureHelp
+
+=head1 DESCRIPTION
+
+This is a message from the server to the client with information about the
+parameters of the current function.
+
+=cut
+
 sub new
 {
     my ($class, $request) = @_;

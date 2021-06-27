@@ -34,6 +34,29 @@ use PLS::Parser::Pod::Variable;
 my %FILES;
 my $INDEX;
 
+=head1 NAME
+
+PLS::Parser::Document
+
+=head1 DESCRIPTION
+
+This is a class that represents a text document. It has methods
+for parsing and manipulating the document using L<PPI> and L<PPR>.
+
+=head1 METHODS
+
+=head2 new
+
+This creates a new L<PLS::Parser::Document> object.
+It takes named parameters.
+
+Either C<uri> or C<path> must be passed.
+
+C<line> with a line number may be passed, which indicates that only one line
+of the document should be parsed. This greatly enhances performance for completion items.
+
+=cut
+
 sub new
 {
     my ($class, %args) = @_;
@@ -68,12 +91,26 @@ sub new
     return $self;
 } ## end sub new
 
+=head2 set_index
+
+This sets the L<PLS::Parser::Index> object to be used by all L<PLS::Parser::Document>
+objects.
+
+=cut
+
 sub set_index
 {
     my ($class, $index) = @_;
 
     $INDEX = $index;
 }
+
+=head2 get_index
+
+This gets the L<PLS::Parser::Index> object to use.
+It will set it for other objects to use if it does not already exist.
+
+=cut
 
 sub get_index
 {
@@ -83,6 +120,12 @@ sub get_index
     return $INDEX;
 } ## end sub get_index
 
+=head2 go_to_definition
+
+This finds the definition of a symbol located at a given line and column number.
+
+=cut
+
 sub go_to_definition
 {
     my ($self, $line_number, $column_number) = @_;
@@ -91,6 +134,13 @@ sub go_to_definition
 
     return $self->search_elements_for_definition($line_number, $column_number, @matches);
 } ## end sub go_to_definition
+
+=head2 find_current_list
+
+This finds the nearest list structure that surrounds the current column on the current line.
+This is useful for finding which parameter the cursor is on when calling a function.
+
+=cut
 
 sub find_current_list
 {
@@ -105,6 +155,12 @@ sub find_current_list
       map { PLS::Parser::Element->new(element => $_, document => $self->{document}, file => $self->{path}) }
       map { $find->in($_->element) } @elements;
 } ## end sub find_current_list
+
+=head2 go_to_definition_of_closest_subroutine
+
+Given a list of elements, this finds the closest subroutine call to the current line and column.
+
+=cut
 
 sub go_to_definition_of_closest_subroutine
 {
@@ -123,6 +179,12 @@ sub go_to_definition_of_closest_subroutine
     return if (not blessed($word) or not $word->isa('PLS::Parser::Element') or not $word->element->isa('PPI::Token::Word'));
     return $self->search_elements_for_definition($line_number, $column_number, $word);
 } ## end sub go_to_definition_of_closest_subroutine
+
+=head2 search_elements_for_definition
+
+This tries to find the definition in a list of elements, and returns the first definition found.
+
+=cut
 
 sub search_elements_for_definition
 {
@@ -198,6 +260,13 @@ sub search_elements_for_definition
     return;
 } ## end sub search_elements_for_definition
 
+=head2 pod_link
+
+This determines if the line and column are within a POD LE<lt>E<gt> code,
+and returns the contents of the link if so.
+
+=cut
+
 sub pod_link
 {
     my ($self, $line_number, $column_number) = @_;
@@ -256,6 +325,12 @@ sub pod_link
 
     return;
 } ## end sub pod_link
+
+=head2 find_pod
+
+This attempts to find POD for the symbol at the given location.
+
+=cut
 
 sub find_pod
 {
@@ -367,6 +442,13 @@ sub find_elements_at_location
     return @matches;
 } ## end sub find_elements_at_location
 
+=head2 find_external_subroutine
+
+This attempts to find the location of a subroutine inside an external module,
+by name.
+
+=cut
+
 sub find_external_subroutine
 {
     my ($self, $package_name, $subroutine_name) = @_;
@@ -391,6 +473,12 @@ sub find_external_subroutine
 
     return;
 } ## end sub find_external_subroutine
+
+=head2 find_external_package
+
+This attempts to find the location of an external package by name.
+
+=cut
 
 sub find_external_package
 {
@@ -418,6 +506,15 @@ sub find_external_package
 
     return;
 } ## end sub find_external_package
+
+=head2 go_to_variable_definition
+
+This finds the definition of a variable.
+
+This B<probably> only works correctly for C<my>, C<local>, and C<state> variables,
+but may also work for C<our> variables as long as they are in the same file.
+
+=cut
 
 sub go_to_variable_definition
 {
@@ -513,6 +610,12 @@ sub go_to_variable_definition
            ];
 } ## end sub go_to_variable_definition
 
+=head2 open_file
+
+This adds a file and its text to a list of open files.
+
+=cut
+
 sub open_file
 {
     my ($class, %args) = @_;
@@ -524,10 +627,23 @@ sub open_file
     return;
 } ## end sub open_file
 
+=head2 open_files
+
+This provides a list of names of files that are currently open.
+
+=cut
+
 sub open_files
 {
     return [keys %FILES];
 }
+
+=head2 update_file
+
+This patches an open file in memory to keep it synched with
+the actual file in the editor.
+
+=cut
 
 sub update_file
 {
@@ -585,6 +701,12 @@ sub update_file
     return;
 } ## end sub update_file
 
+=head2 close_file
+
+This removes a file from the list of open files.
+
+=cut
+
 sub close_file
 {
     my ($class, @args) = @_;
@@ -593,6 +715,12 @@ sub close_file
 
     delete $FILES{$args{uri}};
 } ## end sub close_file
+
+=head2 get_subroutines
+
+This gets a list of all subroutines in a document.
+
+=cut
 
 sub get_subroutines
 {
@@ -605,6 +733,14 @@ sub get_subroutines
     );
     return [map { PLS::Parser::Element::Subroutine->new(document => $self->{document}, element => $_, file => $self->{path}) } $find->in($self->{document})];
 } ## end sub get_subroutines
+
+=head2 get_constants
+
+This gets a list of all constants in a document.
+
+Only constants declared with C<use constant> are found.
+
+=cut
 
 sub get_constants
 {
@@ -652,6 +788,12 @@ sub get_constants
     return [map { PLS::Parser::Element::Constant->new(document => $self->{document}, element => $_, file => $self->{path}) } @constants];
 } ## end sub get_constants
 
+=head2 get_packages
+
+This gets a list of all packages in a document.
+
+=cut
+
 sub get_packages
 {
     my ($self) = @_;
@@ -659,6 +801,13 @@ sub get_packages
     my $find = PPI::Find->new(sub { $_[0]->isa('PPI::Statement::Package') });
     return [map { PLS::Parser::Element::Package->new(document => $self->{document}, element => $_, file => $self->{path}) } $find->in($self->{document})];
 } ## end sub get_packages
+
+=head2 get_variable_statements
+
+This gets a list of all variable statements in a document.
+A variable statement is a statement which declares one or more variables.
+
+=cut
 
 sub get_variable_statements
 {
@@ -679,12 +828,25 @@ sub get_variable_statements
     return [map { PLS::Parser::Element::VariableStatement->new(document => $self->{document}, element => $_, file => $self->{path}) } @elements];
 } ## end sub get_variable_statements
 
+=head2 get_full_text
+
+This returns a SCALAR reference of the in-memory text of the current document.
+
+=cut
+
 sub get_full_text
 {
     my ($self) = @_;
 
     return _text_from_uri($self->{uri});
 }
+
+=head2 get_variables_fast
+
+This gets a list of all variables in the current document.
+It uses L<PPR> to do so, which is faster than L<PPI>, but only provides a list of strings.
+
+=cut
 
 sub get_variables_fast
 {
@@ -705,6 +867,13 @@ sub get_variables_fast
            ];
 } ## end sub get_variables_fast
 
+=head2 get_packages_fast
+
+This gets a list of all packages in the current document.
+It uses L<PPR> to do so, which is faster than L<PPI>, but only provides a list of strings.
+
+=cut
+
 sub get_packages_fast
 {
     my ($self, $text) = @_;
@@ -724,6 +893,13 @@ sub get_packages_fast
            ];
 } ## end sub get_packages_fast
 
+=head2 get_subroutines_fast
+
+This gets a list of all subroutines in the current document.
+It uses L<PPR> to do so, which is faster than L<PPI>, but only provides a list of strings.
+
+=cut
+
 sub get_subroutines_fast
 {
     my ($self, $text) = @_;
@@ -738,6 +914,15 @@ sub get_subroutines_fast
             grep { defined } @subroutine_declarations
            ];
 } ## end sub get_subroutines_fast
+
+=head2 get_constants_fast
+
+This gets a list of all constants in the current document.
+It uses L<PPR> to do so, which is faster than L<PPI>, but only provides a list of strings.
+
+This only finds constants declared with C<use constant>.
+
+=cut
 
 sub get_constants_fast
 {
@@ -759,6 +944,12 @@ sub get_constants_fast
             grep { defined } map { /$block_re/g } @use_statements
            ];
 } ## end sub get_constants_fast
+
+=head2 format_range
+
+This formats a range of text in the document using perltidy.
+
+=cut
 
 sub format_range
 {
@@ -875,6 +1066,12 @@ sub format_range
            );
 } ## end sub format_range
 
+=head2 format
+
+This formats the entire document using perltidy.
+
+=cut
+
 sub format
 {
     my ($class, %args) = @_;
@@ -882,12 +1079,24 @@ sub format
     return $class->format_range(formatting_options => $args{formatting_options}, uri => $args{uri});
 }
 
+=head2 _ppi_location
+
+This converts an LSP 0-indexed location to a PPI 1-indexed location.
+
+=cut
+
 sub _ppi_location
 {
     my ($line_number, $column_number) = @_;
 
     return ++$line_number, ++$column_number;
 }
+
+=head2 _text_from_uri
+
+This returns a SCALAR reference to the text of a particular URI.
+
+=cut
 
 sub _text_from_uri
 {
@@ -905,6 +1114,13 @@ sub _text_from_uri
         return \$text;
     } ## end else [ if (ref $FILES{$uri} eq...)]
 } ## end sub _text_from_uri
+
+=head2 _get_ppi_document
+
+This creates a L<PPI::Document> object for a document. It will
+return an L<PPI::Document> from memory if the file has not changed since it was last parsed.
+
+=cut
 
 sub _get_ppi_document
 {
@@ -989,6 +1205,12 @@ sub _get_ppi_document
     return $document;
 } ## end sub _get_ppi_document
 
+=head2 _is_constant
+
+Determines if a PPI element is a constant.
+
+=cut
+
 sub _is_constant
 {
     my ($element) = @_;
@@ -997,6 +1219,25 @@ sub _is_constant
     return unless ref $_->snext_sibling eq 'PPI::Token::Operator';
     return $_->snext_sibling->content eq '=>';
 } ## end sub _is_constant
+
+=head2 find_word_under_cursor
+
+Gets information about the current word under the cursor.
+Returns a four-element list:
+
+=over
+
+=item The range where the word is located
+
+=item A boolean indicating whether the word is before an arrow (->) or not.
+
+=item The name of the package where the word is located
+
+=item The word under the cursor to be used as a filter for searching
+
+=back
+
+=cut
 
 sub find_word_under_cursor
 {
@@ -1091,6 +1332,15 @@ sub find_word_under_cursor
     return $range, 0, $package, $name;
 } ## end sub find_word_under_cursor
 
+=head2 get_list_index
+
+Gets the index within a list where a cursor is.
+
+This is useful for determining which function parameter the cursor is on
+within a function call.
+
+=cut
+
 sub get_list_index
 {
     my ($self, $list, $line, $character) = @_;
@@ -1122,6 +1372,28 @@ sub get_list_index
 
     return $param_index + 1;
 } ## end sub get_list_index
+
+=head2 sort_imports
+
+This sorts the imports within a file. The order is:
+
+=over
+
+=item C<use strict> and C<use warnings>
+
+=item C<use parent> and C<use base>
+
+=item Other pragmas (excluding C<use constant>)
+
+=item Core and external imports
+
+=item Internal imports (from the current project)
+
+=item Constants (C<use constant>)
+
+=back
+
+=cut
 
 sub sort_imports
 {
@@ -1217,10 +1489,23 @@ sub sort_imports
     return \($doc->serialize), $lines;
 } ## end sub sort_imports
 
+=head2 _sort_imports
+
+Determines the sorting of two imports within a block of imports.
+
+=cut
+
 sub _sort_imports
 {
     return $b->type cmp $a->type || $a->module cmp $b->module;
 }
+
+=head2 _pad_imports
+
+Adds newlines to pad the various import sections from each other and from
+the rest of the document.
+
+=cut
 
 sub _pad_imports
 {
@@ -1234,6 +1519,12 @@ sub _pad_imports
 
     return @imports;
 } ## end sub _pad_imports
+
+=head2 _split_lines
+
+Splits a document into lines using C<$/> as the separator.
+
+=cut
 
 sub _split_lines
 {

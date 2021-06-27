@@ -7,6 +7,17 @@ use parent q(PLS::Server::Response);
 
 use PLS::Parser::Document;
 
+=head1 NAME
+
+PLS::Server::Response::Hover
+
+=head1 DESCRIPTION
+
+This is a message from the server to the client with
+documentation for the location the mouse is currently hovering.
+
+=cut
+
 sub new
 {
     my ($class, $request) = @_;

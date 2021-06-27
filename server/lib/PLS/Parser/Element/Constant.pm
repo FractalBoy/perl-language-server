@@ -5,6 +5,17 @@ use warnings;
 
 use parent 'PLS::Parser::Element';
 
+=head1 NAME
+
+PLS::Parser::Element::Constant
+
+=head1 DESCRIPTION
+
+Subclass of L<PPI::Parser::Element> representing a constant
+declared with C<use constant>.
+
+=cut
+
 sub location_info
 {
     my ($self) = @_;

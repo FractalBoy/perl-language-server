@@ -1,6 +1,20 @@
 package PLS::Server::Response::Cancelled;
 
+use strict;
+use warnings;
+
 use parent q(PLS::Server::Response);
+
+=head1 NAME
+
+PLS::Server::Response::Cancelled
+
+=head1 DESCRIPTION
+
+This is a message from the server to the client indicating that
+a request has been cancelled.
+
+=cut
 
 sub new
 {

@@ -13,6 +13,19 @@ use PLS::Parser::Index;
 use PLS::Server::Response::InitializeResult;
 use PLS::Server::State;
 
+=head1 NAME
+
+PLS::Server::Request::Initialize
+
+=head1 DESCRIPTION
+
+This is the first request from the client to the server.
+
+The client provides information about itself, and the server performs
+some initialization for itself and returns its capabilities.
+
+=cut
+
 sub service
 {
     my ($self) = @_;

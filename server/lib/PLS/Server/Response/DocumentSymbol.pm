@@ -7,6 +7,17 @@ use parent 'PLS::Server::Response';
 
 use PLS::Parser::DocumentSymbols;
 
+=head1 NAME
+
+PLS::Server::Response::DocumentSymbol
+
+=head1 DESCRIPTION
+
+This is a message from the server to the client with a list
+of symbols in the current document.
+
+=cut
+
 sub new
 {
     my ($class, $request) = @_;

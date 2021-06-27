@@ -14,7 +14,17 @@ use ExtUtils::Installed;
 use PLS::Parser::Document;
 use PLS::Parser::PackageSymbols;
 use PLS::Parser::Pod;
-use Trie;
+
+=head1 NAME
+
+PLS::Server::Response::Completion
+
+=head1 DESCRIPTION
+
+This is a message from the server to the client with a list
+of completion items for the current location.
+
+=cut
 
 sub new
 {

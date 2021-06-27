@@ -7,6 +7,17 @@ use parent q(PLS::Server::Response);
 
 use PLS::Parser::Document;
 
+=head1 NAME
+
+PLS::Server::Response::RangeFormatting
+
+=head1 DESCRIPTION
+
+This is a message from the server to the client with a document range
+after having been formatted.
+
+=cut
+
 sub new
 {
     my ($class, $request) = @_;

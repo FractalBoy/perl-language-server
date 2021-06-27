@@ -4,11 +4,23 @@ use strict;
 use warnings;
 
 use File::Spec;
+use FindBin;
 use IPC::Open3;
 use Pod::Markdown;
 use Symbol qw(gensym);
 
 use PLS::Server::State;
+
+=head1 NAME
+
+PLS::Parser::Pod
+
+=head1 DESCRIPTION
+
+This class finds and parses POD for an element. It formats the POD into markdown suitable
+for sending to the Language Server Protocol.
+
+=cut
 
 sub new
 {
@@ -24,12 +36,24 @@ sub new
     return bless \%self, $class;
 } ## end sub new
 
+=head2 line_number
+
+The line number of the element
+
+=cut
+
 sub line_number
 {
     my ($self) = @_;
 
     return $self->{element}->lsp_line_number;
 }
+
+=head2 column_number
+
+The column number of the element
+
+=cut
 
 sub column_number
 {
@@ -38,12 +62,24 @@ sub column_number
     return $self->{element}->lsp_column_number;
 }
 
+=head2 name
+
+The name of the element.
+
+=cut
+
 sub name
 {
     my ($self) = @_;
 
     return '';
 }
+
+=head2 get_perldoc_location
+
+Tries to find the path to the perldoc utility.
+
+=cut
 
 sub get_perldoc_location
 {
@@ -53,6 +89,12 @@ sub get_perldoc_location
     # try to use the perldoc matching this perl executable, falling back to the perldoc in the PATH
     return (-f $perldoc and -x $perldoc) ? $perldoc : 'perldoc';
 } ## end sub get_perldoc_location
+
+=head2 run_perldoc_command
+
+Runs a perldoc command and returns the text formatted into markdown.
+
+=cut
 
 sub run_perldoc_command
 {
@@ -72,6 +114,12 @@ sub run_perldoc_command
     return $class->get_markdown_from_text(\$pod);
 } ## end sub run_perldoc_command
 
+=head2 get_markdown_for_package
+
+Finds the POD for a package and returns its POD, formatted into markdown.
+
+=cut
+
 sub get_markdown_for_package
 {
     my ($class, $package) = @_;
@@ -83,6 +131,12 @@ sub get_markdown_for_package
     my $text = do { local $/; <$fh> };
     return $class->get_markdown_from_text(\$text);
 } ## end sub get_markdown_for_package
+
+=head2 get_markdown_from_lines
+
+This formats POD from an array of lines into markdown and fixes up improperly formatted text.
+
+=cut
 
 sub get_markdown_from_lines
 {
@@ -102,6 +156,13 @@ sub get_markdown_from_lines
     return $ok, \$markdown;
 } ## end sub get_markdown_from_lines
 
+
+=head2 get_markdown_from_text
+
+This formats POD from SCALAR ref to a string into markdown and fixes up improperly formatted text.
+
+=cut
+
 sub get_markdown_from_text
 {
     my ($class, $text) = @_;
@@ -120,6 +181,12 @@ sub get_markdown_from_text
     return $ok, \$markdown;
 } ## end sub get_markdown_from_text
 
+=head2 clean_markdown
+
+This fixes markdown so that documentation isn't incorrectly displayed as code.
+
+=cut
+
 sub clean_markdown
 {
     my ($class, $markdown) = @_;
@@ -128,12 +195,25 @@ sub clean_markdown
     $$markdown =~ s/\n\n/\n/;
 } ## end sub clean_markdown
 
+=head2 combine_markdown
+
+This combines multiple markdown sections into a single string.
+
+=cut
+
 sub combine_markdown
 {
     my ($class, @markdown_parts) = @_;
 
     return join "\n---\n", @markdown_parts;
 }
+
+=head2 get_clean_inc
+
+Starts a new perl process and retrieves its @INC, so we do not use an @INC tainted
+with things included in PLS.
+
+=cut
 
 sub get_clean_inc
 {

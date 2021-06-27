@@ -9,6 +9,18 @@ use PLS::Server::Method::Workspace;
 use PLS::Server::Method::ServerMethod;
 use PLS::Server::Request;
 
+=head1 NAME
+
+PLS::Server::Request::Factory
+
+=head1 DESCRIPTION
+
+This is a factory class. Given a request from the client, this
+will determine the appropriate subclass of L<PLS::Server::Request> for the request
+and return it.
+
+=cut
+
 sub new
 {
     my ($class, $request) = @_;

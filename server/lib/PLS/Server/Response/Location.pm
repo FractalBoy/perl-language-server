@@ -7,6 +7,17 @@ use parent q(PLS::Server::Response);
 
 use PLS::Parser::Document;
 
+=head1 NAME
+
+PLS::Server::Response::Location
+
+=head1 DESCRIPTION
+
+This is a message from the server to the client providing a location.
+This is typically used to provide the location of the definition of a symbol.
+
+=cut
+
 sub new
 {
     my ($class, $request) = @_;

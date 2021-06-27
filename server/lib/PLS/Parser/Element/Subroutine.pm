@@ -7,6 +7,16 @@ use parent 'PLS::Parser::Element';
 
 use List::Util qw(any);
 
+=head1 NAME
+
+PLS::Parser::Element::Subroutine
+
+=head2 DESCRIPTION
+
+Subclass of L<PLS::Parser::Element> representing a subroutine declaration.
+
+=cut
+
 sub location_info
 {
     my ($self) = @_;

@@ -10,6 +10,17 @@ use Coro;
 use PLS::Parser::Document;
 use PLS::Server::Request::Diagnostics::PublishDiagnostics;
 
+=head1 NAME
+
+PLS::Server::Request::TextDocument::DidOpen
+
+=head1 DESCRIPTION
+
+This is a notification from the client to the server that
+a text document was opened.
+
+=cut
+
 sub service
 {
     my ($self, $server) = @_;

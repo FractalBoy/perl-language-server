@@ -14,6 +14,23 @@ use Scalar::Util qw(blessed);
 use PLS::Server::Request::Factory;
 use PLS::Server::Response;
 
+=head1 NAME
+
+PLS::Server
+
+=head1 DESCRIPTION
+
+Perl Language Server
+
+This server communicates to a language client through STDIN/STDOUT.
+
+=head2 SYNOPSIS
+
+    my $server = PLS::Server->new();
+    $server->run() # never returns
+
+=cut
+
 sub new
 {
     my ($class) = @_;

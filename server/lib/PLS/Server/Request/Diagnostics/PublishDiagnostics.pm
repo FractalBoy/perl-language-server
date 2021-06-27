@@ -8,13 +8,26 @@ use parent 'PLS::Server::Request';
 use Fcntl ();
 use File::Spec;
 use IPC::Open3;
+use Perl::Critic;
 use Storable;
 use Symbol qw(gensym);
 use URI;
 
 use PLS::Parser::Pod;
 use PLS::Server::State;
-use Perl::Critic;
+
+=head1 NAME
+
+PLS::Server::Request::Diagnostics::PublishDiagnostics
+
+=head1 DESCRIPTION
+
+This is a message from the server to the client requesting that
+diagnostics be published.
+
+These diagnostics currently include compilation errors and linting (using L<perlcritic>).
+
+=cut
 
 sub new
 {

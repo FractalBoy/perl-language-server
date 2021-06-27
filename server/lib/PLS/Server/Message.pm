@@ -5,6 +5,20 @@ use warnings;
 
 use JSON::PP;
 
+=head1 NAME
+
+PLS::Server::Message
+
+=head1 DESCRIPTION
+
+This class is the abstract base class for all messages sent between
+server and client.
+
+See L<PLS::Server::Request> and L<PLS::Server::Response>, which
+inherit from this class.
+
+=cut
+
 sub serialize {
     my ($self) = @_;
 

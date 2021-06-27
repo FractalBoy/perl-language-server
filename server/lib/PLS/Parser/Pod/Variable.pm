@@ -5,6 +5,16 @@ use warnings;
 
 use parent 'PLS::Parser::Pod';
 
+=head1 NAME
+
+PLS::Parser::Pod::Variable
+
+=head1 DESCRIPTION
+
+This is a subclass of L<PLS::Parser::Pod> for finding POD for a Perl builtin variable.
+
+=cut
+
 sub new
 {
     my ($class, @args) = @_;

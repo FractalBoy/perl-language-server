@@ -7,6 +7,17 @@ use parent 'PLS::Server::Request';
 
 use PLS::Parser::Document;
 
+=head1 NAME
+
+PLS::Server::Request::TextDocument::DidChange
+
+=head1 DESCRIPTION
+
+This is a notification from the client to the server that
+a text document was changed.
+
+=cut
+
 sub service
 {
     my ($self) = @_;

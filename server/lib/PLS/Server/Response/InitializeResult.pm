@@ -5,6 +5,19 @@ use warnings;
 
 use parent q(PLS::Server::Response);
 
+=head1 NAME
+
+PLS::Server::Response::InitializeResult
+
+=head1 DESCRIPTION
+
+This is a message from the server to the client with the result
+of initialization.
+
+This message contains information about the server's capabilities.
+
+=cut
+
 sub new
 {
     my ($class, $request) = @_;

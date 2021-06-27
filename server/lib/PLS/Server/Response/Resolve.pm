@@ -10,6 +10,17 @@ use PLS::Parser::Pod::Package;
 use PLS::Parser::Pod::Subroutine;
 use PLS::Parser::Pod::Builtin;
 
+=head1 NAME
+
+PLS::Server::Response::Resolve
+
+=head1 DESCRIPTION
+
+This is a message from the server to the client with documentation
+about the currently selected completion item.
+
+=cut
+
 sub new
 {
     my ($class, $request) = @_;

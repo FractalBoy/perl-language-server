@@ -11,6 +11,18 @@ use Pod::Markdown;
 use PLS::Parser::Pod::Builtin;
 use PLS::Server::State;
 
+=head1 NAME
+
+PLS::Parser::Pod::Subroutine
+
+=head1 DESCRIPTION
+
+This is a subclass of L<PLS::Parser::Pod>, for finding POD for a subroutine.
+This class also might find built-in Perl functions if found and C<include_builtins>
+is set to true.
+
+=cut
+
 sub new
 {
     my ($class, @args) = @_;

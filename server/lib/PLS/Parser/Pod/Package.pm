@@ -5,6 +5,16 @@ use warnings;
 
 use parent 'PLS::Parser::Pod';
 
+=head1 NAME
+
+PLS::Parser::Pod::Package
+
+=head1 DESCRIPTION
+
+This is a subclass of L<PLS::Parser::Pod>, used to find POD for a package.
+
+=cut
+
 sub new
 {
     my ($class, @args) = @_;

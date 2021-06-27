@@ -6,6 +6,18 @@ use warnings;
 use List::Util qw(any first);
 use Scalar::Util qw(blessed);
 
+=head1 NAME
+
+PLS::Parser::Element
+
+=head1 DESCRIPTION
+
+This is an abstraction of a L<PPI::Element> with additional functionality.
+
+=head1 METHODS
+
+=cut
+
 sub new
 {
     my ($class, @args) = @_;
@@ -17,12 +29,24 @@ sub new
     return bless \%self, $class;
 } ## end sub new
 
+=head2 ppi_line_number
+
+This is the line number of the element according to PPI.
+
+=cut
+
 sub ppi_line_number
 {
     my ($self) = @_;
 
     return $self->element->line_number;
 }
+
+=head2 ppi_column_number
+
+This is the column number of the element according to PPI.
+
+=cut
 
 sub ppi_column_number
 {
@@ -31,6 +55,12 @@ sub ppi_column_number
     return $self->element->column_number;
 }
 
+=head2 lsp_line_number
+
+This is the line number of the element according to the Language Server Protocol.
+
+=cut
+
 sub lsp_line_number
 {
     my ($self) = @_;
@@ -38,12 +68,24 @@ sub lsp_line_number
     return $self->ppi_line_number - 1;
 }
 
+=head2 lsp_column_number
+
+This is the column number of the element according to the Language Server Protocol.
+
+=cut
+
 sub lsp_column_number
 {
     my ($self) = @_;
 
     return $self->ppi_column_number - 1;
 }
+
+=head2 location_info
+
+This is information about the location of the element, to be stored in the index.
+
+=cut
 
 sub location_info
 {
@@ -58,6 +100,13 @@ sub location_info
            };
 } ## end sub location_info
 
+=head2 content
+
+This is the content of the element.
+This is the same as L<PPI::Element::content>.
+
+=cut
+
 sub content
 {
     my ($self) = @_;
@@ -65,12 +114,25 @@ sub content
     return $self->element->content;
 }
 
+=head2 name
+
+This is the name of the element.
+This is the same as the result of C<content>, in the base class.
+
+=cut
+
 sub name
 {
     my ($self) = @_;
 
     return $self->content;
 }
+
+=head2 package_name
+
+This finds a package name at the given column number inside this element.
+
+=cut
 
 sub package_name
 {
@@ -123,6 +185,12 @@ sub package_name
     return;
 } ## end sub package_name
 
+=head2 method_name
+
+This finds a method name in the current element.
+
+=cut
+
 sub method_name
 {
     my ($self) = @_;
@@ -138,6 +206,12 @@ sub method_name
 
     return $element->content;
 } ## end sub method_name
+
+=head2 class_method_package_and_name
+
+This finds a class method within the current element and returns the class and method name.
+
+=cut
 
 sub class_method_package_and_name
 {
@@ -156,6 +230,13 @@ sub class_method_package_and_name
 
     return ($element->sprevious_sibling->sprevious_sibling->content, $element->content);
 } ## end sub class_method_package_and_name
+
+=head2 subroutine_package_and_name
+
+This finds a fully qualified function call within this element and returns the package
+and function name.
+
+=cut
 
 sub subroutine_package_and_name
 {
@@ -180,6 +261,12 @@ sub subroutine_package_and_name
     return;
 } ## end sub subroutine_package_and_name
 
+=head2 variable_name
+
+This finds a variable in the current element and returns its name.
+
+=cut
+
 sub variable_name
 {
     my ($self) = @_;
@@ -189,6 +276,12 @@ sub variable_name
 
     return $element->symbol;
 } ## end sub variable_name
+
+=head2 cursor_on_package
+
+This determines if the cursor at the given column number is on a package name.
+
+=cut
 
 sub cursor_on_package
 {
@@ -216,6 +309,12 @@ sub cursor_on_package
 
     return;
 } ## end sub cursor_on_package
+
+=head2 _extract_import
+
+This extracts an import within a C<use> statement, which may be a package or function name.
+
+=cut
 
 sub _extract_import
 {
@@ -250,6 +349,12 @@ sub _extract_import
     return;
 } ## end sub _extract_import
 
+=head2 _get_string_from_list
+
+This finds the string in a list at a given column number.
+
+=cut
+
 sub _get_string_from_list
 {
     my ($element, $column_number) = @_;
@@ -271,6 +376,12 @@ sub _get_string_from_list
         } ## end foreach my $item ($expr->children...)
     } ## end foreach my $expr ($element->...)
 } ## end sub _get_string_from_list
+
+=head2 _get_string_from_qw
+
+This gets a string from a C<qw> quoted list at a given column number.
+
+=cut
 
 sub _get_string_from_qw
 {
@@ -295,6 +406,13 @@ sub _get_string_from_qw
     } ## end foreach my $word (@words)
 } ## end sub _get_string_from_qw
 
+=head2 range
+
+This provides the range where this element is located, in a format the
+Language Server Protocol can understand.
+
+=cut
+
 sub range
 {
     my ($self) = @_;
@@ -315,12 +433,24 @@ sub range
            };
 } ## end sub range
 
+=head2 length
+
+This returns the length of this element.
+
+=cut
+
 sub length
 {
     my ($self) = @_;
 
     return length $self->name;
 }
+
+=head2 parent
+
+This returns the parent element of this element, as a L<PLS::Parser::Element> object.
+
+=cut
 
 sub parent
 {
@@ -330,6 +460,12 @@ sub parent
     return unless $self->element->parent;
     return PLS::Parser::Element->new(file => $self->{file}, element => $self->element->parent);
 } ## end sub parent
+
+=head2 previous_sibling
+
+This returns the previous significant sibling of this element, as a L<PLS::Parser::Element> object.
+
+=cut
 
 sub previous_sibling
 {
@@ -341,6 +477,12 @@ sub previous_sibling
     return $self->{_previous_sibling};
 } ## end sub previous_sibling
 
+=head2 previous_sibling
+
+This returns the next significant sibling of this element, as a L<PLS::Parser::Element> object.
+
+=cut
+
 sub next_sibling
 {
     my ($self) = @_;
@@ -350,6 +492,12 @@ sub next_sibling
     $self->{_next_sibling} = PLS::Parser::Element->new(file => $self->{file}, element => $self->element->snext_sibling);
     return $self->{_next_sibling};
 } ## end sub next_sibling
+
+=head2 children
+
+This returns all of this element's children, as L<PLS::Parser::Element> objects.
+
+=cut
 
 sub children
 {
@@ -361,6 +509,13 @@ sub children
     return @{$self->{_children}};
 } ## end sub children
 
+=head2 tokens
+
+This returns all the tokens in the current element, as L<PLS::Parser::Element> objects.
+Tokens correspond to all of the L<PPI::Token> objects in the current element.
+
+=cut
+
 sub tokens
 {
     my ($self) = @_;
@@ -371,12 +526,24 @@ sub tokens
     return @{$self->{_tokens}};
 } ## end sub tokens
 
+=head2 element
+
+Returns the L<PPI::Element> object for this element.
+
+=cut
+
 sub element
 {
     my ($self) = @_;
 
     return $self->{ppi_element};
 }
+
+=head2 type
+
+Returns the type of L<PPI::Element> that this element is associated with.
+
+=cut
 
 sub type
 {

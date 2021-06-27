@@ -8,6 +8,39 @@ use PLS::Server::Request::Workspace::DidChangeConfiguration;
 use PLS::Server::Request::Workspace::DidChangeWatchedFiles;
 use PLS::Server::Request::Workspace::ExecuteCommand;
 
+=head1 NAME
+
+PLS::Server::Method::Workspace
+
+=head1 DESCRIPTION
+
+This module redirects requests starting with C<workspace/> to the appropriate
+subclass of L<PLS::Server::Request> for the type of request.
+
+Requests currently implemented:
+
+=over
+
+=item workspace/didChangeConfiguration - L<https://microsoft.github.io/language-server-protocol/specifications/specification-current/#workspace_didChangeConfiguration>
+
+L<PLS::Server::Request::Workspace::DidChangeConfiguration>
+
+=item workspace/didChangeWatchedFiles - L<https://microsoft.github.io/language-server-protocol/specifications/specification-current/#workspace_didChangeWatchedFiles>
+
+L<PLS::Server::Request::Workspace::DidChangeWatchedFiles>
+
+=item workspace/configuration - L<https://microsoft.github.io/language-server-protocol/specifications/specification-current/#workspace_configuration>
+
+L<PLS::Server::Request::Workspace::Configuration>
+
+=item workspace/executeCommand - L<https://microsoft.github.io/language-server-protocol/specifications/specification-current/#workspace_executeCommand>
+
+L<PLS::Server::Request::Workspace::ExecuteCommand>
+
+=back
+
+=cut
+
 sub get_request
 {
     my ($request) = @_;

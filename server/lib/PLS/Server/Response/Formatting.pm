@@ -7,6 +7,17 @@ use parent q(PLS::Server::Response);
 
 use PLS::Parser::Document;
 
+=head1 NAME
+
+PLS::Server::Response::Formatting
+
+=head1 DESCRIPTION
+
+This is a message from the server to the client with the current document
+after having been formatted.
+
+=cut
+
 sub new
 {
     my ($class, $request) = @_;

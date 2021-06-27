@@ -12,6 +12,22 @@ use PLS::Parser::Document;
 use PLS::Server::State;
 use PLS::Server::Request::Diagnostics::PublishDiagnostics;
 
+=head1 NAME
+
+PLS::Server::Request::Workspace::Configuration
+
+=head1 DESCRIPTION
+
+This is a message from the server to the client requesting that it send
+the values of some configuration items.
+
+PLS requests all configuration starting with C<perl.>.
+
+This class also handles the response from the client which stores the configuration
+in memory.
+
+=cut
+
 sub new
 {
     my ($class) = @_;

@@ -1,4 +1,17 @@
-package Node;
+package PLS::Node;
+
+use strict;
+use warnings;
+
+=head1 NAME
+
+PLS::Node
+
+=head1 DESCRIPTION
+
+Node within a L<PLS::Trie>.
+
+=cut
 
 sub new
 {
@@ -33,13 +46,36 @@ sub collect
     return \@results;
 } ## end sub collect
 
-package Trie;
+package PLS::Trie;
+
+use strict;
+use warnings;
+
+=head1 NAME
+
+PLS::Trie
+
+=head2 DESCRIPTION
+
+A trie for fast searching of a word by prefix.
+
+=head3 SYNOPSIS
+
+    my $trie = PLS::Trie->new();
+    $trie->insert('me', 'me');
+    $trie->insert('met', 'met');
+    $trie->insert('method', 'method');
+    $trie->find('me') # ['me', 'met', 'method']
+    $trie->find('met') # ['met', 'method']
+    $trie->find('meth') # ['method']
+
+=cut
 
 sub new
 {
     my ($class) = @_;
 
-    my %self = (root => Node->new());
+    my %self = (root => PLS::Node->new());
 
     return bless \%self, $class;
 } ## end sub new
@@ -50,7 +86,7 @@ sub find
 
     my @prefix = split //, $prefix;
     my $node   = $self->_get_node(\@prefix);
-    return unless (ref $node eq 'Node');
+    return unless (ref $node eq 'PLS::Node');
     return $node->collect(\@prefix);
 } ## end sub find
 
@@ -62,7 +98,7 @@ sub _get_node
 
     foreach my $char (@$key)
     {
-        if (ref $node->{children}{$char} eq 'Node')
+        if (ref $node->{children}{$char} eq 'PLS::Node')
         {
             $node = $node->{children}{$char};
         }
@@ -91,9 +127,9 @@ sub insert
 
     foreach my $char (split //, $key)
     {
-        if (ref $node->{children}{$char} ne 'Node')
+        if (ref $node->{children}{$char} ne 'PLS::Node')
         {
-            $node->{children}{$char} = Node->new();
+            $node->{children}{$char} = PLS::Node->new();
         }
 
         $node = $node->{children}{$char};
@@ -109,7 +145,7 @@ sub delete
     my @chars     = split //, $key;
     my $last_char = pop @chars;
     my $node      = $self->_get_node(\@chars);
-    return unless (ref $node eq 'Node');
+    return unless (ref $node eq 'PLS::Node');
     delete $node->{children}{$last_char};
 } ## end sub delete
 

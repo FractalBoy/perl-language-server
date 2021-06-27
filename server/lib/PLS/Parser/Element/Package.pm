@@ -5,6 +5,16 @@ use warnings;
 
 use parent 'PLS::Parser::Element';
 
+=head1 NAME
+
+PLS::Parser::Element::Package
+
+=head2 DESCRIPTION
+
+Subclass of L<PLS::Parser::Element> representing a package declaration.
+
+=cut
+
 sub name
 {
     my ($self) = @_;

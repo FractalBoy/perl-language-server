@@ -7,6 +7,17 @@ use parent 'PLS::Server::Request';
 
 use URI;
 
+=head1 NAME
+
+PLS::Server::Request::Workspace::ApplyEdit
+
+=head1 DESCRIPTION
+
+This is a message from the server to the client requesting that
+an edit be made to one or more sections of one or more documents.
+
+=cut
+
 sub new
 {
     my ($class, %args) = @_;

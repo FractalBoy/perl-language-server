@@ -7,6 +7,17 @@ use parent 'PLS::Server::Request';
 
 use PLS::Server::Response::Cancelled;
 
+=head1 NAME
+
+PLS::Server::Request::CancelRequest
+
+=head1 DESCRIPTION
+
+This is a notification message from the client to the server requesting
+that a request be cancelled.
+
+=cut
+
 sub service
 {
     my ($self, $server) = @_;

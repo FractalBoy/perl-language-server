@@ -16,7 +16,7 @@ use Path::Tiny;
 use Time::Piece;
 use Storable;
 
-use Trie;
+use PLS::Trie;
 
 use constant {INDEX_LOCATION => File::Spec->catfile('.pls_cache', 'index')};
 
@@ -32,8 +32,8 @@ sub new
                 root                     => $args{root},
                 location                 => File::Spec->catfile($args{root}, INDEX_LOCATION),
                 cache                    => {},
-                subs_trie                => Trie->new(),
-                packages_trie            => Trie->new(),
+                subs_trie                => PLS::Trie->new(),
+                packages_trie            => PLS::Trie->new(),
                 last_mtime               => 0,
                 retrieve_index_semaphore => Coro::Semaphore->new()
                );

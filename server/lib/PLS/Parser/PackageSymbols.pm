@@ -6,6 +6,17 @@ use warnings;
 use Fcntl    ();
 use Storable ();
 
+=head1 NAME
+
+PLS::Parser::PackageSymbols
+
+=head1 DESCRIPTION
+
+This package executes a Perl process to import a package and interrogate
+its symbol table to find all of the symbols in the package.
+
+=cut
+
 sub get_package_functions
 {
     my ($package, $inc) = @_;

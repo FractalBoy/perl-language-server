@@ -9,6 +9,19 @@ use PLS::Server::State;
 use PLS::Server::Request::Workspace::Configuration;
 use PLS::Server::Request::Client::RegisterCapability;
 
+=head1 NAME
+
+PLS::Server::Request::Initialized
+
+=head1 DESCRIPTION
+
+This is a request from the client to the server indicating that it received
+the result of the initialize request from the server.
+
+The server sends back some initial requests that it needs to complete initialization.
+
+=cut
+
 sub service
 {
     my ($self, $server) = @_;

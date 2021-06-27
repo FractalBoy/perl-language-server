@@ -5,6 +5,17 @@ use warnings;
 
 use parent q(PLS::Server::Response);
 
+=head1 NAME
+
+PLS::Server::Response::ServerNotInitialized
+
+=head1 DESCRIPTION
+
+This is an error sent from the server to the client indicating that the
+client sent a request before the server was initialized.
+
+=cut
+
 sub new
 {
     my ($class, $request) = @_;

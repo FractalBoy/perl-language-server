@@ -5,6 +5,16 @@ use warnings;
 
 use parent 'PLS::Parser::Pod';
 
+=head1 NAME
+
+PLS::Parser::Pod::Builtin
+
+=head1 DESCRIPTION
+
+This attempts to find POD for a Perl builtin functions or keywords.
+
+=cut
+
 sub new
 {
     my ($class, @args) = @_;

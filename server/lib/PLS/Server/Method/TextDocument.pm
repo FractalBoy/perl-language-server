@@ -15,6 +15,67 @@ use PLS::Server::Request::TextDocument::Hover;
 use PLS::Server::Request::TextDocument::SignatureHelp;
 use PLS::Server::Request::TextDocument::RangeFormatting;
 
+=head1 NAME
+
+PLS::Server::Method::Workspace
+
+=head1 DESCRIPTION
+
+This module redirects requests starting with C<textDocument/> to the appropriate
+subclass of L<PLS::Server::Request> for the type of request.
+
+Requests currently implemented:
+
+=over
+
+=item textDocument/definition - L<https://microsoft.github.io/language-server-protocol/specifications/specification-current/#textDocument_definition>
+
+L<PLS::Server::Request::TextDocument::Definition>
+
+=item textDocument/documentSymbol - L<https://microsoft.github.io/language-server-protocol/specifications/specification-current/#textDocument_documentSymbol>
+
+L<PLS::Server::Request::TextDocument::DocumentSymbol>
+
+=item textDocument/hover - L<https://microsoft.github.io/language-server-protocol/specifications/specification-current/#textDocument_hover>
+
+L<PLS::Server::Request::TextDocument::Hover>
+
+=item textDocument/signatureHelp - L<https://microsoft.github.io/language-server-protocol/specifications/specification-current/#textDocument_signatureHelp>
+
+L<PLS::Server::Request::TextDocument::SignatureHelp>
+
+=item textDocument/didOpen - L<https://microsoft.github.io/language-server-protocol/specifications/specification-current/#textDocument_didOpen>
+
+L<PLS::Server::Request::TextDocument::DidOpen>
+
+=item textDocument/didChange - L<https://microsoft.github.io/language-server-protocol/specifications/specification-current/#textDocument_didChange>
+
+L<PLS::Server::Request::TextDocument::DidChange>
+
+=item textDocument/didClose - L<https://microsoft.github.io/language-server-protocol/specifications/specification-current/#textDocument_didClose>
+
+L<PLS::Server::Request::TextDocument::DidClose>
+
+=item textDocument/didSave - L<https://microsoft.github.io/language-server-protocol/specifications/specification-current/#textDocument_didSave>
+
+L<PLS::Server::Request::TextDocument::DidSave>
+
+=item textDocument/formatting - L<https://microsoft.github.io/language-server-protocol/specifications/specification-current/#textDocument_formatting>
+
+L<PLS::Server::Request::TextDocument::Formatting>
+
+=item textDocument/rangeFormatting - L<https://microsoft.github.io/language-server-protocol/specifications/specification-current/#textDocument_rangeFormatting>
+
+L<PLS::Server::Request::TextDocument::RangeFormatting>
+
+=item textDocument/completion - L<https://microsoft.github.io/language-server-protocol/specifications/specification-current/#textDocument_completion>
+
+L<PLS::Server::Request::TextDocument::Completion>
+
+=back
+
+=cut
+
 sub get_request
 {
     my ($request) = @_;

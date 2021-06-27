@@ -12,6 +12,19 @@ use Path::Tiny;
 use PLS::Parser::Document;
 use PLS::Server::Request::Diagnostics::PublishDiagnostics;
 
+=head1 NAME
+
+PLS::Server::Request::Workspace::DidChangeWatchedFiles
+
+=head1 DESCRIPTION
+
+This is a notification from the client to the server indicating
+that one or more files that the server watched have changed.
+
+The server queues up these files to be re-indexed.
+
+=cut
+
 sub service
 {
     my ($self, $server) = @_;

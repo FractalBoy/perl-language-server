@@ -14,6 +14,17 @@ use constant {
               CONSTANT => 14
              };
 
+=head1 NAME
+
+PLS::Parser::DocumentSymbols
+
+=head1 DESCRIPTION
+
+This class parses a document to find all symbols.
+It returns a hierachy of the symbols, so that a tree structure can be displayed.
+
+=cut
+
 sub new
 {
     my ($class, $uri) = @_;
