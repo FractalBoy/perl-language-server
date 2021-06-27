@@ -5,7 +5,7 @@ use warnings;
 
 =head1 NAME
 
-PLS::Node
+PLS::Trie::Node
 
 =head1 DESCRIPTION
 

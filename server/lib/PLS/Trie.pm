@@ -3,6 +3,8 @@ package PLS::Trie;
 use strict;
 use warnings;
 
+use PLS::Trie::Node;
+
 =head1 NAME
 
 PLS::Trie
@@ -27,7 +29,7 @@ sub new
 {
     my ($class) = @_;
 
-    my %self = (root => PLS::Node->new());
+    my %self = (root => PLS::Trie::Node->new());
 
     return bless \%self, $class;
 } ## end sub new
@@ -38,7 +40,7 @@ sub find
 
     my @prefix = split //, $prefix;
     my $node   = $self->_get_node(\@prefix);
-    return unless (ref $node eq 'PLS::Node');
+    return unless (ref $node eq 'PLS::Trie::Node');
     return $node->collect(\@prefix);
 } ## end sub find
 
@@ -50,7 +52,7 @@ sub _get_node
 
     foreach my $char (@$key)
     {
-        if (ref $node->{children}{$char} eq 'PLS::Node')
+        if (ref $node->{children}{$char} eq 'PLS::Trie::Node')
         {
             $node = $node->{children}{$char};
         }
@@ -79,9 +81,9 @@ sub insert
 
     foreach my $char (split //, $key)
     {
-        if (ref $node->{children}{$char} ne 'PLS::Node')
+        if (ref $node->{children}{$char} ne 'PLS::Trie::Node')
         {
-            $node->{children}{$char} = PLS::Node->new();
+            $node->{children}{$char} = PLS::Trie::Node->new();
         }
 
         $node = $node->{children}{$char};
@@ -97,7 +99,7 @@ sub delete
     my @chars     = split //, $key;
     my $last_char = pop @chars;
     my $node      = $self->_get_node(\@chars);
-    return unless (ref $node eq 'PLS::Node');
+    return unless (ref $node eq 'PLS::Trie::Node');
     delete $node->{children}{$last_char};
 } ## end sub delete
 
