@@ -20,13 +20,8 @@ The features currently implemented are:
 
 ## Installation
 
-This Visual Studio Code extension is not anywhere, so you will need to perform some manual steps in order to use it.
-
-1. Install node and npm
-2. `npm install -g vsce`
-3. Change into the client directory and run `vsce package`. Install the resulting vsix file to VSCode.
-4. Either add the pls script (located in server/bin) to your PATH or change the extension configuration to point to the location of the script (using the `perl.pls` setting).
-
+1. Install the fractalboy.pls extension in Visual Studio Code: https://marketplace.visualstudio.com/items?itemName=FractalBoy.pls
+2. Install the PLS package from CPAN:
 
 ## Configuration
 
