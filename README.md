@@ -21,7 +21,7 @@ The features currently implemented are:
 ## Installation
 
 1. Install the fractalboy.pls extension in Visual Studio Code: https://marketplace.visualstudio.com/items?itemName=FractalBoy.pls
-2. Install the PLS package from CPAN:
+2. Install the PLS package from CPAN: `cpanm PLS`
 
 ## Configuration
 
