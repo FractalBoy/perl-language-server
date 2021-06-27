@@ -1,6 +1,7 @@
 LICENSE
 Makefile.PL
 MANIFEST
+README.pod
 bin/pls
 lib/PLS.pm
 lib/PLS/Trie.pm
