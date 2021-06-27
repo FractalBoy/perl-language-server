@@ -24,7 +24,7 @@ Perl Language Server
 
 This server communicates to a language client through STDIN/STDOUT.
 
-=head2 SYNOPSIS
+=head1 SYNOPSIS
 
     my $server = PLS::Server->new();
     $server->run() # never returns

@@ -55,11 +55,11 @@ use warnings;
 
 PLS::Trie
 
-=head2 DESCRIPTION
+=head1 DESCRIPTION
 
 A trie for fast searching of a word by prefix.
 
-=head3 SYNOPSIS
+=head1 SYNOPSIS
 
     my $trie = PLS::Trie->new();
     $trie->insert('me', 'me');

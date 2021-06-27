@@ -11,7 +11,7 @@ use List::Util qw(any);
 
 PLS::Parser::Element::Subroutine
 
-=head2 DESCRIPTION
+=head1 DESCRIPTION
 
 Subclass of L<PLS::Parser::Element> representing a subroutine declaration.
 

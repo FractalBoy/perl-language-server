@@ -22,6 +22,17 @@ use constant {INDEX_LOCATION => File::Spec->catfile('.pls_cache', 'index')};
 
 my $indexing_semaphore = Coro::Semaphore->new();
 
+=head1 NAME
+
+PLS::Parser::Index
+
+=head1 DESCRIPTION
+
+This class caches and stores indexed data about the workspace.
+It is used for quick searching of subroutines and packages by name.
+
+=cut
+
 sub new
 {
     my ($class, @args) = @_;

@@ -9,7 +9,7 @@ use parent 'PLS::Parser::Element';
 
 PLS::Parser::Element::Package
 
-=head2 DESCRIPTION
+=head1 DESCRIPTION
 
 Subclass of L<PLS::Parser::Element> representing a package declaration.
 
