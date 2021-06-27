@@ -19,5 +19,6 @@ WriteMakefile(
         'PPI' => 1.264,
         'PPR' => 0.000028,
         'URI' => 1.76
-    }
+    },
+    TESTS => 't/*.t'
 );
