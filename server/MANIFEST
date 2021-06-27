@@ -1,3 +1,4 @@
+LICENSE
 Makefile.PL
 MANIFEST
 bin/pls
@@ -63,3 +64,4 @@ lib/PLS/Server/Request/TextDocument/SignatureHelp.pm
 lib/PLS/Server/Request/TextDocument/Hover.pm
 lib/PLS/Server/Request/Initialize.pm
 lib/PLS/Server.pm
+t/00compile.t
