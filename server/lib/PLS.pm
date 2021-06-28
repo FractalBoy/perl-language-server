@@ -3,7 +3,7 @@ package PLS;
 use strict;
 use warnings;
 
-our $VERSION = '0.6';
+our $VERSION = '0.7';
 
 =head1 NAME
 

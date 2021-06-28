@@ -45,3 +45,5 @@ sub collect
 
     return \@results;
 } ## end sub collect
+
+1;
