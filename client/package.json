@@ -31,14 +31,14 @@
           "description": "Path to the pls executable script"
         },
         "perl.syntax.enabled": {
-            "type": "boolean",
-            "default": true,
-            "description": "Enable syntax checking"
+          "type": "boolean",
+          "default": true,
+          "description": "Enable syntax checking"
         },
         "perl.syntax.perl": {
-            "type": "string",
-            "default": "",
-            "description": "Path to the perl binary to use for syntax checking"
+          "type": "string",
+          "default": "",
+          "description": "Path to the perl binary to use for syntax checking"
         },
         "perl.perltidyrc": {
           "type": "string",
