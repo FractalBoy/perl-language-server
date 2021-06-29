@@ -118,9 +118,10 @@ sub index_files
 
     $loop->add($function);
 
-    $function->call()->on_result(
+    $function->call(args =>[], on_result =>
         sub {
             my ($result, $cache, $last_mtime) = @_;
+
             if ($result eq 'return')
             {
                 $self->{cache}      = $cache;
@@ -281,7 +282,7 @@ sub cleanup_old_files
     );
 
     $loop->add($function);
-    $function->call()->on_result(
+    $function->call(args => [], on_result =>
         sub {
             my ($result, $cache, $last_mtime) = @_;
             if ($result eq 'return')

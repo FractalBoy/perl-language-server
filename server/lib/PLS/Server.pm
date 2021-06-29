@@ -5,6 +5,7 @@ use warnings;
 
 use IO::Async::Loop;
 use IO::Async::Stream;
+use IO::Handle;
 use JSON::PP;
 use Scalar::Util qw(blessed);
 
@@ -45,16 +46,20 @@ sub run
 {
     my ($self) = @_;
 
+    STDOUT->blocking(0);
+
     $self->{stream} = IO::Async::Stream->new_for_stdio(
+        autoflush => 1,
         on_read => sub {
             my ($stream, $buffref, $eof) = @_;
 
             return 0 if ($$buffref !~ /\r\n\r\n/);
 
-            my ($headers) = $$buffref =~ s/^(.*)\r\n\r\n//s;
+            my ($headers) = $$buffref =~ /^(.*)\r\n\r\n/sm;
+            $$buffref =~ s/^.*\r\n\r\n//;
             my %headers   = map { split /: /, $_ } split /\r\n/, $headers;
 
-            return 0 if (length $$buffref < $headers{'Content-Length'});
+            return 0 if (length($$buffref) < $headers{'Content-Length'});
 
             my $json    = substr $$buffref, 0, $headers{'Content-Length'}, '';
             my $content = JSON::PP->new->utf8->decode($json);
@@ -79,12 +84,12 @@ sub handle_client_message
     if (length $message->{method})
     {
         my $request = PLS::Server::Request::Factory->new($message);
-        my $future  = $loop->later();
+        my $future  = $self->{loop}->later();
 
         $future->on_done(
             sub {
                 my $response = $request->service($self);
-                $loop->add($self->send_message($response));
+               $self->send_message($response);
             }
         );
 
@@ -94,11 +99,11 @@ sub handle_client_message
     {
         my $response = PLS::Server::Response->new($message);
 
-        $loop->later(
+        $self->{loop}->later(
             sub {
                 my $request = $self->{pending_requests}{$response->{id}};
                 return if (not blessed($request) or not $request->isa('PLS::Server::Request'));
-                $loop->later(sub { $request->handle_response($response) });
+                $self->{loop}->later(sub { $request->handle_response($response) });
             }
         );
     } ## end else [ if (length $message->{...})]
@@ -110,7 +115,7 @@ sub send_message
 {
     my ($self, $message) = @_;
 
-    return $self->{stream}->write($message->serialize(), autoflush => 1);
+    return $self->{stream}->write($message->serialize());
 }
 
 sub send_server_request
