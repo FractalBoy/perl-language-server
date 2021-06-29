@@ -63,6 +63,8 @@ sub get_compilation_errors
 {
     my ($path) = @_;
 
+    return [] unless $PLS::Server::State::CONFIG->{syntax}{enabled};
+
     my $inc = PLS::Parser::Pod->get_clean_inc();
     my @inc = map { "-I$_" } @{$inc // []};
 
@@ -77,7 +79,9 @@ sub get_compilation_errors
 
     waitpid $pid, 0;
 
-    $pid = open3 my $in, my $out, my $err = gensym, $^X, @inc, '-c', $path or return [];
+    my $perl = $PLS::Server::State::CONFIG->{syntax}{perl};
+    $perl = $^X unless (length $perl);
+    $pid = open3 my $in, my $out, my $err = gensym, $perl, @inc, '-c', $path or return [];
     close $in;
     close $out;
 
