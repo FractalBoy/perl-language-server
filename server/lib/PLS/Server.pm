@@ -4,6 +4,7 @@ use strict;
 use warnings;
 
 use IO::Async::Loop;
+use IO::Async::Signal;
 use IO::Async::Stream;
 use IO::Handle;
 use JSON::PP;
@@ -53,6 +54,8 @@ sub run
         on_read => sub {
             my ($stream, $buffref, $eof) = @_;
 
+            warn "on_read called\n";
+
             return 0 if ($$buffref !~ /\r\n\r\n/);
 
             my ($headers) = $$buffref =~ /^(.*)\r\n\r\n/sm;
@@ -71,6 +74,8 @@ sub run
     );
 
     $self->{loop}->add($self->{stream});
+    $self->{loop}->add(IO::Async::Signal->new(name => 'INT', on_receipt => sub {$self->{loop}->stop() }));
+    $self->{loop}->add(IO::Async::Signal->new(name => 'TERM', on_receipt => sub {$self->{loop}->stop() }));
 
     $self->{loop}->loop_forever();
 
@@ -88,8 +93,9 @@ sub handle_client_message
 
         $future->on_done(
             sub {
+                warn "running request $request->{id}\n";
                 my $response = $request->service($self);
-               $self->send_message($response);
+                $self->send_message($response);
             }
         );
 
@@ -115,7 +121,8 @@ sub send_message
 {
     my ($self, $message) = @_;
 
-    return $self->{stream}->write($message->serialize());
+    warn "sending response ". $message->serialize() . "\n";
+    return $self->{stream}->write($message->serialize(), on_write => sub { my (undef, $len) = @_; warn "wrote $len bytes\n"; }, on_flush => sub { warn "flushed data\n" });
 }
 
 sub send_server_request
