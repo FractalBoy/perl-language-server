@@ -5,7 +5,6 @@ use warnings;
 
 use parent 'PLS::Server::Request';
 
-use Coro;
 use Scalar::Util;
 
 use PLS::Parser::Document;
@@ -69,7 +68,7 @@ sub handle_response
     # @INC may have changed - republish diagnostics
     foreach my $uri (@{PLS::Parser::Document->open_files()})
     {
-        $server->{server_requests}->put(PLS::Server::Request::Diagnostics::PublishDiagnostics->new(uri => $uri));
+        $server->send_server_request(PLS::Server::Request::Diagnostics::PublishDiagnostics->new(uri => $uri));
     }
 
     return;

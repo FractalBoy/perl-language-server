@@ -27,10 +27,10 @@ sub service
     my ($self, $server) = @_;
 
     # now that we're initialized, put in a request for our configuration items.
-    $server->{server_requests}->put(PLS::Server::Request::Workspace::Configuration->new);
+    $server->send_server_request(PLS::Server::Request::Workspace::Configuration->new());
 
     # also start watching all files
-    $server->{server_requests}->put(
+    $server->send_server_request(
                                     PLS::Server::Request::Client::RegisterCapability->new(
                                                                                           [
                                                                                            {

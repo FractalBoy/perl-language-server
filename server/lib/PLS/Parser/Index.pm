@@ -4,13 +4,13 @@ use strict;
 use warnings;
 use feature 'state';
 
-use Coro;
-use Coro::AnyEvent;
 use File::Find;
 use File::Path;
 use File::stat;
 use File::Spec;
 use FindBin;
+use IO::Async::Loop;
+use IO::Async::Function;
 use List::Util qw(all any);
 use Path::Tiny;
 use Time::Piece;
@@ -19,8 +19,6 @@ use Storable;
 use PLS::Trie;
 
 use constant {INDEX_LOCATION => File::Spec->catfile('.pls_cache', 'index')};
-
-my $indexing_semaphore = Coro::Semaphore->new();
 
 =head1 NAME
 
@@ -40,13 +38,12 @@ sub new
     my %args = @args;
 
     my %self = (
-                root                     => $args{root},
-                location                 => File::Spec->catfile($args{root}, INDEX_LOCATION),
-                cache                    => {},
-                subs_trie                => PLS::Trie->new(),
-                packages_trie            => PLS::Trie->new(),
-                last_mtime               => 0,
-                retrieve_index_semaphore => Coro::Semaphore->new()
+                root          => $args{root},
+                location      => File::Spec->catfile($args{root}, INDEX_LOCATION),
+                cache         => {},
+                subs_trie     => PLS::Trie->new(),
+                packages_trie => PLS::Trie->new(),
+                last_mtime    => 0
                );
 
     return bless \%self, $class;
@@ -75,55 +72,66 @@ sub index_files
 {
     my ($self, @files) = @_;
 
-    async
-    {
-        my ($self, @files) = @_;
+    state $indexing_running = 0;
 
-        my $lock  = $self->lock();
-        my $index = $self->index();
+    return if $indexing_running;
+    $indexing_running = 1;
 
-        unless (scalar @files)
-        {
-            @files = @{$self->get_all_perl_files()};
-            $self->_cleanup_old_files($index);
-            @files = grep { not exists $index->{files}{$_}{last_mtime} or not length $index->{files}{$_}{last_mtime} and $index->{files}{$_}{last_mtime} < stat($_)->mtime } @files;
-        } ## end unless (scalar @files)
+    my $loop = IO::Async::Loop->new();
+    my $function = IO::Async::Function->new(
+        code => sub {
+            my $index = $self->index();
 
-        my $total   = scalar @files;
-        my $current = 0;
+            unless (scalar @files)
+            {
+                @files = @{$self->get_all_perl_files()};
+                $self->_cleanup_old_files($index);
+                @files = grep { not exists $index->{files}{$_}{last_mtime} or not length $index->{files}{$_}{last_mtime} and $index->{files}{$_}{last_mtime} < stat($_)->mtime } @files;
+            } ## end unless (scalar @files)
 
-        foreach my $file (@files)
-        {
-            $current++;
+            my $total   = scalar @files;
+            my $current = 0;
 
-            open my $fh, '<', $file or next;
-            my $text     = do { local $/; <$fh> };
-            my $document = PLS::Parser::Document->new(path => $file, text => \$text, no_cache => 1);
-            next unless (ref $document eq 'PLS::Parser::Document');
+            foreach my $file (@files)
+            {
+                $current++;
 
-            Coro::AnyEvent::sleep 0.01;
+                open my $fh, '<', $file or next;
+                my $text     = do { local $/; <$fh> };
+                my $document = PLS::Parser::Document->new(path => $file, text => \$text, no_cache => 1);
+                next unless (ref $document eq 'PLS::Parser::Document');
 
-            my $log_message = "Indexing $file";
-            $log_message .= " ($current/$total)" if (scalar @files > 1);
-            $log_message .= '...';
+                my $log_message = "Indexing $file";
+                $log_message .= " ($current/$total)" if (scalar @files > 1);
+                $log_message .= '...';
 
-            $self->log($log_message);
+                $self->log($log_message);
 
-            $self->update_subroutines($index, $document);
-            Coro::AnyEvent::sleep 0.01;
-            $self->update_packages($index, $document);
-            Coro::AnyEvent::sleep 0.01;
-        } ## end foreach my $file (@files)
+                $self->update_subroutines($index, $document);
+                $self->update_packages($index, $document);
+            } ## end foreach my $file (@files)
 
-        $self->save($index);
-    } ## end async
-    $self, @files;
+            $self->save($index);
+            return $self->{cache}, $self->{last_mtime};
+        }
+    );
+
+    $loop->add($function);
+
+    $function->call()->on_result(
+        sub {
+            my ($result, $cache, $last_mtime) = @_;
+            if ($result eq 'return')
+            {
+                $self->{cache}      = $cache;
+                $self->{last_mtime} = $last_mtime;
+            }
+            $indexing_running = 0;
+        }
+    );
+
+    return;
 } ## end sub index_files
-
-sub lock
-{
-    return $indexing_semaphore->guard();
-}
 
 sub save
 {
@@ -135,6 +143,8 @@ sub save
     Storable::nstore($index, $self->{location});
     $self->{cache}      = $index;
     $self->{last_mtime} = (stat $self->{location})->mtime;
+
+    return;
 } ## end sub save
 
 sub index
@@ -143,8 +153,6 @@ sub index
 
     return {} unless -f $self->{location};
 
-    # Don't have two coroutines retrieving the index at the same time
-    my $guard = $self->{retrieve_index_semaphore}->guard();
     my $mtime = (stat $self->{location})->mtime;
     return $self->{cache} if ($mtime <= $self->{last_mtime});
 
@@ -163,6 +171,7 @@ sub update_subroutines
 
     $self->cleanup_index($index, 'subs', $document->{path});
     $self->update_index($index, 'subs', $document->{path}, @$subroutines, @$constants);
+    return;
 } ## end sub update_subroutines
 
 sub update_packages
@@ -174,6 +183,7 @@ sub update_packages
     $self->cleanup_index($index, 'packages', $document->{path});
     return unless (ref $packages eq 'ARRAY');
     $self->update_index($index, 'packages', $document->{path}, @$packages);
+    return;
 } ## end sub update_packages
 
 sub cleanup_index
@@ -203,6 +213,8 @@ sub cleanup_index
     {
         $index->{files}{$file}{$type} = [];
     }
+
+    return;
 } ## end sub cleanup_index
 
 sub update_index
@@ -243,19 +255,45 @@ sub update_index
     } ## end foreach my $reference (@references...)
 
     $index->{files}{$file}{last_mtime} = $stat->mtime;
+
+    return;
 } ## end sub update_index
 
 sub cleanup_old_files
 {
     my ($self) = @_;
 
-    async
-    {
-        my $lock  = $self->lock();
-        my $index = $self->index();
-        $self->_cleanup_old_files($index);
-        $self->save($index);
-    } ## end async
+    state $cleaning_up = 0;
+
+    return if $cleaning_up;
+
+    $cleaning_up = 1;
+
+    my $loop = IO::Async::Loop->new();
+    my $function = IO::Async::Function->new(
+        code => sub {
+            my $lock  = $self->lock();
+            my $index = $self->index();
+            $self->_cleanup_old_files($index);
+            $self->save($index);
+            return $self->{cache}, $self->{last_mtime};
+        }
+    );
+
+    $loop->add($function);
+    $function->call()->on_result(
+        sub {
+            my ($result, $cache, $last_mtime) = @_;
+            if ($result eq 'return')
+            {
+                $self->{cache}      = $cache;
+                $self->{last_mtime} = $last_mtime;
+            }
+            $cleaning_up = 0;
+        }
+    );
+
+    return;
 } ## end sub cleanup_old_files
 
 sub _cleanup_old_files
@@ -304,10 +342,10 @@ sub _cleanup_old_files
             @{$index->{$type}{$ref}} = grep { -e $_->{file} } @{$index->{$type}{$ref}};
             my $count_after = scalar @{$index->{$type}{$ref}};
             $refs_cleaned++ if ($count_after < $count_before);
-        }
+        } ## end foreach my $ref (keys %{$index...})
 
         $self->log("Cleaning up $type references from index...") if ($refs_cleaned);
-    }
+    } ## end foreach my $type (keys %{$index...})
 } ## end sub _cleanup_old_files
 
 sub find_package_subroutine

@@ -25,7 +25,7 @@ sub service
 {
     my ($self, $server) = @_;
 
-    $server->{server_requests}->put(PLS::Server::Request::Workspace::Configuration->new());
+    $server->send_server_request(PLS::Server::Request::Workspace::Configuration->new());
 }
 
 1;

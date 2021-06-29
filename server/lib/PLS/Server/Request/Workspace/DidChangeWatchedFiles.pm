@@ -5,7 +5,6 @@ use warnings;
 
 use parent 'PLS::Server::Request';
 
-use Coro;
 use List::Util qw(any uniq);
 use Path::Tiny;
 
