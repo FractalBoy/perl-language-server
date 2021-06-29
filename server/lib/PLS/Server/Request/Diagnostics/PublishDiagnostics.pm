@@ -43,7 +43,7 @@ sub new
 
     if (not $args{close})
     {
-        @diagnostics = (@{get_compilation_errors($path)});
+        push @diagnostics, @{get_compilation_errors($path)} if $PLS::Server::State::CONFIG->{syntax}{enabled};
         push @diagnostics, @{get_perlcritic_errors($path)} if $PLS::Server::State::CONFIG->{perlcritic}{enabled};
     }
 
@@ -62,8 +62,6 @@ sub new
 sub get_compilation_errors
 {
     my ($path) = @_;
-
-    return [] unless $PLS::Server::State::CONFIG->{syntax}{enabled};
 
     my $inc = PLS::Parser::Pod->get_clean_inc();
     my @inc = map { "-I$_" } @{$inc // []};
