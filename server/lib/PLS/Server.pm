@@ -95,8 +95,25 @@ sub handle_client_message
         }
 
         return if (not blessed($request) or not $request->isa('PLS::Server::Request'));
-        my $response = $request->service($self);
-        $self->send_message($response);
+
+        if ($PLS::Server::State::INITIALIZED)
+        {
+            my $future = $self->{loop}->later();
+
+            $future->on_done(
+                sub {
+                    my $response = $request->service($self);
+                    $self->send_message($response);
+                }
+            );
+
+            $self->{running_futures}{$request->{id}} = $future;
+        } ## end if ($PLS::Server::State::INITIALIZED...)
+        else
+        {
+            my $response = $request->service($self);
+            $self->send_message($response);
+        }
     } ## end if (length $message->{...})
     else
     {
