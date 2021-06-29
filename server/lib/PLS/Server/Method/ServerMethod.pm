@@ -7,6 +7,7 @@ use PLS::Server::State;
 use PLS::Server::Request::Initialize;
 use PLS::Server::Request::Initialized;
 use PLS::Server::Request::CancelRequest;
+use PLS::Server::Response::ServerNotInitialized;
 
 =head1 NAME
 
