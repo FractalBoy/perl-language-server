@@ -43,7 +43,7 @@ sub new
 
     if (not $args{close})
     {
-        @diagnostics = (@{get_compilation_errors($path)});
+        push @diagnostics, @{get_compilation_errors($path)} if $PLS::Server::State::CONFIG->{syntax}{enabled};
         push @diagnostics, @{get_perlcritic_errors($path)} if $PLS::Server::State::CONFIG->{perlcritic}{enabled};
     }
 
@@ -77,7 +77,9 @@ sub get_compilation_errors
 
     waitpid $pid, 0;
 
-    $pid = open3 my $in, my $out, my $err = gensym, $^X, @inc, '-c', $path or return [];
+    my $perl = $PLS::Server::State::CONFIG->{syntax}{perl};
+    $perl = $^X unless (length $perl);
+    $pid = open3 my $in, my $out, my $err = gensym, $perl, @inc, '-c', $path or return [];
     close $in;
     close $out;
 
