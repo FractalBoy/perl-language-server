@@ -5,6 +5,8 @@ use warnings;
 
 use parent 'PLS::Server::Request';
 
+use Scalar::Util qw(blessed);
+
 use PLS::Server::Response::Cancelled;
 
 =head1 NAME
@@ -23,13 +25,13 @@ sub service
     my ($self, $server) = @_;
 
     my $id = $self->{params}{id};
-    return unless (exists $server->{running_coros}{$id});
-    my $request_to_cancel = $server->{running_coros}{$id};
+    return unless (exists $server->{running_futures}{$id});
+    my $request_to_cancel = $server->{running_futures}{$id};
 
-    return unless (blessed($request_to_cancel) and $request_to_cancel->isa('Coro'));
-    eval { $request_to_cancel->safe_cancel() };
+    return unless (blessed($request_to_cancel) and $request_to_cancel->isa('Future'));
+    $request_to_cancel->cancel();
 
-    delete $server->{running_coros}{$id};
+    delete $server->{running_futures}{$id};
 
     return PLS::Server::Response::Cancelled->new(id => $id);
 } ## end sub service

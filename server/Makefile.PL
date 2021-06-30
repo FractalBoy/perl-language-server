@@ -11,8 +11,7 @@ WriteMakefile(
               LICENSE          => 'perl_5',
               MIN_PERL_VERSION => 5.032000,
               PREREQ_PM        => {
-                            'AnyEvent'      => 7.15,
-                            'Coro'          => 6.54,
+                            'IO::Async'     => 0.78,
                             'Path::Tiny'    => 0.114,
                             'Perl::Critic'  => 1.138,
                             'Perl::Tidy'    => 20210402,

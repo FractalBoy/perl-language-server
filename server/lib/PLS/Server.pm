@@ -3,12 +3,11 @@ package PLS::Server;
 use strict;
 use warnings;
 
-use AnyEvent;
-use AnyEvent::Loop;
-use Coro;
-use Coro::Channel;
+use IO::Async::Loop;
+use IO::Async::Signal;
+use IO::Async::Stream;
+use IO::Handle;
 use JSON::PP;
-use List::Util qw(first);
 use Scalar::Util qw(blessed);
 
 use PLS::Server::Request::Factory;
@@ -35,155 +34,146 @@ sub new
 {
     my ($class) = @_;
 
-    return bless {}, $class;
-}
-
-sub recv
-{
-    my ($self) = @_;
-
-    my %headers;
-    my $line;
-    my $buffer;
-
-    while (sysread STDIN, $buffer, 1)
-    {
-        $line .= $buffer;
-        last if $line eq "\r\n";
-        next unless $line =~ /\r\n$/;
-        $line =~ s/^\s+|\s+$//g;
-        my ($field, $value) = split /: /, $line;
-        $headers{$field} = $value;
-        $line = '';
-    } ## end while (sysread STDIN, $buffer...)
-
-    my $size = $headers{'Content-Length'};
-    die 'no Content-Length header provided' unless $size;
-
-    my $raw;
-    my $bytes_read = -1;
-    my $total_read = 0;
-
-    while ($bytes_read)
-    {
-        $bytes_read = sysread STDIN, $raw, $size - $total_read, $total_read;
-        die "failed to read: $!" unless (defined $bytes_read);
-
-        $total_read += $bytes_read;
-    } ## end while ($bytes_read)
-
-    die 'content length does not match header' if ($total_read != $size);
-    my $content = decode_json $raw;
-
-    if (length $content->{method})
-    {
-        return PLS::Server::Request::Factory->new($content);
-    }
-    else
-    {
-        return PLS::Server::Response->new($content);
-    }
-} ## end sub recv
-
-sub send
-{
-    my ($self, $response) = @_;
-
-    my $json = $response->serialize;
-    my $size = length $json;
-
-    syswrite STDOUT, "Content-Length: $size\r\n\r\n$json";
-} ## end sub send
+    return
+      bless {
+             loop             => IO::Async::Loop->new(),
+             stream           => undef,
+             running_futures  => {},
+             pending_requests => {}
+            }, $class;
+} ## end sub new
 
 sub run
 {
     my ($self) = @_;
 
-    my $client_requests  = Coro::Channel->new;
-    my $server_responses = Coro::Channel->new;
-    my $server_requests  = Coro::Channel->new;
-    my $client_responses = Coro::Channel->new;
+    STDOUT->blocking(0);
 
-    $self->{server_requests} = $server_requests;
-    $self->{running_coros}   = {};
+    $self->{stream} = IO::Async::Stream->new_for_stdio(
+        autoflush => 1,
+        on_read   => sub {
+            my $line = '';
+            my @lines;
 
-    my $last_request_id = 0;
-    my @pending_requests;
+            return sub {
+                my ($stream, $buffref, $eof) = @_;
 
-    async
-    {
-        # check for requests and service them
-        while (my $request = $client_requests->get)
-        {
-            my $coro = async
-            {
-                my $response = $request->service($self);
-                delete $self->{running_coros}{$request->{id}} if (length $request->{id});
-                return                                        if (not blessed($response) or not $response->isa('PLS::Server::Response'));
-                $server_responses->put($response);
-            };
+                exit if $eof;
 
-            $self->{running_coros}{$request->{id}} = $coro if (length $request->{id});
+                $line .= substr $$buffref, 0, 1, '';
 
-            Coro::cede();
-        } ## end while (my $request = $client_requests...)
-    };
+                if ($line eq "\r\n")
+                {
+                    my %headers = map { split /: / } @lines;
 
-    async
-    {
-        # check for responses and send them
-        while (my $response = $server_responses->get)
-        {
-            async { $self->send($response) };
-            Coro::cede();
-        }
-    };
+                    return sub {
+                        my ($stream, $buffref, $eof) = @_;
 
-    async
-    {
-        while (my $request = $server_requests->get)
-        {
-            if ($request->{notification})
-            {
-                delete $request->{notification};
+                        exit if $eof;
+
+                        my $size = $headers{'Content-Length'};
+                        die 'no Content-Length header provided' unless $size;
+
+                        return 0 if (length($$buffref) < $size);
+
+                        my $json    = substr $$buffref, 0, $size, '';
+                        my $content = JSON::PP->new->utf8->decode($json);
+
+                        $self->handle_client_message($content);
+                        return;
+                    }
+                } ## end if ($line eq "\r\n")
+                if ($line =~ /\r\n$/)
+                {
+                    $line =~ s/^\s+|\s+$//g;
+                    push @lines, $line;
+                    $line = '';
+                } ## end if ($line =~ /\r\n$/)
+
+                return 1;
             }
-            else
-            {
-                $request->{id} = ++$last_request_id;
-                push @pending_requests, $request;
-            }
-
-            async { $self->send($request) };
-            Coro::cede();
-        } ## end while (my $request = $server_requests...)
-    };
-
-    async
-    {
-        while (my $response = $client_responses->get)
-        {
-            my $request = first { $_->{id} == $response->{id} } @pending_requests;
-            next if (not blessed($request) or not $request->isa('PLS::Server::Request'));
-            @pending_requests = grep { $_->{id} != $response->{id} } @pending_requests;
-
-            async { $request->handle_response($response, $self) };
-            Coro::cede();
-        } ## end while (my $response = $client_responses...)
-    };
-
-    my $io_watcher = AnyEvent->io(
-        fh   => \*STDIN,
-        poll => 'r',
-        cb   => sub {
-            my $message = $self->recv();
-            return unless blessed($message);
-
-            $client_requests->put($message)  if $message->isa('PLS::Server::Request');
-            $client_responses->put($message) if $message->isa('PLS::Server::Response');
         }
     );
 
-    AnyEvent::Loop::run();
+    $self->{loop}->add($self->{stream});
+    $self->{loop}->add(IO::Async::Signal->new(name => 'TERM', on_receipt => sub { exit; }));
+
+    $self->{loop}->loop_forever();
+
+    return;
 } ## end sub run
+
+sub handle_client_message
+{
+    my ($self, $message) = @_;
+
+    if (length $message->{method})
+    {
+        my $request = PLS::Server::Request::Factory->new($message);
+
+        if (blessed($request) and $request->isa('PLS::Server::Response'))
+        {
+            $self->send_message($request);
+            return;
+        }
+
+        return if (not blessed($request) or not $request->isa('PLS::Server::Request'));
+
+        if ($PLS::Server::State::INITIALIZED)
+        {
+            my $future = $self->{loop}->later();
+
+            $future->on_done(
+                sub {
+                    my $response = $request->service($self);
+                    $self->send_message($response);
+                }
+            );
+
+            $self->{running_futures}{$request->{id}} = $future if (length $request->{id});
+        } ## end if ($PLS::Server::State::INITIALIZED...)
+        else
+        {
+            my $response = $request->service($self);
+            $self->send_message($response);
+        }
+    } ## end if (length $message->{...})
+    else
+    {
+        my $response = PLS::Server::Response->new($message);
+        my $request  = $self->{pending_requests}{$response->{id}};
+        return if (not blessed($request) or not $request->isa('PLS::Server::Request'));
+        $self->{loop}->later(sub { $request->handle_response($response, $self) });
+    } ## end else [ if (length $message->{...})]
+
+    return;
+} ## end sub handle_client_message
+
+sub send_message
+{
+    my ($self, $message) = @_;
+
+    return if (not blessed($message) or not $message->isa('PLS::Server::Message'));
+    my $json   = $message->serialize();
+    my $length = length $json;
+    return $self->{stream}->write("Content-Length: $length\r\n\r\n$json");
+} ## end sub send_message
+
+sub send_server_request
+{
+    my ($self, $request) = @_;
+
+    if ($request->{notification})
+    {
+        delete $request->{notification};
+    }
+    else
+    {
+        $request->{id} = ++$self->{last_request_id};
+        $self->{pending_requests}{$request->{id}} = $request;
+    }
+
+    return $self->send_message($request);
+} ## end sub send_server_request
 
 1;

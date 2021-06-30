@@ -70,7 +70,7 @@ sub service
           unless (ref $doc eq 'PLS::Parser::Document');
         my ($new_text, $lines) = $doc->sort_imports();
 
-        $server->{server_requests}->put(PLS::Server::Request::Workspace::ApplyEdit->new(text => $new_text, path => $file, lines => $lines))
+        $server->send_server_request(PLS::Server::Request::Workspace::ApplyEdit->new(text => $new_text, path => $file, lines => $lines))
     } ## end if ($self->{params}{command...})
 
     return PLS::Server::Response->new({id => $self->{id}, result => undef});
