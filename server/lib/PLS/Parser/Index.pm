@@ -86,7 +86,11 @@ sub start_indexing_function
         code        => sub {
             my ($self, @files) = @_;
 
-            my $index = $self->index();
+            # Lock the index file for this critical section of code
+            open my $fh, '>>', $self->{location} or die;
+            flock $fh, LOCK_EX;
+
+            my $index = $self->index(1); # 1 indicates that we should not try to lock again
 
             unless (scalar @files)
             {
@@ -120,6 +124,9 @@ sub start_indexing_function
             } ## end foreach my $file (@files)
 
             $self->save($index);
+
+            flock $fh, LOCK_UN;
+
             return [@{$self}{qw(cache last_mtime subs_trie packages_trie)}];
         }
     );
@@ -141,9 +148,15 @@ sub start_cleanup_function
         code        => sub {
             my ($self) = @_;
 
-            my $index = $self->index();
+            # Lock the index file for this critical section of code
+            open my $fh, '>>', $self->{location} or die;
+            flock $fh, LOCK_EX;
+
+            my $index = $self->index(1); # 1 indicates that we should not try to lock again
             $self->_cleanup_old_files($index);
             $self->save($index);
+
+            flock $fh, LOCK_UN;
 
             return [@{$self}{qw(cache last_mtime)}];
         }
@@ -181,13 +194,7 @@ sub save
     my (undef, $parent_dir) = File::Spec->splitpath($self->{location});
     File::Path::make_path($parent_dir);
 
-    {
-        open my $fh, '>>', $self->{location} or die;
-        flock $fh, LOCK_EX;
-        truncate $fh, 0;
-        Storable::nstore_fd($index, $fh);
-        flock $fh, LOCK_UN;
-    }
+    Storable::nstore($index, $self->{location});
 
     $self->{cache}      = $index;
     $self->{last_mtime} = (stat $self->{location})->mtime;
@@ -197,7 +204,7 @@ sub save
 
 sub index
 {
-    my ($self) = @_;
+    my ($self, $no_lock) = @_;
 
     return {} unless -f $self->{location};
 
@@ -206,12 +213,10 @@ sub index
 
     $self->{last_mtime} = $mtime;
 
-    {
-        open my $fh, '<', $self->{location} or die;
-        flock $fh, LOCK_SH;
-        $self->{cache}      = Storable::fd_retrieve($fh);
-        flock $fh, LOCK_UN;
-    }
+    open my $fh, '<', $self->{location} or die;
+    flock $fh, LOCK_SH unless $no_lock;
+    $self->{cache}      = Storable::fd_retrieve($fh);
+    flock $fh, LOCK_UN unless $no_lock;
 
     return $self->{cache};
 } ## end sub index
