@@ -5,6 +5,8 @@ use warnings;
 
 use parent 'PLS::Server::Request';
 
+use Scalar::Util qw(blessed);
+
 use PLS::Server::Response::Cancelled;
 
 =head1 NAME

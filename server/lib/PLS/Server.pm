@@ -52,22 +52,42 @@ sub run
     $self->{stream} = IO::Async::Stream->new_for_stdio(
         autoflush => 1,
         on_read   => sub {
-            my ($stream, $buffref, $eof) = @_;
+            my $line = '';
+            my @lines;
 
-            return 0 if ($$buffref !~ /\r\n\r\n/);
+            return sub {
+                my ($stream, $buffref, $eof) = @_;
 
-            my ($headers) = $$buffref =~ /^(.*)\r\n\r\n/sm;
-            $$buffref =~ s/^.*\r\n\r\n//;
-            my %headers = map { split /: /, $_ } split /\r\n/, $headers;
+                $line .= substr $$buffref, 0, 1, '';
 
-            return 0 if (length($$buffref) < $headers{'Content-Length'});
+                if ($line eq "\r\n")
+                {
+                    my %headers = map { split /: / } @lines;
 
-            my $json    = substr $$buffref, 0, $headers{'Content-Length'}, '';
-            my $content = JSON::PP->new->utf8->decode($json);
+                    return sub {
+                        my ($stream, $buffref, $eof) = @_;
 
-            $self->handle_client_message($content);
+                        my $size = $headers{'Content-Length'};
+                        die 'no Content-Length header provided' unless $size;
 
-            return 1;
+                        return 0 if (length($$buffref) < $size);
+
+                        my $json    = substr $$buffref, 0, $size, '';
+                        my $content = JSON::PP->new->utf8->decode($json);
+
+                        $self->handle_client_message($content);
+                        return undef;
+                    }
+                } ## end if ($line eq "\r\n")
+                if ($line =~ /\r\n$/)
+                {
+                    $line =~ s/^\s+|\s+$//g;
+                    push @lines, $line;
+                    $line = '';
+                } ## end if ($line =~ /\r\n$/)
+
+                return 1;
+            }
         }
     );
 
@@ -107,7 +127,7 @@ sub handle_client_message
                 }
             );
 
-            $self->{running_futures}{$request->{id}} = $future;
+            $self->{running_futures}{$request->{id}} = $future if (length $request->{id});
         } ## end if ($PLS::Server::State::INITIALIZED...)
         else
         {
