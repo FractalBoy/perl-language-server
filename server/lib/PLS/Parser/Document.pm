@@ -150,7 +150,8 @@ sub find_current_list
     my $find     = PPI::Find->new(sub { $_[0]->isa('PPI::Structure::List') });
 
     # Find the nearest list structure that completely surrounds the column.
-    return first { $_->lsp_column_number < $column_number < $_->lsp_column_number + length($_->content) }
+    return first { $_->lsp_column_number < $column_number and
+                   $column_number < $_->lsp_column_number + length($_->content) }
     sort  { abs($column_number - $a->lsp_column_number) - abs($column_number - $b->lsp_column_number) }
       map { PLS::Parser::Element->new(element => $_, document => $self->{document}, file => $self->{path}) }
       map { $find->in($_->element) } @elements;
@@ -312,7 +313,7 @@ sub pod_link
             my $end   = $+[1];
             my $link  = $1;
 
-            next unless ($start <= $column_number <= $end);
+            next if ($start > $column_number or $column_number > $end);
 
             # Get just the name - remove the text and section parts
             $link =~ s/^[^<]*\|//;
