@@ -4,6 +4,7 @@ use strict;
 use warnings;
 use feature 'state';
 
+use Fcntl qw(:flock);
 use File::Find;
 use File::Path;
 use File::stat;
@@ -178,7 +179,12 @@ sub save
     my (undef, $parent_dir) = File::Spec->splitpath($self->{location});
     File::Path::make_path($parent_dir);
 
-    Storable::nstore($index, $self->{location});
+    {
+        open my $fh, '>>', $self->{location} or die;
+        truncate $fh, 0;
+        Storable::nstore_fd($index, $fh);
+    }
+
     $self->{cache}      = $index;
     $self->{last_mtime} = (stat $self->{location})->mtime;
 
@@ -195,7 +201,12 @@ sub index
     return $self->{cache} if ($mtime <= $self->{last_mtime});
 
     $self->{last_mtime} = $mtime;
-    $self->{cache}      = Storable::retrieve($self->{location});
+
+    {
+        open my $fh, '<', $self->{location} or die;
+        flock $fh, LOCK_SH;
+        $self->{cache}      = Storable::fd_retrieve($fh);
+    }
 
     return $self->{cache};
 } ## end sub index
