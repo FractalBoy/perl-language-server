@@ -1,0 +1,8 @@
+Revision history for perl module PLS
+
+0.8 2021-06-29
+
+ - Added configuration of alternate perl path just for syntax checking
+   using syntax.perl
+ - Added configuration for enabling/disabling of syntax checking using syntax.enable
+ - Moved from Coro and AnyEvent to IO::Async

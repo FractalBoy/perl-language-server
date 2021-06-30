@@ -43,8 +43,8 @@ sub new
 
     if (not $args{close})
     {
-        push @diagnostics, @{get_compilation_errors($path)} if $PLS::Server::State::CONFIG->{syntax}{enabled};
-        push @diagnostics, @{get_perlcritic_errors($path)} if $PLS::Server::State::CONFIG->{perlcritic}{enabled};
+        push @diagnostics, @{get_compilation_errors($path)} if (defined $PLS::Server::State::CONFIG->{syntax}{enabled} and $PLS::Server::State::CONFIG->{syntax}{enabled});
+        push @diagnostics, @{get_perlcritic_errors($path)} if (defined $PLS::Server::State::CONFIG->{perlcritic}{enabled} and $PLS::Server::State::CONFIG->{perlcritic}{enabled});
     }
 
     my $self = {
