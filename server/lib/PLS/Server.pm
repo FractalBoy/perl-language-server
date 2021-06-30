@@ -58,6 +58,8 @@ sub run
             return sub {
                 my ($stream, $buffref, $eof) = @_;
 
+                exit if $eof;
+
                 $line .= substr $$buffref, 0, 1, '';
 
                 if ($line eq "\r\n")
@@ -66,6 +68,8 @@ sub run
 
                     return sub {
                         my ($stream, $buffref, $eof) = @_;
+
+                        exit if $eof;
 
                         my $size = $headers{'Content-Length'};
                         die 'no Content-Length header provided' unless $size;
@@ -92,7 +96,6 @@ sub run
     );
 
     $self->{loop}->add($self->{stream});
-    $self->{loop}->add(IO::Async::Signal->new(name => 'INT',  on_receipt => sub { exit; }));
     $self->{loop}->add(IO::Async::Signal->new(name => 'TERM', on_receipt => sub { exit; }));
 
     $self->{loop}->loop_forever();
