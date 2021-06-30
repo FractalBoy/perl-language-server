@@ -16,6 +16,7 @@
     "onLanguage:perl"
   ],
   "main": "./out/extension",
+  "icon": "./pls.png",
   "contributes": {
     "configuration": {
       "title": "Perl Language Server (PLS)",
