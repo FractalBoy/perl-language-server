@@ -9,9 +9,8 @@ use File::Path;
 use File::stat;
 use File::Spec;
 use FindBin;
-use IO::Async::Channel;
 use IO::Async::Loop;
-use IO::Async::Routine;
+use IO::Async::Function;
 use List::Util qw(all any);
 use Path::Tiny;
 use Time::Piece;
@@ -38,16 +37,19 @@ sub new
 
     my %args = @args;
 
-    my %self = (
-                root          => $args{root},
-                location      => File::Spec->catfile($args{root}, INDEX_LOCATION),
-                cache         => {},
-                subs_trie     => PLS::Trie->new(),
-                packages_trie => PLS::Trie->new(),
-                last_mtime    => 0
-               );
+    my $self = bless {
+                      root          => $args{root},
+                      location      => File::Spec->catfile($args{root}, INDEX_LOCATION),
+                      cache         => {},
+                      subs_trie     => PLS::Trie->new(),
+                      packages_trie => PLS::Trie->new(),
+                      last_mtime    => 0,
+                     }, $class;
 
-    return bless \%self, $class;
+    $self->start_indexing_function();
+    $self->start_cleanup_function();
+
+    return $self;
 } ## end sub new
 
 sub load_trie
@@ -67,23 +69,22 @@ sub load_trie
         my $count = scalar @{$index->{packages}{$package}};
         $self->{packages_trie}->insert($package, 1);
     }
+
+    return;
 } ## end sub load_trie
 
-sub index_files
+sub start_indexing_function
 {
-    my ($self, @files) = @_;
+    my ($self) = @_;
 
-    state $indexing_running = 0;
+    my $loop = IO::Async::Loop->new();
 
-    return if $indexing_running;
-    $indexing_running = 1;
+    $self->{indexing_function} = IO::Async::Function->new(
+        min_workers => 0,
+        max_workers => 1,
+        code        => sub {
+            my ($self, @files) = @_;
 
-    my $loop    = IO::Async::Loop->new();
-    my $channel = IO::Async::Channel->new();
-
-    my $routine = IO::Async::Routine->new(
-        channels_out => [$channel],
-        code         => sub {
             my $index = $self->index();
 
             unless (scalar @files)
@@ -116,18 +117,54 @@ sub index_files
             } ## end foreach my $file (@files)
 
             $self->save($index);
-            $channel->send([$self->{cache}, $self->{last_mtime}]);
+            return [@{$self}{qw(cache last_mtime subs_trie packages_trie)}];
         }
     );
 
-    $loop->add($routine);
+    $loop->add($self->{indexing_function});
 
-    $channel->recv(
-        on_recv => sub {
-            my (undef, $data) = @_;
+    return;
+} ## end sub start_indexing_function
 
-            ($self->{cache}, $self->{last_mtime}) = @{$data};
-            $indexing_running = 0;
+sub start_cleanup_function
+{
+    my ($self) = @_;
+
+    my $loop = IO::Async::Loop->new();
+
+    $self->{cleanup_function} = IO::Async::Function->new(
+        min_workers => 0,
+        max_workers => 1,
+        code        => sub {
+            my ($self) = @_;
+
+            my $index = $self->index();
+            $self->_cleanup_old_files($index);
+            $self->save($index);
+
+            return [@{$self}{qw(cache last_mtime)}];
+        }
+    );
+
+    $loop->add($self->{cleanup_function});
+
+    return;
+} ## end sub start_cleanup_function
+
+sub index_files
+{
+    my ($self, @files) = @_;
+
+    my $class     = ref $self;
+    my $self_copy = bless {%{$self}{qw(root location cache last_mtime subs_trie packages_trie)}}, $class;
+
+    $self->{indexing_function}->call(
+        args      => [$self_copy, @files],
+        on_result => sub {
+            my ($result, $data) = @_;
+
+            return if ($result ne 'return');
+            @{$self}{qw(cache last_mtime subs_trie packages_trie)} = @{$data};
         }
     );
 
@@ -264,34 +301,16 @@ sub cleanup_old_files
 {
     my ($self) = @_;
 
-    state $cleaning_up = 0;
+    my $class     = ref $self;
+    my $self_copy = bless {%{$self}{qw(root location cache last_mtime)}}, $class;
 
-    return if $cleaning_up;
+    $self->{cleanup_function}->call(
+        args      => [$self_copy],
+        on_result => sub {
+            my ($result, $data) = @_;
 
-    $cleaning_up = 1;
-
-    my $loop    = IO::Async::Loop->new();
-    my $channel = IO::Async::Channel->new();
-
-    my $routine = IO::Async::Routine->new(
-        channels_out => [$channel],
-        code         => sub {
-            my $index = $self->index();
-            $self->_cleanup_old_files($index);
-            $self->save($index);
-
-            $channel->send([$self->{cache}, $self->{last_mtime}]);
-        }
-    );
-
-    $loop->add($routine);
-
-    $channel->recv(
-        on_recv => sub {
-            my (undef, $data) = @_;
-
-            ($self->{cache}, $self->{last_mtime}) = @{$data};
-            $cleaning_up = 0;
+            return if ($result ne 'return');
+            @{$self}{qw(cache last_mtime)} = @{$data};
         }
     );
 
@@ -348,6 +367,8 @@ sub _cleanup_old_files
 
         $self->log("Cleaning up $type references from index...") if ($refs_cleaned);
     } ## end foreach my $type (keys %{$index...})
+
+    return;
 } ## end sub _cleanup_old_files
 
 sub find_package_subroutine
@@ -549,6 +570,8 @@ sub log
     my $time = Time::Piece->new;
     $time = $time->ymd . ' ' . $time->hms;
     print {\*STDERR} "[$time] $message\n";
+
+    return;
 } ## end sub log
 
 1;
