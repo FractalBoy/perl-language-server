@@ -183,8 +183,10 @@ sub save
 
     {
         open my $fh, '>>', $self->{location} or die;
+        flock $fh, LOCK_EX;
         truncate $fh, 0;
         Storable::nstore_fd($index, $fh);
+        flock $fh, LOCK_UN;
     }
 
     $self->{cache}      = $index;
@@ -208,6 +210,7 @@ sub index
         open my $fh, '<', $self->{location} or die;
         flock $fh, LOCK_SH;
         $self->{cache}      = Storable::fd_retrieve($fh);
+        flock $fh, LOCK_UN;
     }
 
     return $self->{cache};
