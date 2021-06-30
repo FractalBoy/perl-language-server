@@ -92,8 +92,8 @@ sub run
     );
 
     $self->{loop}->add($self->{stream});
-    $self->{loop}->add(IO::Async::Signal->new(name => 'INT',  on_receipt => sub { $self->{loop}->stop() }));
-    $self->{loop}->add(IO::Async::Signal->new(name => 'TERM', on_receipt => sub { $self->{loop}->stop() }));
+    $self->{loop}->add(IO::Async::Signal->new(name => 'INT',  on_receipt => sub { exit; }));
+    $self->{loop}->add(IO::Async::Signal->new(name => 'TERM', on_receipt => sub { exit; }));
 
     $self->{loop}->loop_forever();
 
