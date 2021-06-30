@@ -62,13 +62,13 @@ sub load_trie
     foreach my $sub (keys %{$index->{subs}})
     {
         my $count = scalar @{$index->{subs}{$sub}};
-        $self->{subs_trie}->insert($sub, 1);
+        $self->{subs_trie}->insert($sub, $count);
     }
 
     foreach my $package (keys %{$index->{packages}})
     {
         my $count = scalar @{$index->{packages}{$package}};
-        $self->{packages_trie}->insert($package, 1);
+        $self->{packages_trie}->insert($package, $count);
     }
 
     return;
@@ -97,6 +97,8 @@ sub start_indexing_function
 
             my $total   = scalar @files;
             my $current = 0;
+
+            $self->load_trie();
 
             foreach my $file (@files)
             {
