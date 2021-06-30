@@ -76,7 +76,7 @@ sub run
                         my $content = JSON::PP->new->utf8->decode($json);
 
                         $self->handle_client_message($content);
-                        return undef;
+                        return;
                     }
                 } ## end if ($line eq "\r\n")
                 if ($line =~ /\r\n$/)

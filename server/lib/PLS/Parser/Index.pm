@@ -9,8 +9,9 @@ use File::Path;
 use File::stat;
 use File::Spec;
 use FindBin;
+use IO::Async::Channel;
 use IO::Async::Loop;
-use IO::Async::Function;
+use IO::Async::Routine;
 use List::Util qw(all any);
 use Path::Tiny;
 use Time::Piece;
@@ -77,9 +78,12 @@ sub index_files
     return if $indexing_running;
     $indexing_running = 1;
 
-    my $loop = IO::Async::Loop->new();
-    my $function = IO::Async::Function->new(
-        code => sub {
+    my $loop    = IO::Async::Loop->new();
+    my $channel = IO::Async::Channel->new();
+
+    my $routine = IO::Async::Routine->new(
+        channels_out => [$channel],
+        code         => sub {
             my $index = $self->index();
 
             unless (scalar @files)
@@ -112,21 +116,17 @@ sub index_files
             } ## end foreach my $file (@files)
 
             $self->save($index);
-            return $self->{cache}, $self->{last_mtime};
+            $channel->send([$self->{cache}, $self->{last_mtime}]);
         }
     );
 
-    $loop->add($function);
+    $loop->add($routine);
 
-    $function->call(args =>[], on_result =>
-        sub {
-            my ($result, $cache, $last_mtime) = @_;
+    $channel->recv(
+        on_recv => sub {
+            my (undef, $data) = @_;
 
-            if ($result eq 'return')
-            {
-                $self->{cache}      = $cache;
-                $self->{last_mtime} = $last_mtime;
-            }
+            ($self->{cache}, $self->{last_mtime}) = @{$data};
             $indexing_running = 0;
         }
     );
@@ -270,26 +270,27 @@ sub cleanup_old_files
 
     $cleaning_up = 1;
 
-    my $loop = IO::Async::Loop->new();
-    my $function = IO::Async::Function->new(
-        code => sub {
-            my $lock  = $self->lock();
+    my $loop    = IO::Async::Loop->new();
+    my $channel = IO::Async::Channel->new();
+
+    my $routine = IO::Async::Routine->new(
+        channels_out => [$channel],
+        code         => sub {
             my $index = $self->index();
             $self->_cleanup_old_files($index);
             $self->save($index);
-            return $self->{cache}, $self->{last_mtime};
+
+            $channel->send([$self->{cache}, $self->{last_mtime}]);
         }
     );
 
-    $loop->add($function);
-    $function->call(args => [], on_result =>
-        sub {
-            my ($result, $cache, $last_mtime) = @_;
-            if ($result eq 'return')
-            {
-                $self->{cache}      = $cache;
-                $self->{last_mtime} = $last_mtime;
-            }
+    $loop->add($routine);
+
+    $channel->recv(
+        on_recv => sub {
+            my (undef, $data) = @_;
+
+            ($self->{cache}, $self->{last_mtime}) = @{$data};
             $cleaning_up = 0;
         }
     );
