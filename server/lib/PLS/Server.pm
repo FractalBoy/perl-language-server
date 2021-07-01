@@ -96,7 +96,7 @@ sub run
     );
 
     $self->{loop}->add($self->{stream});
-    $self->{loop}->add(IO::Async::Signal->new(name => 'TERM', on_receipt => sub { exit; }));
+    $self->{loop}->add(IO::Async::Signal->new(name => 'TERM', on_receipt => sub { exit; })) if ($^O ne 'MSWin32');
 
     $self->{loop}->loop_forever();
 
