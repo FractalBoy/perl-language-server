@@ -3,6 +3,13 @@ Revision history for perl module PLS
 0.8 2021-06-29
 
  - Added configuration of alternate perl path just for syntax checking
-   using syntax.perl
+   using syntax.perl (client version 0.0.8 needed)
  - Added configuration for enabling/disabling of syntax checking using syntax.enable
  - Moved from Coro and AnyEvent to IO::Async
+
+0.81 2021-07-01
+
+ - Fixed bug where completion did not have full list of options
+ - Added locking to indexing and cleanup (related to the previous fix)
+ - Added compatibility with perl >= 5.26 - thank you @stphnlyd (https://github.com/stphnlyd)!
+ - (client version 0.0.9) Added icon - thank you @kraih (https://github.com/kraih)!
