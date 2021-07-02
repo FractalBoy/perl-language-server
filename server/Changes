@@ -13,3 +13,11 @@ Revision history for perl module PLS
  - Added locking to indexing and cleanup (related to the previous fix)
  - Added compatibility with perl >= 5.26 - thank you @stphnlyd (https://github.com/stphnlyd)!
  - (client version 0.0.9) Added icon - thank you @kraih (https://github.com/kraih)!
+
+0.82 2021-07-02
+
+ - Fix bug where initial indexing would not occur
+ - Formatting is now asynchronous function that can be cancelled,
+   since it can take a long time to run.
+ - No longer add signal handlers on Windows, to hopefully improve
+   compatibility
