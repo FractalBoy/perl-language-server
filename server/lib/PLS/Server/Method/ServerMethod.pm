@@ -51,12 +51,13 @@ sub get_request
     {
         return PLS::Server::Request::Initialize->new($request);
     }
-    elsif ($method eq 'initialized')
+
+    return PLS::Server::Response::ServerNotInitialized->new($request) unless $PLS::Server::State::INITIALIZED;
+
+    if ($method eq 'initialized')
     {
         return PLS::Server::Request::Initialized->new($request);
     }
-
-    return PLS::Server::Response::ServerNotInitialized->new($request) unless $PLS::Server::State::INITIALIZED;
 
     if ($method eq '$/cancelRequest')
     {
@@ -65,5 +66,15 @@ sub get_request
 
     return;
 } ## end sub get_request
+
+sub is_server_method
+{
+    my ($method) = @_;
+
+    return 1 if ($method eq 'initialize');
+    return 1 if ($method eq 'initialized');
+    return 1 if ($method eq '$');
+    return 0;
+} ## end sub is_server_method
 
 1;

@@ -52,7 +52,6 @@ sub service
                                                                                          )
                                    );
 
-    $PLS::Server::State::INITIALIZED = 1;
     return;
 } ## end sub service
 

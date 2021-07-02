@@ -3,6 +3,8 @@ package PLS::Server;
 use strict;
 use warnings;
 
+use Future::Queue;
+use Future::Utils;
 use IO::Async::Loop;
 use IO::Async::Signal;
 use IO::Async::Stream;
@@ -46,6 +48,55 @@ sub new
 sub run
 {
     my ($self) = @_;
+
+    $self->{client_requests}  = Future::Queue->new();
+    $self->{client_responses} = Future::Queue->new();
+    $self->{server_requests}  = Future::Queue->new();
+    $self->{server_responses} = Future::Queue->new();
+
+    Future::Utils::repeat
+    {
+        $self->{client_requests}->shift->on_done(
+            sub {
+                my ($request) = @_;
+                $self->handle_client_request($request);
+            }
+        );
+    } ## end Future::Utils::repeat
+    while => sub { 1 };
+
+    Future::Utils::repeat
+    {
+        $self->{client_responses}->shift->on_done(
+            sub {
+                my ($response) = @_;
+                $self->handle_client_response($response);
+            }
+        );
+    } ## end Future::Utils::repeat
+    while => sub { 1 };
+
+    Future::Utils::repeat
+    {
+        $self->{server_requests}->shift->then(
+            sub {
+                my ($request) = @_;
+                $self->handle_server_request($request);
+            }
+        );
+    } ## end Future::Utils::repeat
+    while => sub { 1 };
+
+    Future::Utils::repeat
+    {
+        $self->{server_responses}->shift->then(
+            sub {
+                my ($response) = @_;
+                $self->handle_server_response($response);
+            }
+        );
+    } ## end Future::Utils::repeat
+    while => sub { 1 };
 
     STDOUT->blocking(0);
 
@@ -109,45 +160,40 @@ sub handle_client_message
 
     if (length $message->{method})
     {
-        my $request = PLS::Server::Request::Factory->new($message);
+        $message = PLS::Server::Request::Factory->new($message);
 
-        if (blessed($request) and $request->isa('PLS::Server::Response'))
+        if (blessed($message) and $message->isa('PLS::Server::Response'))
         {
-            $self->send_message($request);
+            $self->{server_responses}->push($message);
             return;
-        }
-
-        return if (not blessed($request) or not $request->isa('PLS::Server::Request'));
-
-        if ($PLS::Server::State::INITIALIZED)
-        {
-            my $future = $self->{loop}->later();
-
-            $future->on_done(
-                sub {
-                    my $response = $request->service($self);
-                    $self->send_message($response);
-                }
-            );
-
-            $self->{running_futures}{$request->{id}} = $future if (length $request->{id});
-        } ## end if ($PLS::Server::State::INITIALIZED...)
-        else
-        {
-            my $response = $request->service($self);
-            $self->send_message($response);
         }
     } ## end if (length $message->{...})
     else
     {
-        my $response = PLS::Server::Response->new($message);
-        my $request  = $self->{pending_requests}{$response->{id}};
-        return if (not blessed($request) or not $request->isa('PLS::Server::Request'));
-        $self->{loop}->later(sub { $request->handle_response($response, $self) });
-    } ## end else [ if (length $message->{...})]
+        $message = PLS::Server::Response->new($message);
+    }
+
+    return unless blessed($message);
+
+    if ($message->isa('PLS::Server::Request'))
+    {
+        $self->{client_requests}->push($message);
+    }
+    if ($message->isa('PLS::Server::Response'))
+    {
+        $self->{client_responses}->push($message);
+    }
 
     return;
 } ## end sub handle_client_message
+
+sub send_server_request
+{
+    my ($self, $request) = @_;
+
+    $self->{server_requests}->push($request);
+    return;
+}
 
 sub send_message
 {
@@ -159,7 +205,35 @@ sub send_message
     return $self->{stream}->write("Content-Length: $length\r\n\r\n$json");
 } ## end sub send_message
 
-sub send_server_request
+sub handle_client_request
+{
+    my ($self, $request) = @_;
+
+    my $response = $request->service($self);
+
+    if (blessed($response) and $response->isa('PLS::Server::Response'))
+    {
+        $self->{server_responses}->push($response);
+    }
+
+    return;
+} ## end sub handle_client_request
+
+sub handle_client_response
+{
+    my ($self, $response) = @_;
+
+    my $request = $self->{pending_requests}{$response->{id}};
+
+    if (blessed($request) and $request->isa('PLS::Server::Request'))
+    {
+        $request->handle_response($response, $self);
+    }
+
+    return;
+} ## end sub handle_client_response
+
+sub handle_server_request
 {
     my ($self, $request) = @_;
 
@@ -174,6 +248,13 @@ sub send_server_request
     }
 
     return $self->send_message($request);
-} ## end sub send_server_request
+} ## end sub handle_server_request
+
+sub handle_server_response
+{
+    my ($self, $response) = @_;
+
+    return $self->send_message($response);
+}
 
 1;

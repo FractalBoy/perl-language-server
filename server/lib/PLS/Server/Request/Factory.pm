@@ -30,7 +30,7 @@ sub new
 
     # create and return request classes here
 
-    if ($method eq '' or $method eq '$' or not $PLS::Server::State::INITIALIZED)
+    if (PLS::Server::Method::ServerMethod::is_server_method($method) or not $PLS::Server::State::INITIALIZED)
     {
         return PLS::Server::Method::ServerMethod::get_request($request);
     }
