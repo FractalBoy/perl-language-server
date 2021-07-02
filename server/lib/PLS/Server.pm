@@ -83,10 +83,11 @@ sub run
 
     Future::Utils::repeat
     {
-        $self->{server_requests}->shift->then(
+        $self->{server_requests}->shift->on_done(
             sub {
                 my ($request) = @_;
-                return $self->handle_server_request($request);
+                $self->handle_server_request($request);
+                return;
             }
         );
     } ## end Future::Utils::repeat
@@ -94,10 +95,11 @@ sub run
 
     Future::Utils::repeat
     {
-        $self->{server_responses}->shift->then(
+        $self->{server_responses}->shift->on_done(
             sub {
                 my ($response) = @_;
-                return $self->handle_server_response($response);
+                $self->handle_server_response($response);
+                return;
             }
         );
     } ## end Future::Utils::repeat
@@ -108,46 +110,33 @@ sub run
     $self->{stream} = IO::Async::Stream->new_for_stdio(
         autoflush => 1,
         on_read   => sub {
-            my $line = '';
-            my @lines;
+            my $size = 0;
 
             return sub {
                 my ($stream, $buffref, $eof) = @_;
 
                 exit if $eof;
 
-                $line .= substr $$buffref, 0, 1, '';
-
-                if ($line eq "\r\n")
+                unless ($size)
                 {
-                    my %headers = map { split /: / } @lines;
+                    return 0 unless ($$buffref =~ s/^(.*?)\r\n\r\n//s);
+                    my $headers = $1;
 
-                    return sub {
-                        my ($stream, $buffref, $eof) = @_;
+                    my %headers = map { split /: / } grep { length } split /\r\n/, $headers;
+                    $size = $headers{'Content-Length'};
+                    die 'no Content-Length header provided' unless $size;
+                } ## end unless ($size)
 
-                        exit if $eof;
+                return 0 if (length($$buffref) < $size);
 
-                        my $size = $headers{'Content-Length'};
-                        die 'no Content-Length header provided' unless $size;
+                my $json = substr $$buffref, 0, $size, '';
+                $size = 0;
 
-                        return 0 if (length($$buffref) < $size);
+                my $content = JSON::PP->new->utf8->decode($json);
 
-                        my $json    = substr $$buffref, 0, $size, '';
-                        my $content = JSON::PP->new->utf8->decode($json);
-
-                        $self->handle_client_message($content);
-                        return;
-                    }
-                } ## end if ($line eq "\r\n")
-                if ($line =~ /\r\n$/)
-                {
-                    $line =~ s/^\s+|\s+$//g;
-                    push @lines, $line;
-                    $line = '';
-                } ## end if ($line =~ /\r\n$/)
-
+                $self->handle_client_message($content);
                 return 1;
-            }
+            };
         }
     );
 
@@ -207,7 +196,9 @@ sub send_message
     return if (not blessed($message) or not $message->isa('PLS::Server::Message'));
     my $json   = $message->serialize();
     my $length = length $json;
-    return $self->{stream}->write("Content-Length: $length\r\n\r\n$json");
+    $self->{stream}->write("Content-Length: $length\r\n\r\n$json")->await;
+
+    return;
 } ## end sub send_message
 
 sub handle_client_request
@@ -267,14 +258,16 @@ sub handle_server_request
     }
 
     delete $self->{running_futures}{$request->{id}} if (length $request->{id});
-    return $self->send_message($request);
+    $self->send_message($request);
+    return;
 } ## end sub handle_server_request
 
 sub handle_server_response
 {
     my ($self, $response) = @_;
 
-    return $self->send_message($response);
-}
+    $self->send_message($response);
+    return;
+} ## end sub handle_server_response
 
 1;
