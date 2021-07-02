@@ -39,7 +39,7 @@ sub new
     my ($class, $request) = @_;
 
     my $self = bless {id => $request->{id}}, $class;
-    my $text = PLS::Parser::Document::_text_from_uri($request->{params}{textDocument}{uri});
+    my $text = PLS::Parser::Document::text_from_uri($request->{params}{textDocument}{uri});
 
     return $function->call(args => [$self, $request, $text])->then(
         sub {

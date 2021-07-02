@@ -150,8 +150,12 @@ sub find_current_list
     my $find     = PPI::Find->new(sub { $_[0]->isa('PPI::Structure::List') });
 
     # Find the nearest list structure that completely surrounds the column.
-    return first { $_->lsp_column_number < $column_number and
-                   $column_number < $_->lsp_column_number + length($_->content) }
+    return first
+    {
+        $_->lsp_column_number < $column_number
+          and $column_number < $_->lsp_column_number +
+          length($_->content)
+    }
     sort  { abs($column_number - $a->lsp_column_number) - abs($column_number - $b->lsp_column_number) }
       map { PLS::Parser::Element->new(element => $_, document => $self->{document}, file => $self->{path}) }
       map { $find->in($_->element) } @elements;
@@ -839,7 +843,7 @@ sub get_full_text
 {
     my ($self) = @_;
 
-    return _text_from_uri($self->{uri});
+    return text_from_uri($self->{uri});
 }
 
 =head2 get_variables_fast
@@ -958,7 +962,7 @@ sub format_range
 
     $args{formatting_options} = {} unless (ref $args{formatting_options} eq 'HASH');
     my $range = $args{range};
-    my $text = $args{text};
+    my $text  = $args{text};
 
     if (ref $text ne 'SCALAR')
     {
@@ -1092,13 +1096,13 @@ sub _ppi_location
     return ++$line_number, ++$column_number;
 }
 
-=head2 _text_from_uri
+=head2 text_from_uri
 
 This returns a SCALAR reference to the text of a particular URI.
 
 =cut
 
-sub _text_from_uri
+sub text_from_uri
 {
     my ($uri) = @_;
 
@@ -1113,7 +1117,7 @@ sub _text_from_uri
         my $text = do { local $/; <$fh> };
         return \$text;
     } ## end else [ if (ref $FILES{$uri} eq...)]
-} ## end sub _text_from_uri
+} ## end sub text_from_uri
 
 =head2 _get_ppi_document
 
