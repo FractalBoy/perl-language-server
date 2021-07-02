@@ -56,10 +56,13 @@ sub run
 
     Future::Utils::repeat
     {
-        $self->{client_requests}->shift->on_done(
+        $self->{client_requests}->shift->then(
             sub {
                 my ($request) = @_;
-                $self->handle_client_request($request);
+
+                my $f = $self->{loop}->later();
+                $self->{running_futures}{$request->{id}} = $f;
+                return $f->on_done(sub { $self->handle_client_request($request) });
             }
         );
     } ## end Future::Utils::repeat
@@ -67,10 +70,11 @@ sub run
 
     Future::Utils::repeat
     {
-        $self->{client_responses}->shift->on_done(
+        $self->{client_responses}->shift->then(
             sub {
                 my ($response) = @_;
-                $self->handle_client_response($response);
+
+                return $self->{loop}->later->on_done(sub { $self->handle_client_response($response) });
             }
         );
     } ## end Future::Utils::repeat
@@ -81,7 +85,7 @@ sub run
         $self->{server_requests}->shift->then(
             sub {
                 my ($request) = @_;
-                $self->handle_server_request($request);
+                return $self->{loop}->later->then(sub { $self->handle_server_request($request) });
             }
         );
     } ## end Future::Utils::repeat
@@ -92,7 +96,7 @@ sub run
         $self->{server_responses}->shift->then(
             sub {
                 my ($response) = @_;
-                $self->handle_server_response($response);
+                return $self->{loop}->later->then(sub { $self->handle_server_response($response) });
             }
         );
     } ## end Future::Utils::repeat
@@ -193,7 +197,7 @@ sub send_server_request
 
     $self->{server_requests}->push($request);
     return;
-}
+} ## end sub send_server_request
 
 sub send_message
 {
