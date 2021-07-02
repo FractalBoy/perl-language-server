@@ -47,6 +47,9 @@ sub new
                       last_mtime    => 0,
                      }, $class;
 
+    my (undef, $parent_dir) = File::Spec->splitpath($self->{location});
+    File::Path::make_path($parent_dir);
+
     $self->start_indexing_function();
     $self->start_cleanup_function();
 
@@ -87,7 +90,7 @@ sub start_indexing_function
             my ($self, @files) = @_;
 
             # Lock the index file for this critical section of code
-            open my $fh, '>>', $self->{location} or die;
+            open my $fh, '>>', $self->{location} or die $!;
             flock $fh, LOCK_EX;
 
             my $index = $self->index(1); # 1 indicates that we should not try to lock again
@@ -149,7 +152,7 @@ sub start_cleanup_function
             my ($self) = @_;
 
             # Lock the index file for this critical section of code
-            open my $fh, '>>', $self->{location} or die;
+            open my $fh, '>>', $self->{location} or die $!;
             flock $fh, LOCK_EX;
 
             my $index = $self->index(1); # 1 indicates that we should not try to lock again
@@ -179,7 +182,12 @@ sub index_files
         on_result => sub {
             my ($result, $data) = @_;
 
-            return if ($result ne 'return');
+            if ($result ne 'return')
+            {
+                warn "$result\n";
+                return;
+            }
+
             @{$self}{qw(cache last_mtime subs_trie packages_trie)} = @{$data};
         }
     );
@@ -213,9 +221,9 @@ sub index
 
     $self->{last_mtime} = $mtime;
 
-    open my $fh, '<', $self->{location} or die;
+    open my $fh, '<', $self->{location} or die $!;
     flock $fh, LOCK_SH unless $no_lock;
-    $self->{cache}      = Storable::fd_retrieve($fh);
+    $self->{cache}      = eval { Storable::fd_retrieve($fh) };
     flock $fh, LOCK_UN unless $no_lock;
 
     return $self->{cache};
@@ -330,7 +338,12 @@ sub cleanup_old_files
         on_result => sub {
             my ($result, $data) = @_;
 
-            return if ($result ne 'return');
+            if ($result ne 'return')
+            {
+                warn "$result\n";
+                return;
+            }
+
             @{$self}{qw(cache last_mtime)} = @{$data};
         }
     );
