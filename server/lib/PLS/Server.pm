@@ -3,6 +3,7 @@ package PLS::Server;
 use strict;
 use warnings;
 
+use Future;
 use Future::Queue;
 use Future::Utils;
 use IO::Async::Loop;
@@ -56,13 +57,12 @@ sub run
 
     Future::Utils::repeat
     {
-        $self->{client_requests}->shift->then(
+        $self->{client_requests}->shift->on_done(
             sub {
                 my ($request) = @_;
 
-                my $f = $self->{loop}->later();
-                $self->{running_futures}{$request->{id}} = $f;
-                return $f->on_done(sub { $self->handle_client_request($request) });
+                $self->handle_client_request($request);
+                return;
             }
         );
     } ## end Future::Utils::repeat
@@ -70,11 +70,12 @@ sub run
 
     Future::Utils::repeat
     {
-        $self->{client_responses}->shift->then(
+        $self->{client_responses}->shift->on_done(
             sub {
                 my ($response) = @_;
 
-                return $self->{loop}->later->on_done(sub { $self->handle_client_response($response) });
+                $self->handle_client_response($response);
+                return;
             }
         );
     } ## end Future::Utils::repeat
@@ -85,7 +86,7 @@ sub run
         $self->{server_requests}->shift->then(
             sub {
                 my ($request) = @_;
-                return $self->{loop}->later->then(sub { $self->handle_server_request($request) });
+                return $self->handle_server_request($request);
             }
         );
     } ## end Future::Utils::repeat
@@ -96,7 +97,7 @@ sub run
         $self->{server_responses}->shift->then(
             sub {
                 my ($response) = @_;
-                return $self->{loop}->later->then(sub { $self->handle_server_response($response) });
+                return $self->handle_server_response($response);
             }
         );
     } ## end Future::Utils::repeat
@@ -215,10 +216,24 @@ sub handle_client_request
 
     my $response = $request->service($self);
 
-    if (blessed($response) and $response->isa('PLS::Server::Response'))
+    if (blessed($response))
     {
-        $self->{server_responses}->push($response);
-    }
+        if ($response->isa('PLS::Server::Response'))
+        {
+            $self->{server_responses}->push($response);
+        }
+        elsif ($response->isa('Future'))
+        {
+            $self->{running_futures}{$request->{id}} = $response if (length $request->{id});
+
+            $response->on_done(
+                sub {
+                    my ($response) = @_;
+                    $self->{server_responses}->push($response);
+                }
+            );
+        } ## end elsif ($response->isa('Future'...))
+    } ## end if (blessed($response)...)
 
     return;
 } ## end sub handle_client_request
@@ -251,6 +266,7 @@ sub handle_server_request
         $self->{pending_requests}{$request->{id}} = $request;
     }
 
+    delete $self->{running_futures}{$request->{id}} if (length $request->{id});
     return $self->send_message($request);
 } ## end sub handle_server_request
 
