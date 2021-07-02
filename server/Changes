@@ -21,3 +21,8 @@ Revision history for perl module PLS
    since it can take a long time to run.
  - No longer add signal handlers on Windows, to hopefully improve
    compatibility
+
+0.83 2021-07-02
+
+ - Fix crashes caused by quick typing
+ - Fix warnings from Future::Utils::repeat due to failed write Futures
