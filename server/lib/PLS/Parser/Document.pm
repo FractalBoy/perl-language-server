@@ -958,8 +958,7 @@ sub format_range
 
     $args{formatting_options} = {} unless (ref $args{formatting_options} eq 'HASH');
     my $range = $args{range};
-
-    my $text = _text_from_uri($args{uri});
+    my $text = $args{text};
 
     if (ref $text ne 'SCALAR')
     {
@@ -1077,7 +1076,7 @@ sub format
 {
     my ($class, %args) = @_;
 
-    return $class->format_range(formatting_options => $args{formatting_options}, uri => $args{uri});
+    return $class->format_range(formatting_options => $args{formatting_options}, text => $args{text});
 }
 
 =head2 _ppi_location

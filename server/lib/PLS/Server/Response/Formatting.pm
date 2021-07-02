@@ -26,9 +26,9 @@ my $loop = IO::Async::Loop->new();
 my $function = IO::Async::Function->new(
     max_workers => 1,
     code        => sub {
-        my ($self, $request) = @_;
+        my ($self, $request, $text) = @_;
 
-        my ($ok, $formatted) = PLS::Parser::Document->format(uri => $request->{params}{textDocument}{uri}, formatting_options => $request->{params}{options});
+        my ($ok, $formatted) = PLS::Parser::Document->format(text => $text, formatting_options => $request->{params}{options});
         return $ok, $formatted;
     }
 );
@@ -39,11 +39,21 @@ sub new
     my ($class, $request) = @_;
 
     my $self = bless {id => $request->{id}}, $class;
-    return $function->call(args => [$self, $request])->then(
+    my $text = PLS::Parser::Document::_text_from_uri($request->{params}{textDocument}{uri});
+
+    return $function->call(args => [$self, $request, $text])->then(
         sub {
             my ($ok, $formatted) = @_;
-            if   ($ok) { $self->{result} = $formatted }
-            else       { $self->{error}  = $formatted }
+
+            if ($ok)
+            {
+                $self->{result} = $formatted;
+            }
+            else
+            {
+                $self->{error} = $formatted;
+            }
+
             return $self;
         }
     );
