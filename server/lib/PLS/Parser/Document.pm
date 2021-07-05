@@ -1317,9 +1317,7 @@ sub find_word_under_cursor
         $element = $element->previous_sibling;
     } ## end if ($element->name eq ...)
 
-    # modify the range so we don't overwrite anything after the cursor.
     my $range = $element->range;
-    $range->{end}{character} = $character;
 
     # look at labels as well, because a label looks like a package name before the second colon.
     my $package = '';

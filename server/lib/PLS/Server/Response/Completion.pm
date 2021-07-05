@@ -53,36 +53,58 @@ sub new
     my %seen_subs;
     my $functions = PLS::Parser::PackageSymbols::get_package_functions($package, $PLS::Server::State::CONFIG->{inc});
 
-    if (ref $functions eq 'ARRAY')
+    my $retrieve_subs;
+
+    if (ref $functions eq 'HASH')
     {
         my $separator = $arrow ? '->' : '::';
 
-        foreach my $name (@{$functions})
+        foreach my $package_name (keys %{$functions})
         {
-            next if $seen_subs{$name}++;
-
-            my $fully_qualified = join $separator, $package, $name;
-            my $result = {
-                          label      => $name,
-                          sortText   => $fully_qualified,
-                          filterText => $fully_qualified,
-                          kind       => 3
-                         };
-
-            if ($arrow)
+            foreach my $name (@{$functions->{$package_name}})
             {
-                $result->{insertText} = "->$name";
-            }
-            else
-            {
-                $result->{insertText} = $fully_qualified;
-            }
+                my $fully_qualified = join $separator, $package_name, $name;
 
-            push @results, $result;
-        } ## end foreach my $name (@{$functions...})
+                next if $seen_subs{$name}++;
+                my $result = {
+                              label    => $name,
+                              sortText => $fully_qualified,
+                              kind     => 3
+                             };
+
+                if ($arrow)
+                {
+                    $result->{insertText} = (length $filter) ? $name : "->$name";
+                }
+                else
+                {
+                    $result->{insertText} = $fully_qualified;
+                }
+
+                if ($arrow)
+                {
+                    if (length $filter)
+                    {
+                        $result->{filterText} = $name;
+                    }
+                    else
+                    {
+                        $result->{filterText} = $fully_qualified;
+                    }
+                } ## end if ($arrow)
+                else
+                {
+                    $result->{filterText} = $fully_qualified;
+                }
+
+                push @results, $result;
+                $retrieve_subs = 0;
+            } ## end foreach my $name (@{$functions...})
+        } ## end foreach my $package_name (keys...)
     } ## end if (ref $functions eq ...)
 
-    my $subs = $document->{index}{subs_trie}->find($filter);
+    my $subs = [];
+    $subs = $document->{index}{subs_trie}->find($filter) if $retrieve_subs;
     my $packages = [];
     $packages = $document->{index}{packages_trie}->find($filter) if $retrieve_packages;
     state @keywords;
@@ -110,23 +132,25 @@ sub new
                 } ## end foreach my $sub (@{$Pod::Functions::Kinds...})
             } ## end foreach my $family (keys %Pod::Functions::Kinds...)
 
-            foreach my $keyword (
-                  qw(cmp continue default do else elsif eq for foreach ge given gt if le lock lt ne not or package sub unless until when while x xor))
+            foreach my $keyword (qw(cmp continue default do else elsif eq for foreach ge given gt if le lock lt ne not or package sub unless until when while x xor))
             {
                 next if $seen_keywords{$keyword}++;
                 push @keywords, {label => $keyword, kind => 14};
             }
 
             push @results, @keywords;
-        } ## end else [ if (scalar @builtins) ]
+        } ## end else [ if (scalar @keywords) ]
 
         $full_text = $document->get_full_text();
 
-        foreach my $sub (@{$document->get_subroutines_fast($full_text)})
+        if ($retrieve_subs)
         {
-            next if $seen_subs{$sub}++;
-            push @results, {label => $sub, kind => 3};
-        }
+            foreach my $sub (@{$document->get_subroutines_fast($full_text)})
+            {
+                next if $seen_subs{$sub}++;
+                push @results, {label => $sub, kind => 3};
+            }
+        } ## end if ($retrieve_subs)
 
         my %seen_constants;
 
