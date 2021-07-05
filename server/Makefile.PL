@@ -12,6 +12,9 @@ WriteMakefile(
               MIN_PERL_VERSION => 5.026000,
               PREREQ_PM        => {
                             'IO::Async'     => 0.78,
+                            'Future'        => 0.47,
+                            'Future::Utils' => 0.47,
+                            'Future::Queue' => 0.47,
                             'Path::Tiny'    => 0.114,
                             'Perl::Critic'  => 1.138,
                             'Perl::Tidy'    => 20210402,
