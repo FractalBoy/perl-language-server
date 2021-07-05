@@ -7,6 +7,7 @@ use File::Spec;
 use FindBin;
 use IPC::Open3;
 use Pod::Markdown;
+use Pod::Simple::Search;
 use Symbol qw(gensym);
 
 use PLS::Server::State;
@@ -125,7 +126,9 @@ sub get_markdown_for_package
     my ($class, $package) = @_;
 
     my $include = $class->get_clean_inc();
-    my $path    = Pod::Find::pod_where({-dirs => $include}, $package);
+    my $search = Pod::Simple::Search->new();
+    $search->inc(0);
+    my $path    = $search->find($package, @{$include});
     return unless (length $path);
     open my $fh, '<', $path or return;
     my $text = do { local $/; <$fh> };

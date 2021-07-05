@@ -5,7 +5,7 @@ use warnings;
 
 use parent 'PLS::Parser::Pod';
 
-use Pod::Find;
+use Pod::Simple::Search;
 use Pod::Markdown;
 
 use PLS::Parser::Pod::Builtin;
@@ -54,7 +54,9 @@ sub find
     if (length $self->{package})
     {
         my $include = $self->get_clean_inc();
-        my $path    = Pod::Find::pod_where({-dirs => $include}, $self->{package});
+        my $search = Pod::Simple::Search->new();
+        $search->inc(0);
+        my $path = $search->find($self->{package}, @{$include});
 
         if (length $path)
         {
