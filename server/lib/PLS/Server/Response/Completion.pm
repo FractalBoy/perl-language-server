@@ -14,6 +14,7 @@ use ExtUtils::Installed;
 use PLS::Parser::Document;
 use PLS::Parser::PackageSymbols;
 use PLS::Parser::Pod;
+use PLS::Server::State;
 
 =head1 NAME
 
@@ -51,7 +52,7 @@ sub new
 
     my @results;
     my %seen_subs;
-    my $functions = PLS::Parser::PackageSymbols::get_package_functions($package, $PLS::Server::State::CONFIG->{inc});
+    my $functions = PLS::Parser::PackageSymbols::get_package_functions($package, $PLS::Server::State::CONFIG);
 
     my $retrieve_subs;
 
