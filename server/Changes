@@ -26,3 +26,15 @@ Revision history for perl module PLS
 
  - Fix crashes caused by quick typing
  - Fix warnings from Future::Utils::repeat due to failed write Futures
+
+0.84 2021-07-05
+
+ - Fix issues with completion
+   - Completion did not use the correct range, resulting in code getting garbled
+   - Completion did not always show the correct list of available subs,
+     or the subs most likely to be useful were buried
+ - Migrated from Pod::Find (no longer in core) to Pod::Simple::Search (in core)
+ - Hopefully fixed failed CPAN tests by including Future::* packages in the list of
+   dependencies
+ - Moved retrieval of package symbols from a perl one-liner to an IO::Async::Function,
+   in hopes of improved performance and easier maintenance.
