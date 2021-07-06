@@ -9,6 +9,7 @@ use IO::Async::Function;
 use IO::Async::Loop;
 
 use PLS::Parser::Document;
+use PLS::Server::State;
 
 =head1 NAME
 
@@ -26,9 +27,9 @@ my $loop = IO::Async::Loop->new();
 my $function = IO::Async::Function->new(
     max_workers => 1,
     code        => sub {
-        my ($self, $request, $text) = @_;
+        my ($self, $request, $text, $perltidyrc) = @_;
 
-        my ($ok, $formatted) = PLS::Parser::Document->format(text => $text, formatting_options => $request->{params}{options});
+        my ($ok, $formatted) = PLS::Parser::Document->format(text => $text, formatting_options => $request->{params}{options}, perltidyrc => $perltidyrc);
         return $ok, $formatted;
     }
 );
@@ -41,7 +42,7 @@ sub new
     my $self = bless {id => $request->{id}}, $class;
     my $text = PLS::Parser::Document::text_from_uri($request->{params}{textDocument}{uri});
 
-    return $function->call(args => [$self, $request, $text])->then(
+    return $function->call(args => [$self, $request, $text, $PLS::Server::State::CONFIG->{perltidyrc}])->then(
         sub {
             my ($ok, $formatted) = @_;
 

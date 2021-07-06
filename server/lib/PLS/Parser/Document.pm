@@ -1015,7 +1015,7 @@ sub format_range
         $argv .= $args{formatting_options}{insertSpaces} ? ' -i=' : ' -et=';
         $argv .= $args{formatting_options}{tabSize};
     }
-    my ($perltidyrc) = glob $PLS::Server::State::CONFIG->{perltidyrc};
+    my ($perltidyrc) = glob $args{perltidyrc};
     undef $perltidyrc if (not length $perltidyrc or not -f $perltidyrc or not -r $perltidyrc);
     my $error = Perl::Tidy::perltidy(source => \$selection, destination => \$formatted, stderr => \$stderr, perltidyrc => $perltidyrc, argv => $argv);
 
@@ -1080,7 +1080,7 @@ sub format
 {
     my ($class, %args) = @_;
 
-    return $class->format_range(formatting_options => $args{formatting_options}, text => $args{text});
+    return $class->format_range(formatting_options => $args{formatting_options}, text => $args{text}, perltidyrc => $args{perltidyrc});
 }
 
 =head2 _ppi_location
