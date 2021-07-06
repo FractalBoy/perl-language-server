@@ -38,3 +38,7 @@ Revision history for perl module PLS
    dependencies
  - Moved retrieval of package symbols from a perl one-liner to an IO::Async::Function,
    in hopes of improved performance and easier maintenance.
+
+0.85 2021-07-06
+
+ - Getting updated perltidy arguments from .perltidyrc no longer requires restarting PLS
