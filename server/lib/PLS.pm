@@ -78,7 +78,7 @@ exception of C<.t> files.
 
 =head1 CAVEATS
 
-pls has not been tested with editors other than Visual Studio Code.
+pls has not been tested with editors other than Visual Studio Code and Neovim.
 
 =head1 NOTES
 
