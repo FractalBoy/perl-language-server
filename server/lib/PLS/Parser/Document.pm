@@ -1252,7 +1252,19 @@ sub find_word_under_cursor
     @elements = grep { $_->lsp_column_number < $character } @elements;
     my $element          = first { $_->type eq 'PPI::Token::Word' or $_->type eq 'PPI::Token::Label' or $_->type eq 'PPI::Token::Symbol' } @elements;
     my $closest_operator = first { $_->type eq 'PPI::Token::Operator' } @elements;
-    return if (not blessed($element) or not $element->isa('PLS::Parser::Element'));
+
+    if (not blessed($element) or not $element->isa('PLS::Parser::Element'))
+    {
+        my $cast = first { $_->type eq 'PPI::Token::Cast' } @elements;
+
+        # A cast probably means only a sigil was typed.
+        if (blessed($cast) and $cast->isa('PLS::Parser::Element'))
+        {
+            return $cast->range, 0, '', $cast->name;
+        }
+
+        return;
+    } ## end if (not blessed($element...))
 
     # Short-circuit if this is a HASH reference subscript.
     my $parent = $element->parent;

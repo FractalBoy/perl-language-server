@@ -39,7 +39,6 @@ sub new
     my @word_under_cursor_info = $document->find_word_under_cursor(@{$request->{params}{position}}{qw(line character)});
     return $self unless (scalar @word_under_cursor_info);
     my ($range, $arrow, $package, $filter) = @word_under_cursor_info;
-    my $retrieve_packages = $arrow || $filter !~ /^[\$\%\@]/;
 
     if (ref $range eq 'HASH')
     {
@@ -51,203 +50,31 @@ sub new
     $package =~ s/::$// if (length $package);
 
     my @results;
-    my %seen_subs;
-    my $functions = PLS::Parser::PackageSymbols::get_package_functions($package, $PLS::Server::State::CONFIG);
 
-    my $retrieve_subs;
-
-    if (ref $functions eq 'HASH')
+    if ($filter =~ /^[\$\%\@]/ and not $arrow)
     {
-        my $separator = $arrow ? '->' : '::';
-
-        foreach my $package_name (keys %{$functions})
-        {
-            foreach my $name (@{$functions->{$package_name}})
-            {
-                my $fully_qualified = join $separator, $package_name, $name;
-
-                next if $seen_subs{$name}++;
-                my $result = {
-                              label    => $name,
-                              sortText => $fully_qualified,
-                              kind     => 3
-                             };
-
-                if ($arrow)
-                {
-                    $result->{insertText} = (length $filter) ? $name : "->$name";
-                }
-                else
-                {
-                    $result->{insertText} = $fully_qualified;
-                }
-
-                if ($arrow)
-                {
-                    if (length $filter)
-                    {
-                        $result->{filterText} = $name;
-                    }
-                    else
-                    {
-                        $result->{filterText} = $fully_qualified;
-                    }
-                } ## end if ($arrow)
-                else
-                {
-                    $result->{filterText} = $fully_qualified;
-                }
-
-                push @results, $result;
-                $retrieve_subs = 0;
-            } ## end foreach my $name (@{$functions...})
-        } ## end foreach my $package_name (keys...)
-    } ## end if (ref $functions eq ...)
-
-    my $subs = [];
-    $subs = $document->{index}{subs_trie}->find($filter) if $retrieve_subs;
-    my $packages = [];
-    $packages = $document->{index}{packages_trie}->find($filter) if $retrieve_packages;
-    state @keywords;
-
-    my $full_text;
-    my %seen_packages;
-
-    unless ($filter =~ /^[\$\%\@]/)
+        my $full_text = $document->get_full_text();
+        push @results, @{get_variables($document, $filter, $full_text)};
+    }
+    else
     {
-        if (scalar @keywords)
+        my $functions = get_package_functions($package, $filter, $arrow);
+        push @results, @{$functions};
+
+        my $full_text;
+
+        unless (scalar @{$functions})
         {
-            push @results, @keywords;
-        }
-        else
-        {
-            my %seen_keywords;
-
-            foreach my $family (keys %Pod::Functions::Kinds)
-            {
-                foreach my $sub (@{$Pod::Functions::Kinds{$family}})
-                {
-                    next if $sub =~ /\s+/;
-                    next if $seen_keywords{$sub}++;
-                    push @keywords, {label => $sub, kind => 14};
-                } ## end foreach my $sub (@{$Pod::Functions::Kinds...})
-            } ## end foreach my $family (keys %Pod::Functions::Kinds...)
-
-            foreach my $keyword (qw(cmp continue default do else elsif eq for foreach ge given gt if le lock lt ne not or package sub unless until when while x xor))
-            {
-                next if $seen_keywords{$keyword}++;
-                push @keywords, {label => $keyword, kind => 14};
-            }
-
-            push @results, @keywords;
-        } ## end else [ if (scalar @keywords) ]
-
-        $full_text = $document->get_full_text();
-
-        if ($retrieve_subs)
-        {
-            foreach my $sub (@{$document->get_subroutines_fast($full_text)})
-            {
-                next if $seen_subs{$sub}++;
-                push @results, {label => $sub, kind => 3};
-            }
-        } ## end if ($retrieve_subs)
-
-        my %seen_constants;
-
-        foreach my $constant (@{$document->get_constants_fast($full_text)})
-        {
-            next if $seen_constants{$constant}++;
-            push @results, {label => $constant, kind => 21};
+            $full_text = $document->get_full_text();
+            push @results, @{get_subroutines($document, $filter, $full_text)};
         }
 
-        if ($retrieve_packages)
+        unless ($arrow)
         {
-            foreach my $pack (@{$document->get_packages_fast($full_text)})
-            {
-                next if $seen_packages{$pack}++;
-                push @results, {label => $pack, kind => 9};
-            }
-        } ## end if ($retrieve_packages...)
-    } ## end unless ($filter =~ /^[\$\%\@]/...)
-
-    # Can use state here, core and external modules unlikely to change.
-    state $core_modules = [Module::CoreList->find_modules(qr//, $])];
-    state $ext_modules = do {
-        my $include      = PLS::Parser::Pod->get_clean_inc();
-        my $installed = ExtUtils::Installed->new(inc_override => $include);
-        my @ext_modules;
-
-        foreach my $module ($installed->modules)
-        {
-            my @files = $installed->files($module, 'prog');
-            $module =~ s/::/\//g;
-
-            # Find all the packages that are part of this module
-            foreach my $file (@files)
-            {
-                my ($path) = $file =~ /(\Q$module\E(?:\/.+)?)\.pm$/;
-                next unless (length $path);
-                my $mod_package = $path =~ s/\//::/gr;
-                push @ext_modules, $mod_package;
-            }
+            $full_text = $document->get_full_text() unless (ref $full_text eq 'SCALAR');
+            push @results, @{get_packages($document, $filter, $full_text)};
         }
-
-        \@ext_modules;
-    };
-
-    if ($retrieve_packages)
-    {
-        foreach my $module (@{$core_modules}, @{$ext_modules})
-        {
-            next if $seen_packages{$module}++;
-            push @results,
-              {
-                label => $module,
-                kind  => 7
-              };
-        } ## end foreach my $module (@{$core_modules...})
-    } ## end if ($retrieve_packages...)
-
-    my %seen_variables;
-
-    # Add variables to the list if the current word is obviously a variable.
-    if (not $arrow and not length $package and $filter =~ /^[\$\@\%]/)
-    {
-        $full_text = $document->get_full_text() unless (ref $full_text eq 'SCALAR');
-
-        foreach my $variable (@{$document->get_variables_fast($full_text)})
-        {
-            next if $seen_variables{$variable}++;
-            push @results,
-              {
-                label => $variable,
-                kind  => 6
-              };
-
-            # add other variable forms to the list for arrays and hashes
-            if ($variable =~ /^[\@\%]/)
-            {
-                my $name   = $variable =~ s/^[\@\%]/\$/r;
-                my $append = $variable =~ /^\@/ ? '[' : '{';
-                push @results,
-                  {
-                    label      => $variable,
-                    insertText => $name . $append,
-                    filterText => $name,
-                    kind       => 6
-                  };
-            } ## end if ($variable =~ /^[\@\%]/...)
-        } ## end foreach my $variable (@{$document...})
-    } ## end if (not $arrow and not...)
-
-    $subs     = [] unless (ref $subs eq 'ARRAY');
-    $packages = [] unless (ref $packages eq 'ARRAY');
-
-    @$subs     = map { {label => $_, kind => 3} } grep { not $seen_subs{$_}++ } @$subs;
-    @$packages = map { {label => $_, kind => 7} } grep { not $seen_packages{$_}++ } @$packages;
-
-    @results = (@results, @$subs, @$packages);
+    } ## end else [ if ($filter =~ /^\$\%\@/...)]
 
     foreach my $result (@results)
     {
@@ -265,5 +92,215 @@ sub new
 
     return $self;
 } ## end sub new
+
+sub get_keywords
+{
+    state @keywords;
+
+    return \@keywords if (scalar @keywords);
+
+    my %seen_keywords;
+
+    foreach my $family (keys %Pod::Functions::Kinds)
+    {
+        foreach my $sub (@{$Pod::Functions::Kinds{$family}})
+        {
+            next if $sub =~ /\s+/;
+            next if $seen_keywords{$sub}++;
+            push @keywords, {label => $sub, kind => 14};
+        } ## end foreach my $sub (@{$Pod::Functions::Kinds...})
+    } ## end foreach my $family (keys %Pod::Functions::Kinds...)
+
+    foreach my $keyword (qw(cmp continue default do else elsif eq for foreach ge given gt if le lock lt ne not or package sub unless until when while x xor))
+    {
+        next if $seen_keywords{$keyword}++;
+        push @keywords, {label => $keyword, kind => 14};
+    }
+
+    return \@keywords;
+} ## end sub get_keywords
+
+sub get_ext_modules
+{
+    # Can use state here, external modules unlikely to change.
+    state @ext_modules;
+
+    return \@ext_modules if (scalar @ext_modules);
+
+    my $include   = PLS::Parser::Pod->get_clean_inc();
+    my $installed = ExtUtils::Installed->new(inc_override => $include);
+
+    foreach my $module ($installed->modules)
+    {
+        my @files = $installed->files($module, 'prog');
+        $module =~ s/::/\//g;
+
+        # Find all the packages that are part of this module
+        foreach my $file (@files)
+        {
+            my ($path) = $file =~ /(\Q$module\E(?:\/.+)?)\.pm$/;
+            next unless (length $path);
+            my $mod_package = $path =~ s/\//::/gr;
+            push @ext_modules, $mod_package;
+        } ## end foreach my $file (@files)
+    } ## end foreach my $module ($installed...)
+
+    return \@ext_modules;
+} ## end sub get_ext_modules
+
+sub get_package_functions
+{
+    my ($package, $filter, $arrow) = @_;
+
+    my $functions = PLS::Parser::PackageSymbols::get_package_functions($package, $PLS::Server::State::CONFIG);
+    return [] if (ref $functions ne 'HASH');
+
+    my $separator = $arrow ? '->' : '::';
+    my @functions;
+
+    foreach my $package_name (keys %{$functions})
+    {
+        foreach my $name (@{$functions->{$package_name}})
+        {
+            my $fully_qualified = join $separator, $package_name, $name;
+
+            my $result = {
+                          label    => $name,
+                          sortText => $fully_qualified,
+                          kind     => 3
+                         };
+
+            if ($arrow)
+            {
+                $result->{insertText} = (length $filter) ? $name : "->$name";
+            }
+            else
+            {
+                $result->{insertText} = $fully_qualified;
+            }
+
+            if ($arrow)
+            {
+                if (length $filter)
+                {
+                    $result->{filterText} = $name;
+                }
+                else
+                {
+                    $result->{filterText} = $fully_qualified;
+                }
+            } ## end if ($arrow)
+            else
+            {
+                $result->{filterText} = $fully_qualified;
+            }
+
+            push @functions, $result;
+        } ## end foreach my $name (@{$functions...})
+    } ## end foreach my $package_name (keys...)
+
+    return \@functions;
+} ## end sub get_package_functions
+
+sub get_subroutines
+{
+    my ($document, $filter, $full_text) = @_;
+
+    my %seen_subs;
+    my @subroutines;
+
+    foreach my $sub (@{$document->get_subroutines_fast($full_text)})
+    {
+        next if $seen_subs{$sub}++;
+        push @subroutines, {label => $sub, kind => 3};
+    }
+
+    my $subs = $document->{index}{subs_trie}->find($filter);
+    @{$subs} = map { {label => $_, kind => 3} } grep { not $seen_subs{$_}++ } @{$subs};
+    push @subroutines, @{$subs};
+
+    return \@subroutines;
+} ## end sub get_subroutines
+
+sub get_packages
+{
+    my ($document, $filter, $full_text) = @_;
+
+    my @packages;
+
+    my $curr_doc_packages = $document->get_packages_fast($full_text);
+
+    # Can use state here, core modules unlikely to change.
+    state $core_modules = [Module::CoreList->find_modules(qr//, $])];
+    my $ext_modules = get_ext_modules();
+
+    my %seen_packages;
+
+    foreach my $pack (@{$curr_doc_packages}, @{$core_modules}, @{$ext_modules})
+    {
+        next if $seen_packages{$pack}++;
+        push @packages,
+          {
+            label => $pack,
+            kind  => 7
+          };
+    } ## end foreach my $pack (@{$curr_doc_packages...})
+
+    my $packages = $document->{index}{packages_trie}->find($filter);
+    @{$packages} = map { {label => $_, kind => 7} } grep { not $seen_packages{$_}++ } @{$packages};
+    push @packages, @{$packages};
+
+    return \@packages;
+} ## end sub get_packages
+
+sub get_constants
+{
+    my ($document, $filter, $full_text) = @_;
+
+    my %seen_constants;
+    my @constants;
+
+    foreach my $constant (@{$document->get_constants_fast($full_text)})
+    {
+        next if $seen_constants{$constant}++;
+        push @constants, {label => $constant, kind => 21};
+    }
+
+    return \@constants;
+} ## end sub get_constants
+
+sub get_variables
+{
+    my ($document, $filter, $full_text) = @_;
+
+    my @variables;
+    my %seen_variables;
+
+    foreach my $variable (@{$document->get_variables_fast($full_text)})
+    {
+        next if $seen_variables{$variable}++;
+        push @variables,
+          {
+            label => $variable,
+            kind  => 6
+          };
+
+        # add other variable forms to the list for arrays and hashes
+        if ($variable =~ /^[\@\%]/)
+        {
+            my $name   = $variable =~ s/^[\@\%]/\$/r;
+            my $append = $variable =~ /^\@/ ? '[' : '{';
+            push @variables,
+              {
+                label      => $variable,
+                insertText => $name . $append,
+                filterText => $name,
+                kind       => 6
+              };
+        } ## end if ($variable =~ /^[\@\%]/...)
+    } ## end foreach my $variable (@{$document...})
+
+    return \@variables;
+} ## end sub get_variables
 
 1;
