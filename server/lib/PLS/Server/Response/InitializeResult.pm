@@ -5,6 +5,8 @@ use warnings;
 
 use parent q(PLS::Server::Response);
 
+use PLS::Server::State;
+
 =head1 NAME
 
 PLS::Server::Response::InitializeResult

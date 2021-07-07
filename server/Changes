@@ -55,3 +55,10 @@ Revision history for perl module PLS
 
  - Fix to previous version - modules that are not top-level (i.e. contain "::")
    were not found appropriately.
+
+0.88 2021-07-07
+
+ - Fix to previous version - completion would show/would not show subroutines or packages
+   when it was appropriate to do so
+ - Sigils now cause the completion pop-up to display. Before, you would also need to type the
+   start of the variable name.
