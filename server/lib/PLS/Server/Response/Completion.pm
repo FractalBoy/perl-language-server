@@ -39,7 +39,7 @@ sub new
     my @word_under_cursor_info = $document->find_word_under_cursor(@{$request->{params}{position}}{qw(line character)});
     return $self unless (scalar @word_under_cursor_info);
     my ($range, $arrow, $package, $filter) = @word_under_cursor_info;
-    my $retrieve_packages = not $arrow or $filter =~ /^[\$\%\@]/ ? 0 : 1;
+    my $retrieve_packages = $arrow || $filter !~ /^[\$\%\@]/;
 
     if (ref $range eq 'HASH')
     {
@@ -173,8 +173,27 @@ sub new
 
     # Can use state here, core and external modules unlikely to change.
     state $core_modules = [Module::CoreList->find_modules(qr//, $])];
-    state $include      = PLS::Parser::Pod->get_clean_inc();
-    state $ext_modules  = [ExtUtils::Installed->new(inc_override => $include)->modules];
+    state $ext_modules = do {
+        my $include      = PLS::Parser::Pod->get_clean_inc();
+        my $installed = ExtUtils::Installed->new(inc_override => $include);
+        my @ext_modules;
+
+        foreach my $module ($installed->modules)
+        {
+            my @files = $installed->files($module, 'prog');
+
+            # Find all the packages that are part of this module
+            foreach my $file (@files)
+            {
+                my ($path) = $file =~ /(\Q$module\E(?:\/.+)?).pm$/;
+                next unless (length $path);
+                my $mod_package = $path =~ s/\//::/gr;
+                push @ext_modules, $mod_package;
+            }
+        }
+
+        \@ext_modules;
+    };
 
     if ($retrieve_packages)
     {
