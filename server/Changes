@@ -42,3 +42,11 @@ Revision history for perl module PLS
 0.85 2021-07-06
 
  - Getting updated perltidy arguments from .perltidyrc no longer requires restarting PLS
+
+0.86 2021-07-06
+
+ - Fixes and enhancements to completion
+   - Will now find external packages under all external modules. For example, all
+     packages under PLS::* will now be found instead of only PLS.
+   - Moved retrieval of package symbols back to a perl one-liner (reverting change from 0.84)
+     due to bugs related to caching previous calls to "require".
