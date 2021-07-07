@@ -181,11 +181,12 @@ sub new
         foreach my $module ($installed->modules)
         {
             my @files = $installed->files($module, 'prog');
+            $module =~ s/::/\//g;
 
             # Find all the packages that are part of this module
             foreach my $file (@files)
             {
-                my ($path) = $file =~ /(\Q$module\E(?:\/.+)?).pm$/;
+                my ($path) = $file =~ /(\Q$module\E(?:\/.+)?)\.pm$/;
                 next unless (length $path);
                 my $mod_package = $path =~ s/\//::/gr;
                 push @ext_modules, $mod_package;

@@ -50,3 +50,8 @@ Revision history for perl module PLS
      packages under PLS::* will now be found instead of only PLS.
    - Moved retrieval of package symbols back to a perl one-liner (reverting change from 0.84)
      due to bugs related to caching previous calls to "require".
+
+0.87 2021-07-06
+
+ - Fix to previous version - modules that are not top-level (i.e. contain "::")
+   were not found appropriately.
