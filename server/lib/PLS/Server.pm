@@ -15,6 +15,7 @@ use Scalar::Util qw(blessed);
 
 use PLS::Server::Request::Factory;
 use PLS::Server::Response;
+use PLS::Server::Response::Cancelled;
 
 =head1 NAME
 
@@ -222,7 +223,11 @@ sub handle_client_request
                     my ($response) = @_;
                     $self->{server_responses}->push($response);
                 }
-            );
+              )->on_cancel(
+                sub {
+                    $self->{server_responses}->push(PLS::Server::Response::Cancelled->new(id => $request->{id}));
+                }
+              );
         } ## end elsif ($response->isa('Future'...))
     } ## end if (blessed($response)...)
 

@@ -7,8 +7,6 @@ use parent 'PLS::Server::Request';
 
 use Scalar::Util qw(blessed);
 
-use PLS::Server::Response::Cancelled;
-
 =head1 NAME
 
 PLS::Server::Request::CancelRequest
@@ -33,7 +31,7 @@ sub service
 
     delete $server->{running_futures}{$id};
 
-    return PLS::Server::Response::Cancelled->new(id => $id);
+    return;
 } ## end sub service
 
 1;

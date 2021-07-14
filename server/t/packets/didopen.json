@@ -1,0 +1,13 @@
+{
+  "jsonrpc": "2.0",
+  "id": null,
+  "method": "textDocument/didOpen",
+  "params": {
+    "textDocument": {
+      "uri": "",
+      "languageId": "perl",
+      "version": 1,
+      "text": ""
+    }
+  }
+}

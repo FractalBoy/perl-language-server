@@ -1,0 +1,23 @@
+{
+  "jsonrpc": "2.0",
+  "id": null,
+  "result": [
+    {
+      "inc": [],
+      "pls": "pls",
+      "syntax": {
+        "enabled": true,
+        "perl": ""
+      },
+      "perltidyrc": "~/.perltidyrc",
+      "perlcritic": {
+        "perlcriticrc": "~/.perlcriticrc",
+        "enabled": true
+      },
+      "cwd": "",
+      "sortImports": {
+        "args": []
+      }
+    }
+  ]
+}
