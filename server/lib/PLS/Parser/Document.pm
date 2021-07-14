@@ -78,12 +78,11 @@ sub new
     return unless (length $path and length $uri);
 
     my $self = bless {
-                      path  => $path,
-                      uri   => $uri,
-                      index => $INDEX
+                      path => $path,
+                      uri  => $uri
                      }, $class;
 
-    $self->get_index();
+    $self->{index} = $self->get_index();
     my $document = $self->_get_ppi_document(%args);
     return unless (ref $document eq 'PPI::Document');
     $self->{document} = $document;
@@ -1185,6 +1184,7 @@ sub _get_ppi_document
     }
     else
     {
+        return if (not -f $file or not -r $file);
         $sha->addfile($file);
     }
 
@@ -1255,6 +1255,52 @@ sub find_word_under_cursor
 
     if (not blessed($element) or not $element->isa('PLS::Parser::Element'))
     {
+        # Let's see if PPI thinks that we're typing the start of a Regexp operator.
+        my $regexp = first { $_->element->isa('PPI::Token::Regexp') } @elements;
+        if (
+            blessed($regexp)
+            and (   $regexp->type eq 'PPI::Token::Regexp::Match' and $regexp->content eq 'm'
+                 or $regexp->type eq 'PPI::Token::Regexp::Substitute'    and $regexp->content eq 's'
+                 or $regexp->type eq 'PPI::Token::Regexp::Transliterate' and ($regexp->content eq 'tr' or $regexp->content eq 'y'))
+           )
+        {
+            $element = $regexp;
+        } ## end if (blessed($regexp) and...)
+    } ## end if (not blessed($element...))
+
+    if (not blessed($element) or not $element->isa('PLS::Parser::Element'))
+    {
+        # Let's see if PPI thinks that we're typing the start of a quote operator.
+        my $literal     = first { $_->type eq 'PPI::Token::Quote::Literal' } @elements;
+        my $interpolate = first { $_->type eq 'PPI::Token::Quote::Interpolate' } @elements;
+        my $qr          = first { $_->type eq 'PPI::Token::QuoteLike::Regexp' } @elements;
+        my $qw          = first { $_->type eq 'PPI::Token::QuoteLike::Words' } @elements;
+        my $qx          = first { $_->type eq 'PPI::Token::QuoteLike::Command' } @elements;
+
+        if (blessed($literal) and $literal->element->content eq 'q')
+        {
+            $element = $literal;
+        }
+        elsif (blessed($interpolate) and $interpolate->element->content eq 'qq')
+        {
+            $element = $interpolate;
+        }
+        elsif (blessed($qr) and $qr->element->content eq 'qr')
+        {
+            $element = $qr;
+        }
+        elsif (blessed($qw) and $qw->element->content eq 'qw')
+        {
+            $element = $qw;
+        }
+        elsif (blessed($qx) and $qx->element->content eq 'qx')
+        {
+            $element = $qx;
+        }
+    } ## end if (not blessed($element...))
+
+    if (not blessed($element) or not $element->isa('PLS::Parser::Element'))
+    {
         my $cast = first { $_->type eq 'PPI::Token::Cast' } @elements;
 
         # A cast probably means only a sigil was typed.
@@ -1283,7 +1329,7 @@ sub find_word_under_cursor
     if (blessed($closest_operator) and $closest_operator->isa('PLS::Parser::Element') and $closest_operator->name eq '->' and $element->type eq 'PPI::Token::Word')
     {
         # default to inserting after the arrow
-        my $arrow_range = $element->range;
+        my $arrow_range = $closest_operator->range;
         my $range = {
                      start => $arrow_range->{end},
                      end   => $arrow_range->{end}
@@ -1306,6 +1352,7 @@ sub find_word_under_cursor
         # if the previous element is a word, it's possibly a class name,
         # so we return that to use for searching for that class's methods.
         my $package = '';
+
         if (    blessed($closest_operator->previous_sibling)
             and $closest_operator->previous_sibling->isa('PLS::Parser::Element')
             and $closest_operator->previous_sibling->type eq 'PPI::Token::Word')
@@ -1315,6 +1362,19 @@ sub find_word_under_cursor
 
         # the 1 indicates that the current token is an arrow, due to the special logic needed.
         return $range, 1, $package, $filter;
+    } ## end if (blessed($closest_operator...))
+
+    # This handles the case for when there is an arrow after a variable name
+    # but the user has not yet started typing the method name.
+    if (blessed($closest_operator) and $closest_operator->isa('PLS::Parser::Element') and $closest_operator->name eq '->' and $closest_operator->previous_sibling->element == $element->element)
+    {
+        my $arrow_range = $closest_operator->range;
+        my $range = {
+                     start => $arrow_range->{end},
+                     end   => $arrow_range->{end}
+                    };
+
+        return $range, 1, '', '';
     } ## end if (blessed($closest_operator...))
 
     # something like "Package::Name:", we just want Package::Name.
@@ -1335,10 +1395,13 @@ sub find_word_under_cursor
     my $package = '';
 
     if (   $element->type eq 'PPI::Token::Word'
-        or $element->type eq 'PPI::Token::Label')
+        or $element->type eq 'PPI::Token::Label'
+        or $element->element->isa('PPI::Token::Quote')
+        or $element->element->isa('PPI::Token::QuoteLike')
+        or $element->element->isa('PPI::Token::Regexp'))
     {
         $package = $element->name;
-    }
+    } ## end if ($element->type eq ...)
 
     my $name = $element->name;
     $name =~ s/:?:$//;

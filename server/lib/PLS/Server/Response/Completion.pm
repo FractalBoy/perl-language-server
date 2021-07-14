@@ -68,14 +68,14 @@ sub new
             $full_text = $document->get_full_text();
             push @results, @{get_subroutines($document, $filter, $full_text)};
             push @results, @{get_keywords()} unless $arrow;
-        }
+        } ## end unless (scalar @{$functions...})
 
         unless ($arrow)
         {
             $full_text = $document->get_full_text() unless (ref $full_text eq 'SCALAR');
             push @results, @{get_packages($document, $filter, $full_text)};
         }
-    } ## end else [ if ($filter =~ /^\$\%\@/...)]
+    } ## end else [ if ($filter =~ /^[\$\%\@]/...)]
 
     foreach my $result (@results)
     {
@@ -173,7 +173,7 @@ sub get_package_functions
 
             if ($arrow)
             {
-                $result->{insertText} = (length $filter) ? $name : "->$name";
+                $result->{insertText} = $name;
             }
             else
             {
