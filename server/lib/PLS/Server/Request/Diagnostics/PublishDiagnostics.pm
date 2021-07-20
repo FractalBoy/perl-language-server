@@ -150,10 +150,18 @@ sub get_perlcritic_errors
 
     my @diagnostics;
 
+    # Mapping from perlcritic severity to LSP severity
+    my %severity_map = (
+        5 => 1,
+        4 => 1,
+        3 => 2,
+        2 => 3,
+        1 => 3
+    );
+
     foreach my $violation (@violations)
     {
-        my $severity = 5 - $violation->severity;
-        $severity = 1 unless ($severity);
+        my $severity = $severity_map{$violation->severity};
 
         my $doc = URI->new();
         $doc->scheme('https');
