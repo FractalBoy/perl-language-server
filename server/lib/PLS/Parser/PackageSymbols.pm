@@ -6,6 +6,8 @@ use warnings;
 use Fcntl ();
 use Storable ();
 
+use PLS::Parser::Pod;
+
 =head1 NAME
 
 PLS::Parser::PackageSymbols
@@ -57,9 +59,8 @@ sub get_package_functions
         fcntl $write_fh, Fcntl::F_SETFD, $flags & ~Fcntl::FD_CLOEXEC;
 
         my @inc = map { "-I$_" } @{$config->{inc} // []};
-        my $perl = $config->{syntax}{perl};
-        $perl = $^X unless (-x $perl);
-        exec $^X, @inc, '-e', $script, fileno($write_fh), $package;
+        my $perl = PLS::Parser::Pod->get_perl_exe();
+        exec $perl, @inc, '-e', $script, fileno($write_fh), $package;
     }
 } ## end sub get_package_functions
 

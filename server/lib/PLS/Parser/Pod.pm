@@ -23,6 +23,8 @@ for sending to the Language Server Protocol.
 
 =cut
 
+my $PERL_EXE = $^X;
+
 sub new
 {
     my ($class, @args) = @_;
@@ -75,6 +77,33 @@ sub name
 
     return '';
 }
+
+=head2 set_perl_exe
+
+Store the perl executable path.
+
+=cut
+
+sub set_perl_exe
+{
+    my (undef, $perl_exe) = @_;
+
+    $PERL_EXE = $perl_exe if (length $perl_exe and -x $perl_exe);
+
+    return;
+}
+
+=head2 get_perl_exe
+
+Get the perl executable path.
+
+=cut
+
+sub get_perl_exe
+{
+    return $PERL_EXE;
+}
+
 
 =head2 get_perldoc_location
 
@@ -224,7 +253,7 @@ sub get_clean_inc
     my @include = grep { not /\Q$FindBin::RealBin\E/ } @INC;
 
     # try to get a clean @INC from the perl we're using
-    if (my $pid = open my $perl, '-|', $^X, '-e', q{$, = "\n"; print @INC; print "\n"})
+    if (my $pid = open my $perl, '-|', $PERL_EXE, '-e', q{$, = "\n"; print @INC; print "\n"})
     {
         @include = ();
 

@@ -5,8 +5,11 @@ use warnings;
 
 use parent 'PLS::Server::Request';
 
+use Cwd ();
 use Fcntl ();
+use File::Basename;
 use File::Spec;
+use File::Temp;
 use IPC::Open3;
 use Perl::Critic;
 use Storable;
@@ -38,13 +41,29 @@ sub new
 
     return unless (ref $path eq 'URI::file');
     $path = $path->file;
+    my $filename = File::Basename::basename($path);
+
+    my $temp;
+
+    if ($args{unsaved})
+    {
+        my $text = PLS::Parser::Document::text_from_uri($uri);
+
+        if (ref $text eq 'SCALAR')
+        {
+            $temp = File::Temp->new(DIR => Cwd::cwd());
+            print {$temp} $$text;
+            close $temp;
+            $path = $temp->filename;
+        }
+    }
 
     my @diagnostics;
 
     if (not $args{close})
     {
         push @diagnostics, @{get_compilation_errors($path)} if (defined $PLS::Server::State::CONFIG->{syntax}{enabled} and $PLS::Server::State::CONFIG->{syntax}{enabled});
-        push @diagnostics, @{get_perlcritic_errors($path)} if (defined $PLS::Server::State::CONFIG->{perlcritic}{enabled} and $PLS::Server::State::CONFIG->{perlcritic}{enabled});
+        push @diagnostics, @{get_perlcritic_errors($path, $filename, $args{unsaved})} if (defined $PLS::Server::State::CONFIG->{perlcritic}{enabled} and $PLS::Server::State::CONFIG->{perlcritic}{enabled});
     }
 
     my $self = {
@@ -63,8 +82,6 @@ sub get_compilation_errors
 {
     my ($path) = @_;
 
-    my $inc = PLS::Parser::Pod->get_clean_inc();
-    my @inc = map { "-I$_" } @{$inc // []};
 
     my @line_lengths;
     my $pid = open my $fh, '<', $path or return [];
@@ -77,8 +94,10 @@ sub get_compilation_errors
 
     waitpid $pid, 0;
 
-    my $perl = $PLS::Server::State::CONFIG->{syntax}{perl};
-    $perl = $^X unless (length $perl);
+    my $perl = PLS::Parser::Pod->get_perl_exe();
+    my $inc = PLS::Parser::Pod->get_clean_inc();
+    my @inc = map { "-I$_" } @{$inc // []};
+
     $pid = open3 my $in, my $out, my $err = gensym, $perl, @inc, '-c', $path or return [];
     close $in;
     close $out;
@@ -122,7 +141,7 @@ sub get_compilation_errors
 
 sub get_perlcritic_errors
 {
-    my ($path) = @_;
+    my ($path, $filename, $unsaved) = @_;
 
     my ($profile) = glob $PLS::Server::State::CONFIG->{perlcritic}{perlcriticrc};
     undef $profile if (not length $profile or not -f $profile or not -r $profile);
@@ -140,6 +159,20 @@ sub get_perlcritic_errors
         $doc->scheme('https');
         $doc->authority('metacpan.org');
         $doc->path('pod/' . $violation->policy);
+
+        # Don't report on filename mismatch if this is a temporary file with the wrong name.
+        if ($unsaved and $violation->policy eq 'Perl::Critic::Policy::Modules::RequireFilenameMatchesPackage')
+        {
+            my ($package) = $violation->source =~ /^\s*package\s*(.+?)\s*;?\s*$/;
+
+            my $expected_filename = (split /::/, $package)[-1];
+            $expected_filename .= '.pm';
+
+            my $logical_filename = File::Basename::basename($violation->logical_filename);
+
+            next if ($violation->filename ne $violation->logical_filename and $logical_filename eq $expected_filename);
+            next if ($violation->filename eq $violation->logical_filename and $filename eq $expected_filename);
+        }
 
         push @diagnostics,
           {

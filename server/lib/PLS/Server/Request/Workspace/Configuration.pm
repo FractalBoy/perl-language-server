@@ -8,6 +8,7 @@ use parent 'PLS::Server::Request';
 use Scalar::Util;
 
 use PLS::Parser::Document;
+use PLS::Parser::Pod;
 use PLS::Server::State;
 use PLS::Server::Request::Diagnostics::PublishDiagnostics;
 
@@ -63,12 +64,17 @@ sub handle_response
         chdir $config->{cwd};
     }
 
+    if (exists $config->{syntax}{perl} and length $config->{syntax}{perl})
+    {
+        PLS::Parser::Pod->set_perl_exe($config->{syntax}{perl});
+    }
+
     $PLS::Server::State::CONFIG = $config;
 
     # @INC may have changed - republish diagnostics
     foreach my $uri (@{PLS::Parser::Document->open_files()})
     {
-        $server->send_server_request(PLS::Server::Request::Diagnostics::PublishDiagnostics->new(uri => $uri));
+        $server->send_server_request(PLS::Server::Request::Diagnostics::PublishDiagnostics->new(uri => $uri, unsaved => 1));
     }
 
     return;
