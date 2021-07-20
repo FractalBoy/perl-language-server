@@ -62,3 +62,8 @@ Revision history for perl module PLS
    when it was appropriate to do so
  - Sigils now cause the completion pop-up to display. Before, you would also need to type the
    start of the variable name.
+
+0.89 2021-07-20
+
+ - Added syntax checking/linting one second after user stops typing.
+ - Fixed issue where the perl binary used was inconsistent.
