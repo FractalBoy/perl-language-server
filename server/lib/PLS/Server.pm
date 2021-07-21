@@ -186,7 +186,18 @@ sub send_server_request
 {
     my ($self, $request) = @_;
 
-    $self->{server_requests}->push($request);
+    if ($request->isa('PLS::Server::Request'))
+    {
+        $self->{server_requests}->push($request);
+    }
+    elsif ($request->isa('Future'))
+    {
+        $request->on_done(sub {
+            my ($request) = @_;
+
+            $self->{server_requests}->push($request);
+        })->retain();
+    }
     return;
 } ## end sub send_server_request
 

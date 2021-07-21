@@ -23,7 +23,8 @@ sub service
 {
     my ($self, $server) = @_;
 
-    $server->send_server_request(PLS::Server::Request::Diagnostics::PublishDiagnostics->new(uri => $self->{params}{textDocument}{uri}));
+    my $uri = $self->{params}{textDocument}{uri};
+    $server->send_server_request(PLS::Server::Request::Diagnostics::PublishDiagnostics->call_diagnostics_function($uri, 0));
 
     return;
 } ## end sub service

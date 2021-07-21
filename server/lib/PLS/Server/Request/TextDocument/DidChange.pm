@@ -46,7 +46,8 @@ sub service
         $timers{$uri} = IO::Async::Timer::Countdown->new(
             delay => 1,
             on_expire => sub {
-                $server->send_server_request(PLS::Server::Request::Diagnostics::PublishDiagnostics->new(uri => $uri, unsaved => 1));
+                my $text = PLS::Parser::Document::text_from_uri($uri);
+                $server->send_server_request(PLS::Server::Request::Diagnostics::PublishDiagnostics->call_diagnostics_function($uri, 1));
                 delete $timers{$uri};
             },
             remove_on_expire => 1

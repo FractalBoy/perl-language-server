@@ -5,7 +5,6 @@ use warnings;
 
 use parent 'PLS::Server::Request';
 
-use Cwd ();
 use Fcntl ();
 use File::Basename;
 use File::Spec;
@@ -32,6 +31,22 @@ These diagnostics currently include compilation errors and linting (using L<perl
 
 =cut
 
+my $function = IO::Async::Function->new(
+    min_workers => 4,
+    code => sub {
+        my ($uri, $unsaved, $text, $config, $root_path, $perl_exe) = @_;
+
+        $PLS::Server::State::CONFIG = $config;
+        $PLS::Server::State::ROOT_PATH = $root_path;
+        PLS::Parser::Pod->set_perl_exe($perl_exe);
+        return PLS::Server::Request::Diagnostics::PublishDiagnostics->new(uri => $uri, text => $text, unsaved => $unsaved);
+    }
+);
+
+my $loop = IO::Async::Loop->new();
+$loop->add($function);
+$function->start();
+
 sub new
 {
     my ($class, %args) = @_;
@@ -41,17 +56,18 @@ sub new
 
     return unless (ref $path eq 'URI::file');
     $path = $path->file;
-    my $filename = File::Basename::basename($path);
+    my (undef, $dir, $filename) = File::Spec->splitpath($path);
 
     my $temp;
 
     if ($args{unsaved})
     {
-        my $text = PLS::Parser::Document::text_from_uri($uri);
+        my $text = $args{text};
+        $text = PLS::Parser::Document::text_from_uri($uri) if (ref $text ne 'SCALAR');
 
         if (ref $text eq 'SCALAR')
         {
-            $temp = File::Temp->new(DIR => Cwd::cwd());
+            $temp = File::Temp->new(DIR => $dir);
             print {$temp} $$text;
             close $temp;
             $path = $temp->filename;
@@ -81,7 +97,6 @@ sub new
 sub get_compilation_errors
 {
     my ($path) = @_;
-
 
     my @line_lengths;
     my $pid = open my $fh, '<', $path or return [];
@@ -198,5 +213,16 @@ sub get_perlcritic_errors
 
     return \@diagnostics;
 } ## end sub get_perlcritic_errors
+
+sub call_diagnostics_function
+{
+    my ($class, $uri, $unsaved) = @_;
+
+    return Future->done() if (ref $PLS::Server::State::CONFIG ne 'HASH');
+
+    my $text;
+    $text = PLS::Parser::Document::text_from_uri($uri) if $unsaved;
+    return $function->call(args => [$uri, $unsaved, $text, $PLS::Server::State::CONFIG, $PLS::Server::State::ROOT_PATH, PLS::Parser::Pod->get_perl_exe()]);
+}
 
 1;

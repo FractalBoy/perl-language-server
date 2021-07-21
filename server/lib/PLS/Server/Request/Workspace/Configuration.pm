@@ -74,7 +74,7 @@ sub handle_response
     # @INC may have changed - republish diagnostics
     foreach my $uri (@{PLS::Parser::Document->open_files()})
     {
-        $server->send_server_request(PLS::Server::Request::Diagnostics::PublishDiagnostics->new(uri => $uri, unsaved => 1));
+        $server->send_server_request(PLS::Server::Request::Diagnostics::PublishDiagnostics->call_diagnostics_function($uri, 1));
     }
 
     return;
