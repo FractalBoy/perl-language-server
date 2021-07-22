@@ -1,0 +1,11 @@
+requires 'IO::Async', 0.78;
+requires 'Future', 0.47;
+requires 'Future::Utils', 0.47;
+requires 'Future::Queue', 0.47;
+requires 'Path::Tiny', 0.114;
+requires 'Perl::Critic', 1.138;
+requires 'Perl::Tidy', 20210402;
+requires 'Pod::Markdown', 3.200;
+requires 'PPI', 1.264;
+requires 'PPR', 0.000028;
+requires 'URI', 1.76;
