@@ -17,7 +17,7 @@ local $PLS::Server::State::ROOT_PATH = $FindBin::RealBin;
 subtest 'new with uri' => sub {
     plan tests => 4;
 
-    my $uri = URI::file->new(File::Spec->catfile($FindBin::RealBin, 'Communicate.pm'));
+    my $uri = URI::file->new(File::Spec->catfile($FindBin::RealBin, $FindBin::RealScript));
     my $doc = PLS::Parser::Document->new(uri => $uri->as_string);
 
     isa_ok($doc,             'PLS::Parser::Document');
@@ -43,9 +43,9 @@ subtest 'new with uri' => sub {
 subtest 'new with path' => sub {
     plan tests => 3;
 
-    my $path = File::Spec->catfile($FindBin::RealBin, 'Communicate.pm');
+    my $uri = URI::file->new(File::Spec->catfile($FindBin::RealBin, $FindBin::RealScript));
     PLS::Parser::Document->set_index(undef);
-    my $doc = PLS::Parser::Document->new(path => $path);
+    my $doc = PLS::Parser::Document->new(path => $uri->file);
 
     isa_ok($doc,             'PLS::Parser::Document');
     isa_ok($doc->{document}, 'PPI::Document');
