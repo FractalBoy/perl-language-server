@@ -48,7 +48,7 @@ jobs:
       - name: Archive module artifact
         uses: actions/upload-artifact@v2
         with:
-          name: module-archive
+          name: module-archive-${{ matrix.os }}-${{ matrix.perl }}
           path: |
             server/PLS*.tar.gz
 
@@ -65,7 +65,7 @@ jobs:
 
       - uses: actions/download-artifact@v2
         with:
-          name: module-archive
+          name: module-archive-ubuntu-latest-5.34
 
       - name: Publish to CPAN
         run: cpan-upload -u mreisner -p ${{ secrets.PAUSE_PASSWORD }} PLS*.tar.gz
