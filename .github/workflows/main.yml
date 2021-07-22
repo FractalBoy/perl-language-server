@@ -24,12 +24,11 @@ jobs:
       - uses: shogo82148/actions-setup-perl@v1.12.2
         with:
           perl-version: '5.34'
+          install-modules-with: cpanm
+          install-modules-args: --installdeps .
           
       - name: Create Makefile
         run: perl Makefile.PL
-        
-      - name: Install dependencies
-        run: cpanm --installdeps .
         
       - name: Make module
         run: make
