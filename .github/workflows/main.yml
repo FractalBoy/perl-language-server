@@ -16,7 +16,7 @@ defaults:
 
 jobs:
   build_and_test_server:
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
     
     strategy:
       matrix:
@@ -44,7 +44,12 @@ jobs:
           cpanm --local-lib-contained local --notest --installdeps .
        
       - name: Add local lib to PERL5LIB
+        if: matrix.os == 'ubuntu-latest' || matrix.os == 'macos-latest'
         run: echo "PERL5LIB=$PWD/local/lib/perl5:$PERL5LIB" >> $GITHUB_ENV
+     
+      - name: Add local lib to PERL5LIB
+        if: matrix.os == 'windows-latest'
+        run: echo "PERL5LIB=$PWD/local/lib/perl5;$PERL5LIB" >> $GITHUB_ENV
           
       - name: Create Makefile
         run: perl Makefile.PL
