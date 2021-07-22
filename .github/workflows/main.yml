@@ -42,7 +42,9 @@ jobs:
         if: steps.cache.outputs.cache-hit != 'true'
         run: |
           cpanm --local-lib-contained local --notest --installdeps .
-          echo "PERL5LIB='$PWD/local/lib/perl5:$PERL5LIB'" >> $GITHUB_ENV
+       
+      - name: Add local lib to PERL5LIB
+        run: echo "PERL5LIB=$PWD/local/lib/perl5:$PERL5LIB" >> $GITHUB_ENV
           
       - name: Create Makefile
         run: perl Makefile.PL
