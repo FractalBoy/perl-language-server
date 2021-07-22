@@ -32,8 +32,7 @@ These diagnostics currently include compilation errors and linting (using L<perl
 =cut
 
 my $function = IO::Async::Function->new(
-    min_workers => 4,
-    init_code => sub { srand }, # Seed the random number generator to avoid temp file conflicts
+    max_workers => 1,
     code => sub {
         my ($uri, $unsaved, $text, $config, $root_path, $perl_exe) = @_;
 
@@ -100,7 +99,7 @@ sub get_compilation_errors
     my ($path) = @_;
 
     my @line_lengths;
-    my $pid = open my $fh, '<', $path or return [];
+    open my $fh, '<', $path or return [];
 
     while (my $line = <$fh>)
     {
@@ -108,15 +107,15 @@ sub get_compilation_errors
         $line_lengths[$.] = length $line;
     }
 
-    waitpid $pid, 0;
+    close $fh;
 
     my $perl = PLS::Parser::Pod->get_perl_exe();
     my $inc = PLS::Parser::Pod->get_clean_inc();
     my @inc = map { "-I$_" } @{$inc // []};
 
-    $pid = open3 my $in, my $out, my $err = gensym, $perl, @inc, '-c', $path or return [];
-    close $in;
-    close $out;
+    my $err = gensym;
+    my $pid = eval { open3 my $in, my $out, $err, $perl, @inc, '-c', $path };
+    return [] if (not $pid or length $@);
 
     my @diagnostics;
 
@@ -148,7 +147,7 @@ sub get_compilation_errors
                 source   => 'perl',
               };
         } ## end if (my ($error, $file,...))
-    } ## end while (my $line = <$err>)
+    }
 
     waitpid $pid, 0;
 
