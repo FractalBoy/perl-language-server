@@ -16,7 +16,7 @@ WriteMakefile(
                             'Future::Utils' => 0.47,
                             'Future::Queue' => 0.47,
                             'Path::Tiny'    => 0.114,
-                            'Perl::Critic'  => 1.138,
+                            'Perl::Critic'  => 1.140,
                             'Perl::Tidy'    => 20210402,
                             'Pod::Markdown' => 3.200,
                             'PPI'           => 1.264,
