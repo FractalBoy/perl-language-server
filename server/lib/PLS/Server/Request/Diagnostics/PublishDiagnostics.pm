@@ -67,7 +67,7 @@ sub new
 
         if (ref $text eq 'SCALAR')
         {
-            $temp = File::Temp->new(DIR => $dir);
+            $temp = File::Temp->new(DIR => $dir, TEMPLATE => '.XXXXXXXX');
             print {$temp} $$text;
             close $temp;
             $path = $temp->filename;
