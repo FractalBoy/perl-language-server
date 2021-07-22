@@ -33,6 +33,7 @@ These diagnostics currently include compilation errors and linting (using L<perl
 
 my $function = IO::Async::Function->new(
     min_workers => 4,
+    init_code => sub { srand }, # Seed the random number generator to avoid temp file conflicts
     code => sub {
         my ($uri, $unsaved, $text, $config, $root_path, $perl_exe) = @_;
 
