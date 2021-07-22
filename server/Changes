@@ -67,3 +67,15 @@ Revision history for perl module PLS
 
  - Added syntax checking/linting one second after user stops typing.
  - Fixed issue where the perl binary used was inconsistent.
+
+0.891 2021-07-22
+
+ - Syntax checking and linting now occurs in the background, which
+   should improve response times
+ - Syntax checking and linting is now single threaded, which fixes
+   a mysterious issue that prevents temporary files from being deleted.
+ - Linting now maps severity 1 issues to "information" level problems,
+   so that they are shown. Previously, they were considered "hints",
+   which are not shown by the VSCode GUI.
+ - Added some PLS::Parser::Document unit tests, and changes to code
+   to fix issues found by unit tests, mostly to improve completion.
