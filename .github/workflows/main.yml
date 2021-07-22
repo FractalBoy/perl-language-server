@@ -31,6 +31,7 @@ jobs:
         with:
           perl-version: ${{ matrix.perl }}
           install-modules-with: cpanm
+          working-directory: server
 
       - name: Create Makefile
         run: perl Makefile.PL
