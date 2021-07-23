@@ -31,17 +31,7 @@ These diagnostics currently include compilation errors and linting (using L<perl
 
 =cut
 
-my $function = IO::Async::Function->new(
-    max_workers => 1,
-    code => sub {
-        my ($uri, $unsaved, $text, $config, $root_path, $perl_exe) = @_;
-
-        $PLS::Server::State::CONFIG = $config;
-        $PLS::Server::State::ROOT_PATH = $root_path;
-        PLS::Parser::Pod->set_perl_exe($perl_exe);
-        return PLS::Server::Request::Diagnostics::PublishDiagnostics->new(uri => $uri, text => $text, unsaved => $unsaved);
-    }
-);
+my $function = IO::Async::Function->new(code => \&run_perlcritic);
 
 my $loop = IO::Async::Loop->new();
 $loop->add($function);
@@ -51,10 +41,12 @@ sub new
 {
     my ($class, %args) = @_;
 
+    return if (ref $PLS::Server::State::CONFIG ne 'HASH');
+
     my $uri  = $args{uri};
     my $path = URI->new($uri);
 
-    return unless (ref $path eq 'URI::file');
+    return if (ref $path ne 'URI::file');
     $path = $path->file;
     my (undef, $dir, $filename) = File::Spec->splitpath($path);
 
@@ -62,36 +54,45 @@ sub new
 
     if ($args{unsaved})
     {
-        my $text = $args{text};
-        $text = PLS::Parser::Document::text_from_uri($uri) if (ref $text ne 'SCALAR');
+        my $text = PLS::Parser::Document::text_from_uri($uri);
 
         if (ref $text eq 'SCALAR')
         {
-            $temp = File::Temp->new(DIR => $dir, TEMPLATE => '.XXXXXXXX');
+            $temp = File::Temp->new(DIR => $dir, TEMPLATE => '.XXXXXXXX', UNLINK => 0);
             print {$temp} $$text;
             close $temp;
             $path = $temp->filename;
-        }
-    }
+        } ## end if (ref $text eq 'SCALAR'...)
+    } ## end if ($args{unsaved})
 
-    my @diagnostics;
+    my @futures;
 
     if (not $args{close})
     {
-        push @diagnostics, @{get_compilation_errors($path)} if (defined $PLS::Server::State::CONFIG->{syntax}{enabled} and $PLS::Server::State::CONFIG->{syntax}{enabled});
-        push @diagnostics, @{get_perlcritic_errors($path, $filename, $args{unsaved})} if (defined $PLS::Server::State::CONFIG->{perlcritic}{enabled} and $PLS::Server::State::CONFIG->{perlcritic}{enabled});
-    }
+        push @futures, get_compilation_errors($path) if (defined $PLS::Server::State::CONFIG->{syntax}{enabled} and $PLS::Server::State::CONFIG->{syntax}{enabled});
+        push @futures, get_perlcritic_errors($path, $filename, $args{unsaved})
+          if (defined $PLS::Server::State::CONFIG->{perlcritic}{enabled} and $PLS::Server::State::CONFIG->{perlcritic}{enabled});
+    } ## end if (not $args{close})
 
-    my $self = {
-        method => 'textDocument/publishDiagnostics',
-        params => {
-                   uri         => $uri,
-                   diagnostics => \@diagnostics
-                  },
-        notification => 1    # indicates to the server that this should not be assigned an id, and that there will be no response
-               };
+    return Future->wait_all(@futures)->then(
+        sub {
+            my @diagnostics = map { $_->result } @_;
 
-    return bless $self, $class;
+            my $self = {
+                method => 'textDocument/publishDiagnostics',
+                params => {
+                           uri         => $uri,
+                           diagnostics => \@diagnostics
+                          },
+                notification => 1    # indicates to the server that this should not be assigned an id, and that there will be no response
+                       };
+
+            unlink $temp if (ref $temp eq 'File::Temp');
+
+            return Future->done(bless $self, $class);
+        }
+    );
+
 } ## end sub new
 
 sub get_compilation_errors
@@ -110,48 +111,60 @@ sub get_compilation_errors
     close $fh;
 
     my $perl = PLS::Parser::Pod->get_perl_exe();
-    my $inc = PLS::Parser::Pod->get_clean_inc();
-    my @inc = map { "-I$_" } @{$inc // []};
-
-    my $err = gensym;
-    my $pid = eval { open3 my $in, my $out, $err, $perl, @inc, '-c', $path };
-    return [] if (not $pid or length $@);
+    my $inc  = PLS::Parser::Pod->get_clean_inc();
+    my @inc  = map { "-I$_" } @{$inc // []};
 
     my @diagnostics;
 
-    while (my $line = <$err>)
-    {
-        chomp $line;
-        next if $line =~ /syntax OK$/;
+    my $future = $loop->new_future();
+    my $proc = IO::Async::Process->new(
+        command => [$perl, @inc, '-c', $path],
+        stderr  => {
+            on_read => sub {
+                my ($stream, $buffref, $eof) = @_;
 
-        # Hide warnings from circular references
-        next if $line =~ /Subroutine .+ redefined/;
+                while ($$buffref =~ s/^(.*)\n//)
+                {
+                    my $line = $1;
+                    next if $line =~ /syntax OK$/;
 
-        # Hide "BEGIN failed" and "Compilation failed" messages - these provide no useful info.
-        next if $line =~ /^BEGIN failed/;
-        next if $line =~ /^Compilation failed/;
-        if (my ($error, $file, $line, $area) = $line =~ /^(.+) at (.+) line (\d+)(, .+)?/)
-        {
-            $error .= $area if (length $area);
-            $line = int $line;
-            next if $file ne $path;
+                    # Hide warnings from circular references
+                    next if $line =~ /Subroutine .+ redefined/;
 
-            push @diagnostics,
-              {
-                range => {
-                          start => {line => $line - 1, character => 0},
-                          end   => {line => $line - 1, character => $line_lengths[$line]}
-                         },
-                message  => $error,
-                severity => 1,
-                source   => 'perl',
-              };
-        } ## end if (my ($error, $file,...))
-    }
+                    # Hide "BEGIN failed" and "Compilation failed" messages - these provide no useful info.
+                    next if $line =~ /^BEGIN failed/;
+                    next if $line =~ /^Compilation failed/;
+                    if (my ($error, $file, $line, $area) = $line =~ /^(.+) at (.+) line (\d+)(, .+)?/)
+                    {
+                        $error .= $area if (length $area);
+                        $line = int $line;
+                        next if $file ne $path;
 
-    waitpid $pid, 0;
+                        push @diagnostics,
+                          {
+                            range => {
+                                      start => {line => $line - 1, character => 0},
+                                      end   => {line => $line - 1, character => $line_lengths[$line]}
+                                     },
+                            message  => $error,
+                            severity => 1,
+                            source   => 'perl',
+                          };
+                    } ## end if (my ($error, $file,...))
 
-    return \@diagnostics;
+                } ## end while ($$buffref =~ s/^(.*)\n//...)
+
+                return 0;
+            }
+        },
+        on_finish => sub {
+            $future->done(@diagnostics);
+        }
+    );
+
+    $loop->add($proc);
+
+    return $future;
 } ## end sub get_compilation_errors
 
 sub get_perlcritic_errors
@@ -160,19 +173,27 @@ sub get_perlcritic_errors
 
     my ($profile) = glob $PLS::Server::State::CONFIG->{perlcritic}{perlcriticrc};
     undef $profile if (not length $profile or not -f $profile or not -r $profile);
-    my $critic     = Perl::Critic->new(-profile => $profile);
+
+    return $function->call(args => [$profile, $path, $filename, $unsaved]);
+} ## end sub get_perlcritic_errors
+
+sub run_perlcritic
+{
+    my ($profile, $path, $filename, $unsaved) = @_;
+
+    my $critic = Perl::Critic->new(-profile => $profile);
     my @violations = $critic->critique($path);
 
     my @diagnostics;
 
     # Mapping from perlcritic severity to LSP severity
     my %severity_map = (
-        5 => 1,
-        4 => 1,
-        3 => 2,
-        2 => 3,
-        1 => 3
-    );
+                        5 => 1,
+                        4 => 1,
+                        3 => 2,
+                        2 => 3,
+                        1 => 3
+                        );
 
     foreach my $violation (@violations)
     {
@@ -195,34 +216,23 @@ sub get_perlcritic_errors
 
             next if ($violation->filename ne $violation->logical_filename and $logical_filename eq $expected_filename);
             next if ($violation->filename eq $violation->logical_filename and $filename eq $expected_filename);
-        }
+        } ## end if ($unsaved and $violation...)
 
         push @diagnostics,
-          {
+            {
             range => {
-                      start => {line => $violation->line_number - 1, character => $violation->column_number - 1},
-                      end   => {line => $violation->line_number - 1, character => $violation->column_number + length($violation->source) - 1}
-                     },
+                        start => {line => $violation->line_number - 1, character => $violation->column_number - 1},
+                        end   => {line => $violation->line_number - 1, character => $violation->column_number + length($violation->source) - 1}
+                        },
             message         => $violation->description,
             code            => $violation->policy,
             codeDescription => {href => $doc->as_string},
             severity        => $severity,
             source          => 'perlcritic'
-          };
+            };
     } ## end foreach my $violation (@violations...)
 
-    return \@diagnostics;
-} ## end sub get_perlcritic_errors
-
-sub call_diagnostics_function
-{
-    my ($class, $uri, $unsaved) = @_;
-
-    return Future->done() if (ref $PLS::Server::State::CONFIG ne 'HASH');
-
-    my $text;
-    $text = PLS::Parser::Document::text_from_uri($uri) if $unsaved;
-    return $function->call(args => [$uri, $unsaved, $text, $PLS::Server::State::CONFIG, $PLS::Server::State::ROOT_PATH, PLS::Parser::Pod->get_perl_exe()]);
+    return @diagnostics;
 }
 
 1;

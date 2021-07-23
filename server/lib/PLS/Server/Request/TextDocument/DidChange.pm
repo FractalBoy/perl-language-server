@@ -47,7 +47,7 @@ sub service
             delay => 1,
             on_expire => sub {
                 my $text = PLS::Parser::Document::text_from_uri($uri);
-                $server->send_server_request(PLS::Server::Request::Diagnostics::PublishDiagnostics->call_diagnostics_function($uri, 1));
+                $server->send_server_request(PLS::Server::Request::Diagnostics::PublishDiagnostics->new(uri => $uri, unsaved => 1));
                 delete $timers{$uri};
             },
             remove_on_expire => 1

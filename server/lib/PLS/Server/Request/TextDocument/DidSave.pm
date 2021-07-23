@@ -24,7 +24,7 @@ sub service
     my ($self, $server) = @_;
 
     my $uri = $self->{params}{textDocument}{uri};
-    $server->send_server_request(PLS::Server::Request::Diagnostics::PublishDiagnostics->call_diagnostics_function($uri, 0));
+    $server->send_server_request(PLS::Server::Request::Diagnostics::PublishDiagnostics->new(uri => $uri));
 
     return;
 } ## end sub service

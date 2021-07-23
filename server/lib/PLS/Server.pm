@@ -186,6 +186,8 @@ sub send_server_request
 {
     my ($self, $request) = @_;
 
+    return unless blessed($request);
+
     if ($request->isa('PLS::Server::Request'))
     {
         $self->{server_requests}->push($request);
