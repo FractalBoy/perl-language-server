@@ -5,14 +5,13 @@ use warnings;
 
 use parent 'PLS::Server::Request';
 
-use Fcntl ();
 use File::Basename;
 use File::Spec;
 use File::Temp;
-use IPC::Open3;
+use IO::Async::Function;
+use IO::Async::Loop;
+use IO::Async::Process;
 use Perl::Critic;
-use Storable;
-use Symbol qw(gensym);
 use URI;
 
 use PLS::Parser::Pod;

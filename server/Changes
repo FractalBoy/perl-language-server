@@ -79,3 +79,10 @@ Revision history for perl module PLS
    which are not shown by the VSCode GUI.
  - Added some PLS::Parser::Document unit tests, and changes to code
    to fix issues found by unit tests, mostly to improve completion.
+
+0.892 2021-07-22
+
+ - Syntax checking and linting are now separated so that they can
+   run in parallel, which should improve performance.
+ - Syntax checking now takes advantage of IO::Async::Process instead
+   of using IPC::Open3.
