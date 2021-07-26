@@ -69,4 +69,4 @@ lib/PLS/Server/Request/Initialize.pm
 lib/PLS/Server.pm
 t/00compile.t
 t/02document-new.t
-t/02document-find_word_under_cursor.t
+t/03document-find_word_under_cursor.t
