@@ -96,3 +96,9 @@ Revision history for perl module PLS
    name as the file being checked, so that no workarounds are needed
    to prevent perlcritic from falsely reporting RequireFilenameMatchesPackage
    errors.
+
+0.894 2021-07-25
+
+ - Fix to previous version - no longer index files in temporary directories
+   that are hidden.
+ - Fix to previous version - add missing File::Path import.
