@@ -50,7 +50,7 @@ sub new
     $path = $path->file;
     my (undef, $dir, $filename) = File::Spec->splitpath($path);
 
-    my $temp;
+    my $temp_dir;
 
     if ($args{unsaved})
     {
@@ -58,10 +58,18 @@ sub new
 
         if (ref $text eq 'SCALAR')
         {
-            $temp = File::Temp->new(DIR => $dir, TEMPLATE => '.XXXXXXXX', UNLINK => 0);
-            print {$temp} $$text;
-            close $temp;
-            $path = $temp->filename;
+            $temp_dir = File::Temp->newdir(TEMPLATE => '.XXXXXXXXXX', DIR => $dir, CLEANUP => 0);
+            $path     = File::Spec->catfile($temp_dir->dirname, $filename);
+
+            if (open my $fh, '>', $path)
+            {
+                print {$fh} $$text;
+                close $fh;
+            }
+            else
+            {
+                return;
+            }
         } ## end if (ref $text eq 'SCALAR'...)
     } ## end if ($args{unsaved})
 
@@ -87,7 +95,7 @@ sub new
                 notification => 1    # indicates to the server that this should not be assigned an id, and that there will be no response
                        };
 
-            unlink $temp if (ref $temp eq 'File::Temp');
+            File::Path::rmtree($temp_dir->dirname) if (ref $temp_dir eq 'File::Temp::Dir');
 
             return Future->done(bless $self, $class);
         }
@@ -203,20 +211,6 @@ sub run_perlcritic
         $doc->scheme('https');
         $doc->authority('metacpan.org');
         $doc->path('pod/' . $violation->policy);
-
-        # Don't report on filename mismatch if this is a temporary file with the wrong name.
-        if ($unsaved and $violation->policy eq 'Perl::Critic::Policy::Modules::RequireFilenameMatchesPackage')
-        {
-            my ($package) = $violation->source =~ /^\s*package\s*(.+?)\s*;?\s*$/;
-
-            my $expected_filename = (split /::/, $package)[-1];
-            $expected_filename .= '.pm';
-
-            my $logical_filename = File::Basename::basename($violation->logical_filename);
-
-            next if ($violation->filename ne $violation->logical_filename and $logical_filename eq $expected_filename);
-            next if ($violation->filename eq $violation->logical_filename and $filename eq $expected_filename);
-        } ## end if ($unsaved and $violation...)
 
         push @diagnostics,
           {
