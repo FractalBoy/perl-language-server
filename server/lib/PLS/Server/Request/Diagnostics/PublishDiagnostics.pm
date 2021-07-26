@@ -30,7 +30,8 @@ These diagnostics currently include compilation errors and linting (using L<perl
 
 =cut
 
-my $function = IO::Async::Function->new(code => \&run_perlcritic);
+my $function = IO::Async::Function->new(max_workers => 1,
+                                        code        => \&run_perlcritic);
 
 my $loop = IO::Async::Loop->new();
 $loop->add($function);
@@ -180,7 +181,7 @@ sub run_perlcritic
 {
     my ($profile, $path, $filename, $unsaved) = @_;
 
-    my $critic = Perl::Critic->new(-profile => $profile);
+    my $critic     = Perl::Critic->new(-profile => $profile);
     my @violations = $critic->critique($path);
 
     my @diagnostics;
@@ -192,7 +193,7 @@ sub run_perlcritic
                         3 => 2,
                         2 => 3,
                         1 => 3
-                        );
+                       );
 
     foreach my $violation (@violations)
     {
@@ -218,20 +219,20 @@ sub run_perlcritic
         } ## end if ($unsaved and $violation...)
 
         push @diagnostics,
-            {
+          {
             range => {
-                        start => {line => $violation->line_number - 1, character => $violation->column_number - 1},
-                        end   => {line => $violation->line_number - 1, character => $violation->column_number + length($violation->source) - 1}
-                        },
+                      start => {line => $violation->line_number - 1, character => $violation->column_number - 1},
+                      end   => {line => $violation->line_number - 1, character => $violation->column_number + length($violation->source) - 1}
+                     },
             message         => $violation->description,
             code            => $violation->policy,
             codeDescription => {href => $doc->as_string},
             severity        => $severity,
             source          => 'perlcritic'
-            };
+          };
     } ## end foreach my $violation (@violations...)
 
     return @diagnostics;
-}
+} ## end sub run_perlcritic
 
 1;
