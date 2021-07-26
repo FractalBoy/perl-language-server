@@ -587,7 +587,7 @@ sub is_perl_file
 
     return if -l $file;
     return unless -f $file;
-    return if File::Basename::basename($file) =~ /^\./;
+    return if any { /^\./ } grep { length } File::Spec->splitdir($file);
     return if $file =~ /\.t$/;
 
     return 1 if $file =~ /\.p[lm]$/;
