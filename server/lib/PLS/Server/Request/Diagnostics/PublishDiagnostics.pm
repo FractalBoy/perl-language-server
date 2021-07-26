@@ -6,6 +6,7 @@ use warnings;
 use parent 'PLS::Server::Request';
 
 use File::Basename;
+use File::Path;
 use File::Spec;
 use File::Temp;
 use IO::Async::Function;
