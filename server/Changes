@@ -86,3 +86,13 @@ Revision history for perl module PLS
    run in parallel, which should improve performance.
  - Syntax checking now takes advantage of IO::Async::Process instead
    of using IPC::Open3.
+
+0.893 2021-07-25
+
+ - Linting now runs single threaded, which prevents multiple runs of
+   linting and syntax checking from returning out of order and
+   showing incorrect diagnostics.
+ - Syntax checking and linting now create a temporary file with the same
+   name as the file being checked, so that no workarounds are needed
+   to prevent perlcritic from falsely reporting RequireFilenameMatchesPackage
+   errors.
