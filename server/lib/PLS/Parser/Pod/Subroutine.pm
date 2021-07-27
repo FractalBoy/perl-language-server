@@ -29,8 +29,8 @@ sub new
 
     my %args = @args;
     my $self = $class->SUPER::new(%args);
-    $self->{subroutine} = $args{subroutine};
-    $self->{package}    = $args{package};
+    $self->{subroutine}       = $args{subroutine};
+    $self->{package}          = $args{package};
     $self->{include_builtins} = $args{include_builtins};
 
     return $self;
@@ -54,7 +54,7 @@ sub find
     if (length $self->{package})
     {
         my $include = $self->get_clean_inc();
-        my $search = Pod::Simple::Search->new();
+        my $search  = Pod::Simple::Search->new();
         $search->inc(0);
         my $path = $search->find($self->{package}, @{$include});
 
@@ -68,10 +68,10 @@ sub find
             }
         } ## end if (length $path)
 
-        $definitions = $self->{index}->find_package_subroutine($self->{package}, $self->{subroutine});
+        $definitions = $self->{index}->find_package_subroutine($self->{package}, $self->{subroutine}) if (ref $self->{index} eq 'PLS::Parser::Index');
     } ## end if (length $self->{package...})
 
-    unless (ref $definitions eq 'ARRAY' and scalar @$definitions)
+    if ((ref $definitions ne 'ARRAY' or not scalar @{$definitions}) and ref $self->{index} eq 'PLS::Parser::Index')
     {
         $definitions = $self->{index}->find_subroutine($self->{subroutine});
     }
@@ -86,7 +86,7 @@ sub find
         my $builtin = PLS::Parser::Pod::Builtin->new(function => $self->{subroutine});
         $ok = $builtin->find();
         unshift @markdown, ${$builtin->{markdown}} if $ok;
-    }
+    } ## end if ($self->{include_builtins...})
 
     if (scalar @markdown)
     {

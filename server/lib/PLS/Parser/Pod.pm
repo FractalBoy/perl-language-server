@@ -32,8 +32,8 @@ sub new
     my %args = @args;
 
     my %self = (
-                index => $args{index},
-                element  => $args{element}
+                index   => $args{index},
+                element => $args{element}
                );
 
     return bless \%self, $class;
@@ -91,7 +91,7 @@ sub set_perl_exe
     $PERL_EXE = $perl_exe if (length $perl_exe and -x $perl_exe);
 
     return;
-}
+} ## end sub set_perl_exe
 
 =head2 get_perl_exe
 
@@ -103,7 +103,6 @@ sub get_perl_exe
 {
     return $PERL_EXE;
 }
-
 
 =head2 get_perldoc_location
 
@@ -155,9 +154,9 @@ sub get_markdown_for_package
     my ($class, $package) = @_;
 
     my $include = $class->get_clean_inc();
-    my $search = Pod::Simple::Search->new();
+    my $search  = Pod::Simple::Search->new();
     $search->inc(0);
-    my $path    = $search->find($package, @{$include});
+    my $path = $search->find($package, @{$include});
     return unless (length $path);
     open my $fh, '<', $path or return;
     my $text = do { local $/; <$fh> };
@@ -187,7 +186,6 @@ sub get_markdown_from_lines
     return 0 unless $ok;
     return $ok, \$markdown;
 } ## end sub get_markdown_from_lines
-
 
 =head2 get_markdown_from_text
 
@@ -265,10 +263,10 @@ sub get_clean_inc
         } ## end while (my $line = <$perl>...)
 
         waitpid $pid, 0;
-    } ## end if (open my $perl, '-|'...)
+    } ## end if (my $pid = open my ...)
 
     unshift @include, @{$PLS::Server::State::CONFIG->{inc}} if (ref $PLS::Server::State::CONFIG->{inc} eq 'ARRAY');
-    unshift @include, $PLS::Server::State::ROOT_PATH;
+    unshift @include, $PLS::Server::State::ROOT_PATH        if (length $PLS::Server::State::ROOT_PATH);
     return \@include;
 } ## end sub get_clean_inc
 

@@ -50,7 +50,7 @@ sub handle_response
     return unless (ref $config eq 'HASH');
 
     # Replace $ROOT_PATH with actual workspace root in inc
-    if (exists $config->{inc} and ref $config->{inc} eq 'ARRAY')
+    if (exists $config->{inc} and ref $config->{inc} eq 'ARRAY' and length $PLS::Server::State::ROOT_PATH)
     {
         foreach my $inc (@{$config->{inc}})
         {
@@ -58,7 +58,7 @@ sub handle_response
         }
     } ## end if (exists $config->{inc...})
 
-    if (exists $config->{cwd} and length $config->{cwd})
+    if (exists $config->{cwd} and length $config->{cwd} and length $PLS::Server::State::ROOT_PATH)
     {
         $config->{cwd} =~ s/\$ROOT_PATH/$PLS::Server::State::ROOT_PATH/g;
         chdir $config->{cwd};
