@@ -37,7 +37,8 @@ sub find
 {
     my ($self) = @_;
 
-    my $definitions = $self->{index}->find_package($self->{package});
+    my $definitions;
+    $definitions = $self->{index}->find_package($self->{package}) if (ref $self->{index} eq 'PLS::Parser::Index');
 
     if (ref $definitions eq 'ARRAY' and scalar @$definitions)
     {

@@ -59,7 +59,8 @@ sub new
 
         if (ref $text eq 'SCALAR')
         {
-            $temp_dir = File::Temp->newdir(TEMPLATE => '.XXXXXXXXXX', DIR => $dir, CLEANUP => 0);
+            $temp_dir = eval { File::Temp->newdir(TEMPLATE => '.XXXXXXXXXX', DIR => $dir, CLEANUP => 0) };
+            $temp_dir = File::Temp->newdir(CLEANUP => 0) if (ref $temp_dir ne 'File::Temp::Dir');
             $path     = File::Spec->catfile($temp_dir->dirname, $filename);
 
             if (open my $fh, '>', $path)

@@ -115,6 +115,7 @@ sub get_index
 {
     my ($class) = @_;
 
+    return                                                                   unless (length $PLS::Server::State::ROOT_PATH);
     $INDEX = PLS::Parser::Index->new(root => $PLS::Server::State::ROOT_PATH) unless (ref $INDEX eq 'PLS::Parser::Index');
     return $INDEX;
 } ## end sub get_index
@@ -194,33 +195,79 @@ sub search_elements_for_definition
 {
     my ($self, $line_number, $column_number, @matches) = @_;
 
+    my $this_files_package;
+    my @this_files_subroutines;
+
+    if (ref $self->{index} ne 'PLS::Parser::Index')
+    {
+        ($this_files_package) = @{$self->get_packages()};
+        @this_files_subroutines = (@{$self->get_subroutines()}, @{$self->get_constants()});
+    }
+
     foreach my $match (@matches)
     {
         if (my ($package, $subroutine) = $match->subroutine_package_and_name())
         {
             if ($match->cursor_on_package($column_number))
             {
-                return $self->{index}->find_package($package);
-            }
+                if (ref $self->{index} eq 'PLS::Parser::Index')
+                {
+                    return $self->{index}->find_package($package);
+                }
+                else
+                {
+                    return [{uri => $self->{uri}, range => $this_files_package->range}] if (ref $this_files_package eq 'PLS::Parser::Element::Package' and $this_files_package->name eq $package);
+
+                    my $external = $self->find_external_package($package);
+                    return [$external] if (ref $external eq 'HASH');
+                } ## end else [ if (ref $self->{index}...)]
+            } ## end if ($match->cursor_on_package...)
 
             if (length $package)
             {
-                my $results = $self->{index}->find_package_subroutine($package, $subroutine);
-                return $results if (ref $results eq 'ARRAY' and scalar @{$results});
+                if (ref $self->{index} eq 'PLS::Parser::Index')
+                {
+                    my $results = $self->{index}->find_package_subroutine($package, $subroutine);
+                    return $results if (ref $results eq 'ARRAY' and scalar @{$results});
+                }
+                else
+                {
+                    if (ref $this_files_package eq 'PLS::Parser::Element::Package' and $this_files_package->name eq $package)
+                    {
+                        my $found = first { $_->name eq $subroutine } @this_files_subroutines;
+                        return {uri => $self->{uri}, range => $found->range} if (blessed($found) and $found->isa('PLS::Parser::Element'));
+                    }
+                } ## end else [ if (ref $self->{index}...)]
 
                 my $external = $self->find_external_subroutine($package, $subroutine);
                 return [$external] if (ref $external eq 'HASH');
             } ## end if (length $package)
 
-            my $results = $self->{index}->find_subroutine($subroutine);
-            return $results if (ref $results eq 'ARRAY' and scalar @{$results});
+            if (ref $self->{index} eq 'PLS::Parser::Index')
+            {
+                my $results = $self->{index}->find_subroutine($subroutine);
+                return $results if (ref $results eq 'ARRAY' and scalar @{$results});
+
+                @this_files_subroutines = (@{$self->get_subroutines()}, @{$self->get_constants()});
+            } ## end if (ref $self->{index}...)
+
+            my $found = first { $_->name eq $subroutine } @this_files_subroutines;
+            return {uri => $self->{uri}, range => $found->range} if (blessed($found) and $found->isa('PLS::Parser::Element'));
         } ## end if (my ($package, $subroutine...))
         if (my ($class, $method) = $match->class_method_package_and_name())
         {
-            my $results = $self->{index}->find_package_subroutine($class, $method);
+            if (ref $self->{index} eq 'PLS::Parser::Index')
+            {
+                my $results = $self->{index}->find_package_subroutine($class, $method);
 
-            # fall back to treating as a method instead of class method
-            return $results if (ref $results eq 'ARRAY' and scalar @$results);
+                # fall back to treating as a method instead of class method
+                return $results if (ref $results eq 'ARRAY' and scalar @$results);
+            } ## end if (ref $self->{index}...)
+            else
+            {
+                my $found = first { $_->name eq $method } @this_files_subroutines;
+                return {uri => $self->{uri}, range => $found->range} if (blessed($found) and $found->isa('PLS::Parser::Element'));
+            }
 
             my $external = $self->find_external_subroutine($class, $method);
             return [$external] if (ref $external eq 'HASH');
@@ -228,18 +275,43 @@ sub search_elements_for_definition
         if (my $method = $match->method_name())
         {
             $method =~ s/SUPER:://;
-            return $self->{index}->find_subroutine($method);
-        }
+
+            if (ref $self->{index} eq 'PLS::Parser::Index')
+            {
+                return $self->{index}->find_subroutine($method);
+            }
+            else
+            {
+                my $found = first { $_->name eq $method } @this_files_subroutines;
+                return {uri => $self->{uri}, range => $found->range} if (blessed($found) and $found->isa('PLS::Parser::Element'));
+            }
+        } ## end if (my $method = $match...)
         if (my ($package, $import) = $match->package_name($column_number))
         {
             if (length $import)
             {
-                return $self->{index}->find_package_subroutine($package, $import);
-            }
+                if (ref $self->{index} eq 'PLS::Parser::Index')
+                {
+                    return $self->{index}->find_package_subroutine($package, $import);
+                }
+                else
+                {
+                    my $external = $self->find_external_subroutine($package, $import);
+                    return [$external] if (ref $external eq 'HASH');
+                }
+            } ## end if (length $import)
             else
             {
-                return $self->{index}->find_package($package);
-            }
+                if (ref $self->{index} eq 'PLS::Parser::Index')
+                {
+                    return $self->{index}->find_package($package);
+                }
+                else
+                {
+                    my $external = $self->find_external_package($package);
+                    return [$external] if (ref $external eq 'HASH');
+                }
+            } ## end else [ if (length $import) ]
         } ## end if (my ($package, $import...))
         if (my $variable = $match->variable_name())
         {
@@ -250,15 +322,27 @@ sub search_elements_for_definition
     # If all else fails, see if we're on a POD link.
     if (my $link = $self->pod_link($line_number, $column_number))
     {
-        my $package = $self->{index}->find_package($link);
-        return $package if (ref $package eq 'ARRAY' and scalar @{$package});
-
         my @pieces          = split /::/, $link;
         my $subroutine_name = pop @pieces;
         my $package_name    = join '::', @pieces;
-        return $self->{index}->find_package_subroutine($package_name, $subroutine_name) if (length $package_name);
 
-        return $self->{index}->find_subroutine($subroutine_name);
+        if (ref $self->{index} eq 'PLS::Parser::Index')
+        {
+            my $package = $self->{index}->find_package($link);
+            return $package if (ref $package eq 'ARRAY' and scalar @{$package});
+
+            return $self->{index}->find_package_subroutine($package_name, $subroutine_name) if (length $package_name);
+            return $self->{index}->find_subroutine($subroutine_name);
+        } ## end if (ref $self->{index}...)
+        else
+        {
+            my $external = $self->find_external_package($link);
+            return [$external] if (ref $external eq 'HASH');
+
+            $external = $self->find_external_subroutine($package_name, $subroutine_name);
+            return [$external] if (ref $external eq 'HASH');
+        } ## end else [ if (ref $self->{index}...)]
+
     } ## end if (my $link = $self->...)
 
     return;

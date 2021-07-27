@@ -216,9 +216,12 @@ sub get_subroutines
         push @subroutines, {label => $sub, kind => 3};
     }
 
-    my $subs = $document->{index}{subs_trie}->find($filter);
-    @{$subs} = map { {label => $_, kind => 3} } grep { not $seen_subs{$_}++ } @{$subs};
-    push @subroutines, @{$subs};
+    if (ref $document->{index} eq 'PLS::Parser::Index')
+    {
+        my $subs = $document->{index}{subs_trie}->find($filter);
+        @{$subs} = map { {label => $_, kind => 3} } grep { not $seen_subs{$_}++ } @{$subs};
+        push @subroutines, @{$subs};
+    } ## end if (ref $document->{index...})
 
     return \@subroutines;
 } ## end sub get_subroutines
@@ -247,9 +250,12 @@ sub get_packages
           };
     } ## end foreach my $pack (@{$curr_doc_packages...})
 
-    my $packages = $document->{index}{packages_trie}->find($filter);
-    @{$packages} = map { {label => $_, kind => 7} } grep { not $seen_packages{$_}++ } @{$packages};
-    push @packages, @{$packages};
+    if (ref $document->{index} eq 'PLS::Parser::Index')
+    {
+        my $packages = $document->{index}{packages_trie}->find($filter);
+        @{$packages} = map { {label => $_, kind => 7} } grep { not $seen_packages{$_}++ } @{$packages};
+        push @packages, @{$packages};
+    } ## end if (ref $document->{index...})
 
     return \@packages;
 } ## end sub get_packages

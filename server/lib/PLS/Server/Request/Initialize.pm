@@ -31,12 +31,18 @@ sub service
     my ($self) = @_;
 
     my $root_uri = $self->{params}{rootUri};
-    my $path     = URI->new($root_uri);
-    $PLS::Server::State::ROOT_PATH = $path->file;
 
-    my $index = PLS::Parser::Index->new(root => $path->file);
-    $index->index_files();
-    PLS::Parser::Document->set_index($index);
+    if (length $root_uri)
+    {
+        my $path = URI->new($root_uri);
+        $PLS::Server::State::ROOT_PATH = $path->file;
+
+        my $index = PLS::Parser::Index->new(root => $path->file);
+        $index->index_files();
+
+        PLS::Parser::Document->set_index($index);
+    } ## end if (length $root_uri)
+
     return PLS::Server::Response::InitializeResult->new($self);
 } ## end sub service
 

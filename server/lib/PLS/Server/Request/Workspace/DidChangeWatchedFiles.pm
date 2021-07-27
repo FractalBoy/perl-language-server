@@ -28,9 +28,10 @@ sub service
 {
     my ($self, $server) = @_;
 
-    return unless (ref $self->{params}{changes} eq 'ARRAY');
+    return if (ref $self->{params}{changes} ne 'ARRAY');
 
     my $index = PLS::Parser::Document->get_index();
+    return if (ref $index ne 'PLS::Parser::Index');
 
     my @changed_files;
     my $any_deletes;

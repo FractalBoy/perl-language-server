@@ -93,7 +93,7 @@ sub start_indexing_function
             open my $fh, '>>', $self->{location} or die $!;
             flock $fh, LOCK_EX;
 
-            my $index = $self->index(1); # 1 indicates that we should not try to lock again
+            my $index = $self->index(1);    # 1 indicates that we should not try to lock again
 
             unless (scalar @files)
             {
@@ -155,7 +155,7 @@ sub start_cleanup_function
             open my $fh, '>>', $self->{location} or die $!;
             flock $fh, LOCK_EX;
 
-            my $index = $self->index(1); # 1 indicates that we should not try to lock again
+            my $index = $self->index(1);    # 1 indicates that we should not try to lock again
             $self->_cleanup_old_files($index);
             $self->save($index);
 
@@ -182,11 +182,7 @@ sub index_files
         on_result => sub {
             my ($result, $data) = @_;
 
-            if ($result ne 'return')
-            {
-                warn "$result\n";
-                return;
-            }
+            return if ($result ne 'return');
 
             @{$self}{qw(cache last_mtime subs_trie packages_trie)} = @{$data};
         }
@@ -223,7 +219,7 @@ sub index
 
     open my $fh, '<', $self->{location} or die $!;
     flock $fh, LOCK_SH unless $no_lock;
-    $self->{cache}      = eval { Storable::fd_retrieve($fh) };
+    $self->{cache} = eval { Storable::fd_retrieve($fh) };
     flock $fh, LOCK_UN unless $no_lock;
 
     return $self->{cache};

@@ -29,28 +29,28 @@ sub service
     # now that we're initialized, put in a request for our configuration items.
     $server->send_server_request(PLS::Server::Request::Workspace::Configuration->new());
 
-    # also start watching all files
-    $server->send_server_request(
-                                    PLS::Server::Request::Client::RegisterCapability->new(
-                                                                                          [
-                                                                                           {
-                                                                                            id              => 'did-change-watched-files',
-                                                                                            method          => 'workspace/didChangeWatchedFiles',
-                                                                                            registerOptions => {
-                                                                                                                watchers => [
-                                                                                                                             {
-                                                                                                                              globPattern => '**/*'
-                                                                                                                             }
-                                                                                                                            ]
-                                                                                                               }
-                                                                                           },
-                                                                                           {
-                                                                                            id     => 'did-change-configuration',
-                                                                                            method => 'workspace/didChangeConfiguration'
-                                                                                           }
-                                                                                          ]
-                                                                                         )
-                                   );
+    # request that we receive a notification any time configuration changes
+    my @capabilities = ({id => 'did-change-configuration', method => 'workspace/didChangeConfiguration'});
+
+    # if there is a root path, request that we receive a notification every time a file changes,
+    # so that we can reindex it.
+    if (length $PLS::Server::State::ROOT_PATH)
+    {
+        push @capabilities,
+          {
+            id              => 'did-change-watched-files',
+            method          => 'workspace/didChangeWatchedFiles',
+            registerOptions => {
+                                watchers => [
+                                             {
+                                              globPattern => '**/*'
+                                             }
+                                            ]
+                               }
+          };
+    } ## end if (length $PLS::Server::State::ROOT_PATH...)
+
+    $server->send_server_request(PLS::Server::Request::Client::RegisterCapability->new(\@capabilities));
 
     return;
 } ## end sub service
