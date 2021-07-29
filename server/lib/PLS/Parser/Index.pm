@@ -334,11 +334,7 @@ sub cleanup_old_files
         on_result => sub {
             my ($result, $data) = @_;
 
-            if ($result ne 'return')
-            {
-                warn "$result\n";
-                return;
-            }
+            return if ($result ne 'return');
 
             @{$self}{qw(cache last_mtime)} = @{$data};
         }

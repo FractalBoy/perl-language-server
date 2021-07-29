@@ -167,6 +167,16 @@ sub get_compilation_errors
                 return 0;
             }
         },
+        stdout => {
+            on_read => sub {
+                my ($stream, $buffref) = @_;
+
+                # Discard STDOUT, otherwise it might interfere with the server execution.
+                # This can happen if there is a BEGIN block that prints to STDOUT.
+                $$buffref = '';
+                return 0;
+            }
+        },
         on_finish => sub {
             $future->done(@diagnostics);
         }
