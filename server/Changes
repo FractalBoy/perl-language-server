@@ -102,3 +102,11 @@ Revision history for perl module PLS
  - Fix to previous version - no longer index files in temporary directories
    that are hidden.
  - Fix to previous version - add missing File::Path import.
+
+0.895 2021-07-29
+
+ - PLS no longer crashes when opening a single file - fixes
+   https://github.com/FractalBoy/perl-language-server/issues/42
+ - Fixed an issue where syntax checking a perl file with a BEGIN
+   block that prints to STDOUT would cause the language client to
+   stop working.
