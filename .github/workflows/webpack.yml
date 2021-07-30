@@ -1,0 +1,36 @@
+name: Client CI
+
+on:
+  push:
+    tags: '**'
+    paths:
+      - 'client/**'
+
+jobs:
+  build_publish:
+    runs-on: ${{ matrix.os }}
+    env:
+      VSCE_PAT: ${{ secrets.VSCE_PAT }}
+
+    strategy:
+      matrix:
+        os: ['ubuntu-latest', 'macos-latest']
+        node: [12.x, 14.x, 16.x]
+    
+    name: Node ${{ matrix.node }} on ${{ matrix.os }}
+    steps:
+    - uses: actions/checkout@v2
+
+    - uses: actions/setup-node@v1
+      with:
+        node-version: ${{ matrix.node }}
+        cache: yarn
+
+    - name: Install dependencies
+      run: yarn install
+      
+    - name: Install vsce
+      run: yarn global add vsce
+      
+    - name: Publish extension
+      run: vsce publish
