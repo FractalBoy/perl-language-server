@@ -5,6 +5,12 @@ on:
     tags: '**'
     paths:
       - 'client/**'
+  
+  workflow_dispatch:
+      
+defaults:
+  run:
+    working-directory: 'client'
 
 jobs:
   build_publish:
