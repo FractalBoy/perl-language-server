@@ -1332,9 +1332,11 @@ sub find_word_under_cursor
     my ($self, $line, $character) = @_;
 
     my @elements = $self->find_elements_at_location($line, $character);
-    @elements = map  { $_->tokens } @elements;
-    @elements = grep { $_->lsp_column_number < $character } @elements;
-    my $element          = first { $_->type eq 'PPI::Token::Word' or $_->type eq 'PPI::Token::Label' or $_->type eq 'PPI::Token::Symbol' } @elements;
+    @elements = map { $_->tokens } @elements;
+    @elements =
+      sort { (abs $character - $a->lsp_column_number) <=> (abs $character - $b->lsp_column_number) } @elements;
+    my @in_range         = grep { $_->lsp_column_number <= $character and $_->lsp_column_number + length($_->content) >= $character } @elements;
+    my $element          = first { $_->type eq 'PPI::Token::Word' or $_->type eq 'PPI::Token::Label' or $_->type eq 'PPI::Token::Symbol' } @in_range;
     my $closest_operator = first { $_->type eq 'PPI::Token::Operator' } @elements;
 
     if (not blessed($element) or not $element->isa('PLS::Parser::Element'))
@@ -1392,9 +1394,39 @@ sub find_word_under_cursor
         {
             return $cast->range, 0, '', $cast->name;
         }
-
-        return;
     } ## end if (not blessed($element...))
+
+    if (   not blessed($element)
+        or not $element->isa('PLS::Parser::Element')
+        and blessed($closest_operator)
+        and $closest_operator->isa('PLS::Parser::Element')
+        and $closest_operator->name eq '->'
+        and $closest_operator->lsp_column_number + length($closest_operator->content) == $character)
+    {
+        my $range = $closest_operator->range;
+        $range->{start}{character} += length $closest_operator->content;
+        $range->{end}{character} = $range->{start}{character};
+
+        # If there is a word before the arrow AND it is not after another arrow, use it as the package name.
+        # Otherwise, there is no package name, but there is an arrow and a blank filter.
+        if (
+                blessed($closest_operator->previous_sibling)
+            and $closest_operator->previous_sibling->isa('PLS::Parser::Element')
+            and $closest_operator->previous_sibling->type eq 'PPI::Token::Word'
+            and (   not blessed($closest_operator->previous_sibling->element->previous_sibling)
+                 or not $closest_operator->previous_sibling->element->previous_sibling->isa('PPI::Token::Operator')
+                 or not $closest_operator->previous_sibling->element->previous_sibling eq '->')
+           )
+        {
+            return $range, 1, $closest_operator->previous_sibling->name, '';
+        } ## end if (blessed($closest_operator...))
+        else
+        {
+            return $range, 1, '', '';
+        }
+    } ## end if (not blessed($element...))
+
+    return if (not blessed($element) or not $element->isa('PLS::Parser::Element'));
 
     # Short-circuit if this is a HASH reference subscript.
     my $parent = $element->parent;
@@ -1410,7 +1442,11 @@ sub find_word_under_cursor
         $closest_operator = $element->previous_sibling;
     } ## end if ($element->type eq ...)
 
-    if (blessed($closest_operator) and $closest_operator->isa('PLS::Parser::Element') and $closest_operator->name eq '->' and $element->type eq 'PPI::Token::Word')
+    if (    blessed($closest_operator)
+        and $closest_operator->isa('PLS::Parser::Element')
+        and $closest_operator->name eq '->'
+        and $element->type eq 'PPI::Token::Word'
+        and $element->parent->element == $closest_operator->parent->element)
     {
         # default to inserting after the arrow
         my $arrow_range = $closest_operator->range;
@@ -1437,9 +1473,14 @@ sub find_word_under_cursor
         # so we return that to use for searching for that class's methods.
         my $package = '';
 
-        if (    blessed($closest_operator->previous_sibling)
+        if (
+                blessed($closest_operator->previous_sibling)
             and $closest_operator->previous_sibling->isa('PLS::Parser::Element')
-            and $closest_operator->previous_sibling->type eq 'PPI::Token::Word')
+            and $closest_operator->previous_sibling->type eq 'PPI::Token::Word'
+            and (   not blessed($closest_operator->previous_sibling->previous_sibling)
+                 or not $closest_operator->previous_sibling->previous_sibling->isa('PLS::Parser::Element')
+                 or $closest_operator->previous_sibling->previous_sibling->name ne '->')
+           )
         {
             $package = $closest_operator->previous_sibling->name;
         } ## end if (blessed($closest_operator...))
@@ -1468,6 +1509,11 @@ sub find_word_under_cursor
         and $element->previous_sibling->isa('PLS::Parser::Element')
         and (   $element->previous_sibling->type eq 'PPI::Token::Word'
              or $element->previous_sibling->type eq 'PPI::Token::Label')
+
+        # Check that there isn't another arrow before the previous word - in this case the previous word is likely NOT a package name.
+        and (   not blessed($element->previous_sibling->previous_sibling)
+             or not $element->previous_sibling->previous_sibling->isa('PLS::Parser::Element')
+             or $element->previous_sibling->previous_sibling->name ne '->')
        )
     {
         $element = $element->previous_sibling;

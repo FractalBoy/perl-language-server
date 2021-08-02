@@ -1,7 +1,7 @@
 use strict;
 use warnings;
 
-use Test::More tests => 9;
+use Test::More tests => 15;
 use FindBin;
 use File::Basename;
 use File::Path;
@@ -67,10 +67,35 @@ subtest 'arrow with method name start' => sub {
     is($filter, 'm', 'filter correct');
 };
 
-subtest 'package name start, one colon' => sub {
+subtest 'arrow with full method name chained to blank method' => sub {
     plan tests => 5;
 
     my $doc = PLS::Parser::Document->new(uri => $uri->as_string, line => 4);
+    isa_ok($doc, 'PLS::Parser::Document');
+
+    my ($range, $arrow, $package, $filter) = $doc->find_word_under_cursor(1, 14);
+    is_deeply($range, {start => {line => 0, character => 14}, end => {line => 0, character => 14}}, 'correct range');
+    ok($arrow,            'arrow');
+    ok(!length($package), 'no package');
+    is($filter, '', 'filter correct');
+};
+
+subtest 'arrow with full method name chained to method name' => sub {
+    plan tests => 5;
+
+    my $doc = PLS::Parser::Document->new(uri => $uri->as_string, line => 5);
+    isa_ok($doc, 'PLS::Parser::Document');
+    my ($range, $arrow, $package, $filter) = $doc->find_word_under_cursor(1, 14);
+    is_deeply($range, {start => {line => 0, character => 14}, end => {line => 0, character => 15}}, 'correct range');
+    ok($arrow,            'arrow');
+    ok(!length($package), 'no package');
+    is($filter, 'm', 'filter correct');
+};
+
+subtest 'package name start, one colon' => sub {
+    plan tests => 5;
+
+    my $doc = PLS::Parser::Document->new(uri => $uri->as_string, line => 6);
     isa_ok($doc, 'PLS::Parser::Document');
     my ($range, $arrow, $package, $filter) = $doc->find_word_under_cursor(1, 5);
     is_deeply($range, {start => {line => 0, character => 0}, end => {line => 0, character => 5}}, 'correct range');
@@ -82,7 +107,7 @@ subtest 'package name start, one colon' => sub {
 subtest 'package name start, two colons' => sub {
     plan tests => 5;
 
-    my $doc = PLS::Parser::Document->new(uri => $uri->as_string, line => 5);
+    my $doc = PLS::Parser::Document->new(uri => $uri->as_string, line => 7);
     isa_ok($doc, 'PLS::Parser::Document');
     my ($range, $arrow, $package, $filter) = $doc->find_word_under_cursor(1, 6);
     is_deeply($range, {start => {line => 0, character => 0}, end => {line => 0, character => 6}}, 'correct range');
@@ -94,7 +119,7 @@ subtest 'package name start, two colons' => sub {
 subtest 'class method arrow without method name' => sub {
     plan tests => 5;
 
-    my $doc = PLS::Parser::Document->new(uri => $uri->as_string, line => 6);
+    my $doc = PLS::Parser::Document->new(uri => $uri->as_string, line => 8);
     isa_ok($doc, 'PLS::Parser::Document');
     my ($range, $arrow, $package, $filter) = $doc->find_word_under_cursor(1, 12);
     is_deeply($range, {start => {line => 0, character => 12}, end => {line => 0, character => 12}}, 'correct range');
@@ -106,7 +131,7 @@ subtest 'class method arrow without method name' => sub {
 subtest 'class method arrow with start of method name' => sub {
     plan tests => 5;
 
-    my $doc = PLS::Parser::Document->new(uri => $uri->as_string, line => 7);
+    my $doc = PLS::Parser::Document->new(uri => $uri->as_string, line => 9);
     isa_ok($doc, 'PLS::Parser::Document');
     my ($range, $arrow, $package, $filter) = $doc->find_word_under_cursor(1, 13);
     is_deeply($range, {start => {line => 0, character => 12}, end => {line => 0, character => 13}}, 'correct range');
@@ -119,14 +144,14 @@ subtest 'bareword function name only' => sub {
 
     # testing many of the various letter operators as start of function name
     my @tests = (
-                 {line => 8,  filter => 'm'},
-                 {line => 9,  filter => 's'},
-                 {line => 10, filter => 'q'},
-                 {line => 11, filter => 'qq'},
-                 {line => 12, filter => 'qr'},
-                 {line => 13, filter => 'qw'},
-                 {line => 14, filter => 'qx'},
-                 {line => 15, filter => 'func'}
+                 {line => 12, filter => 'm'},
+                 {line => 13, filter => 's'},
+                 {line => 14, filter => 'q'},
+                 {line => 15, filter => 'qq'},
+                 {line => 16, filter => 'qr'},
+                 {line => 17, filter => 'qw'},
+                 {line => 18, filter => 'qx'},
+                 {line => 19, filter => 'func'}
                 );
 
     plan tests => scalar @tests;
@@ -149,6 +174,58 @@ subtest 'bareword function name only' => sub {
     } ## end foreach my $test (@tests)
 };
 
+subtest 'start of package inside function parentheses' => sub {
+    plan tests => 5;
+
+    my $doc = PLS::Parser::Document->new(uri => $uri->as_string, line => 20);
+    isa_ok($doc, 'PLS::Parser::Document');
+
+    my ($range, $arrow, $package, $filter) = $doc->find_word_under_cursor(1, 11);
+    is_deeply($range, {start => {line => 0, character => 5}, end => {line => 0, character => 11}}, 'correct range');
+    ok(!$arrow, 'no arrow');
+    is($package, 'File::', 'package correct');
+    is($filter,  'File',   'filter correct');
+};
+
+subtest 'start of package inside method parentheses' => sub {
+    plan tests => 5;
+
+    my $doc = PLS::Parser::Document->new(uri => $uri->as_string, line => 21);
+    isa_ok($doc, 'PLS::Parser::Document');
+
+    my ($range, $arrow, $package, $filter) = $doc->find_word_under_cursor(1, 19);
+    is_deeply($range, {start => {line => 0, character => 13}, end => {line => 0, character => 19}}, 'correct range');
+    ok(!$arrow, 'no arrow');
+    is($package, 'File::', 'package correct');
+    is($filter,  'File',   'filter correct');
+};
+
+subtest 'class method arrow without method name inside method parentheses' => sub {
+    plan tests => 5;
+
+    my $doc = PLS::Parser::Document->new(uri => $uri->as_string, line => 22);
+    isa_ok($doc, 'PLS::Parser::Document');
+
+    my ($range, $arrow, $package, $filter) = $doc->find_word_under_cursor(1, 25);
+    is_deeply($range, {start => {line => 0, character => 25}, end => {line => 0, character => 25}}, 'correct range');
+    ok($arrow, 'arrow');
+    is($package, 'File::Spec', 'package correct');
+    is($filter,  '',           'filter correct');
+};
+
+subtest 'class method arrow with start of method name inside method parentheses' => sub {
+    plan tests => 5;
+
+    my $doc = PLS::Parser::Document->new(uri => $uri->as_string, line => 23);
+    isa_ok($doc, 'PLS::Parser::Document');
+
+    my ($range, $arrow, $package, $filter) = $doc->find_word_under_cursor(1, 26);
+    is_deeply($range, {start => {line => 0, character => 25}, end => {line => 0, character => 26}}, 'correct range');
+    ok($arrow, 'arrow');
+    is($package, 'File::Spec', 'package correct');
+    is($filter,  'c',          'filter correct');
+};
+
 END
 {
     # Clean up index created by server
@@ -160,10 +237,14 @@ $
 $o
 $obj->
 $obj->m
+$obj->method->
+$obj->method->m
 File:
 File::
 File::Spec->
 File::Spec->c
+File::Spec->catfile->
+File::Spec->catfile->m
 m
 s
 q
@@ -172,3 +253,7 @@ qr
 qw
 qx
 func
+func(File::)
+$obj->method(File::)
+$obj->method(File::Spec->)
+$obj->method(File::Spec->c)

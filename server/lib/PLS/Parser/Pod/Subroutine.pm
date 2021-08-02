@@ -150,7 +150,7 @@ sub find_pod_in_file
 
     while (my $line = <$fh>)
     {
-        if ($line =~ /^=(head\d|item).*\b$self->{subroutine}\b.*$/)
+        if ($line =~ /^=(head\d|item).*\b\Q$self->{subroutine}\E\b.*$/)
         {
             $start = $1;
             push @lines, $line;
