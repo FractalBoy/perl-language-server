@@ -13,6 +13,7 @@ use IO::Async::Function;
 use IO::Async::Loop;
 use IO::Async::Process;
 use Perl::Critic;
+use PPI;
 use URI;
 
 use PLS::Parser::Pod;
@@ -62,7 +63,7 @@ sub new
     if (not $args{close})
     {
         push @futures, get_compilation_errors($source, $dir, $filename) if (defined $PLS::Server::State::CONFIG->{syntax}{enabled} and $PLS::Server::State::CONFIG->{syntax}{enabled});
-        push @futures, get_perlcritic_errors($source)
+        push @futures, get_perlcritic_errors($source, $uri->file)
           if (defined $PLS::Server::State::CONFIG->{perlcritic}{enabled} and $PLS::Server::State::CONFIG->{perlcritic}{enabled});
     } ## end if (not $args{close})
 
@@ -198,20 +199,23 @@ sub get_compilation_errors
 
 sub get_perlcritic_errors
 {
-    my ($source) = @_;
+    my ($source, $path) = @_;
 
     my ($profile) = glob $PLS::Server::State::CONFIG->{perlcritic}{perlcriticrc};
     undef $profile if (not length $profile or not -f $profile or not -r $profile);
 
-    return $function->call(args => [$profile, $source]);
+    return $function->call(args => [$profile, $source, $path]);
 } ## end sub get_perlcritic_errors
 
 sub run_perlcritic
 {
-    my ($profile, $source) = @_;
+    my ($profile, $source, $path) = @_;
 
-    my $critic     = Perl::Critic->new(-profile => $profile);
-    my @violations = $critic->critique($source);
+    my $critic      = Perl::Critic->new(-profile => $profile);
+    my %args        = ();
+    $args{filename} = $path if (ref $source eq 'SCALAR');
+    my $doc         = PPI::Document->new($source, %args);
+    my @violations  = $critic->critique($doc);
 
     my @diagnostics;
 
