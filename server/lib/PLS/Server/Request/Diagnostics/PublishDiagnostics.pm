@@ -44,43 +44,25 @@ sub new
 
     return if (ref $PLS::Server::State::CONFIG ne 'HASH');
 
-    my $uri  = $args{uri};
-    my $path = URI->new($uri);
+    my $uri = URI->new($args{uri});
 
-    return if (ref $path ne 'URI::file');
-    $path = $path->file;
-    my (undef, $dir, $filename) = File::Spec->splitpath($path);
+    return if (ref $uri ne 'URI::file');
+    my (undef, $dir, $filename) = File::Spec->splitpath($uri->file);
 
-    my $temp_dir;
+    my $source = $uri->file;
 
     if ($args{unsaved})
     {
-        my $text = PLS::Parser::Document::text_from_uri($uri);
-
-        if (ref $text eq 'SCALAR')
-        {
-            $temp_dir = eval { File::Temp->newdir(TEMPLATE => '.XXXXXXXXXX', DIR => $dir, CLEANUP => 0) };
-            $temp_dir = File::Temp->newdir(CLEANUP => 0) if (ref $temp_dir ne 'File::Temp::Dir');
-            $path     = File::Spec->catfile($temp_dir->dirname, $filename);
-
-            if (open my $fh, '>', $path)
-            {
-                print {$fh} $$text;
-                close $fh;
-            }
-            else
-            {
-                return;
-            }
-        } ## end if (ref $text eq 'SCALAR'...)
-    } ## end if ($args{unsaved})
+        my $text = PLS::Parser::Document::text_from_uri($uri->as_string);
+        $source = $text if (ref $text eq 'SCALAR');
+    }
 
     my @futures;
 
     if (not $args{close})
     {
-        push @futures, get_compilation_errors($path) if (defined $PLS::Server::State::CONFIG->{syntax}{enabled} and $PLS::Server::State::CONFIG->{syntax}{enabled});
-        push @futures, get_perlcritic_errors($path, $filename, $args{unsaved})
+        push @futures, get_compilation_errors($source, $dir, $filename) if (defined $PLS::Server::State::CONFIG->{syntax}{enabled} and $PLS::Server::State::CONFIG->{syntax}{enabled});
+        push @futures, get_perlcritic_errors($source)
           if (defined $PLS::Server::State::CONFIG->{perlcritic}{enabled} and $PLS::Server::State::CONFIG->{perlcritic}{enabled});
     } ## end if (not $args{close})
 
@@ -91,13 +73,11 @@ sub new
             my $self = {
                 method => 'textDocument/publishDiagnostics',
                 params => {
-                           uri         => $uri,
+                           uri         => $uri->as_string,
                            diagnostics => \@diagnostics
                           },
                 notification => 1    # indicates to the server that this should not be assigned an id, and that there will be no response
                        };
-
-            File::Path::rmtree($temp_dir->dirname) if (ref $temp_dir eq 'File::Temp::Dir');
 
             return Future->done(bless $self, $class);
         }
@@ -107,10 +87,40 @@ sub new
 
 sub get_compilation_errors
 {
-    my ($path) = @_;
+    my ($source, $dir, $filename) = @_;
+
+    my ($temp_dir, $temp_file);
+    my $future = $loop->new_future();
+    my $fh;
+    my $path;
+
+    if (ref $source eq 'SCALAR')
+    {
+        $temp_dir = eval { File::Temp->newdir(CLEANUP => 0, TEMPLATE => '.XXXXXXXXXX', DIR => $dir) };
+        $temp_dir = eval { File::Temp->newdir(CLEANUP => 0) } if (ref $temp_dir ne 'File::Temp::Dir');
+
+        $future->on_done(sub { File::Path::remove_tree($temp_dir->dirname) });
+
+        open $fh, '<', $source;
+        $path = File::Spec->catfile($temp_dir, $filename);
+
+        if (open my $wfh, '>', $path)
+        {
+            print {$wfh} $$source;
+            close $wfh;
+        }
+        else
+        {
+            return [];
+        }
+    } ## end if (ref $path eq 'SCALAR'...)
+    else
+    {
+        $path = $source;
+        open $fh, '<', $path or return [];
+    }
 
     my @line_lengths;
-    open my $fh, '<', $path or return [];
 
     while (my $line = <$fh>)
     {
@@ -126,7 +136,6 @@ sub get_compilation_errors
 
     my @diagnostics;
 
-    my $future = $loop->new_future();
     my $proc = IO::Async::Process->new(
         command => [$perl, @inc, '-c', $path],
         stderr  => {
@@ -189,20 +198,20 @@ sub get_compilation_errors
 
 sub get_perlcritic_errors
 {
-    my ($path, $filename, $unsaved) = @_;
+    my ($source) = @_;
 
     my ($profile) = glob $PLS::Server::State::CONFIG->{perlcritic}{perlcriticrc};
     undef $profile if (not length $profile or not -f $profile or not -r $profile);
 
-    return $function->call(args => [$profile, $path, $filename, $unsaved]);
+    return $function->call(args => [$profile, $source]);
 } ## end sub get_perlcritic_errors
 
 sub run_perlcritic
 {
-    my ($profile, $path, $filename, $unsaved) = @_;
+    my ($profile, $source) = @_;
 
     my $critic     = Perl::Critic->new(-profile => $profile);
-    my @violations = $critic->critique($path);
+    my @violations = $critic->critique($source);
 
     my @diagnostics;
 
