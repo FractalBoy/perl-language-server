@@ -96,7 +96,7 @@ sub get_compilation_errors
 
     if (ref $source eq 'SCALAR')
     {
-        $temp_dir = eval { File::Temp->newdir(CLEANUP => 0, TEMPLATE => '.XXXXXXXXXX', DIR => $dir) };
+        $temp_dir = eval { File::Temp->newdir(CLEANUP => 0, TEMPLATE => '.pls-tmp-XXXXXXXXXX', DIR => $dir) };
         $temp_dir = eval { File::Temp->newdir(CLEANUP => 0) } if (ref $temp_dir ne 'File::Temp::Dir');
 
         $future->on_done(sub { File::Path::remove_tree($temp_dir->dirname) });
