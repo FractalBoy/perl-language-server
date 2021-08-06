@@ -213,8 +213,9 @@ sub get_subroutines
     foreach my $sub (@{$document->get_subroutines_fast($full_text)})
     {
         next if $seen_subs{$sub}++;
+        next if ($sub =~ /\n/);
         push @subroutines, {label => $sub, kind => 3};
-    }
+    } ## end foreach my $sub (@{$document...})
 
     if (ref $document->{index} eq 'PLS::Parser::Index')
     {
@@ -243,6 +244,7 @@ sub get_packages
     foreach my $pack (@{$curr_doc_packages}, @{$core_modules}, @{$ext_modules})
     {
         next if $seen_packages{$pack}++;
+        next if ($pack =~ /\n/);
         push @packages,
           {
             label => $pack,
@@ -270,8 +272,9 @@ sub get_constants
     foreach my $constant (@{$document->get_constants_fast($full_text)})
     {
         next if $seen_constants{$constant}++;
+        next if ($constant =~ /\n/);
         push @constants, {label => $constant, kind => 21};
-    }
+    } ## end foreach my $constant (@{$document...})
 
     return \@constants;
 } ## end sub get_constants
@@ -286,6 +289,7 @@ sub get_variables
     foreach my $variable (@{$document->get_variables_fast($full_text)})
     {
         next if $seen_variables{$variable}++;
+        next if ($variable =~ /\n/);
         push @variables,
           {
             label => $variable,
