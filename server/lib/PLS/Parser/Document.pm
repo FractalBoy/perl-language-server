@@ -1396,8 +1396,8 @@ sub find_word_under_cursor
         }
     } ## end if (not blessed($element...))
 
-    if (   not blessed($element)
-        or not $element->isa('PLS::Parser::Element')
+    if ((   not blessed($element)
+        or not $element->isa('PLS::Parser::Element'))
         and blessed($closest_operator)
         and $closest_operator->isa('PLS::Parser::Element')
         and $closest_operator->name eq '->'
