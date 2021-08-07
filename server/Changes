@@ -110,3 +110,14 @@ Revision history for perl module PLS
  - Fixed an issue where syntax checking a perl file with a BEGIN
    block that prints to STDOUT would cause the language client to
    stop working.
+
+0.896 2021-08-07
+
+ - Completion now handles some edge cases a little better than before
+ - Completion will no longer suggest things with newlines in them
+ - Fixes/enhancements to syntax checking/linting temporary files:
+   - Temporary files are now cleaned up appropriately on NFS
+   - Linting no longer uses a temporary file. Only syntax checking makes
+   use of the temporary file now.
+   - Temporary directories are no longer created, only temporary files.
+   - Temporary files now have a predictable prefix: .pls-tmp-
