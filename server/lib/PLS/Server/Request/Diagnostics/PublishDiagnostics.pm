@@ -48,7 +48,7 @@ sub new
     my $uri = URI->new($args{uri});
 
     return if (ref $uri ne 'URI::file');
-    my (undef, $dir, $filename) = File::Spec->splitpath($uri->file);
+    my (undef, $dir) = File::Basename::fileparse($uri->file);
 
     my $source = $uri->file;
 
@@ -62,7 +62,7 @@ sub new
 
     if (not $args{close})
     {
-        push @futures, get_compilation_errors($source, $dir, $filename) if (defined $PLS::Server::State::CONFIG->{syntax}{enabled} and $PLS::Server::State::CONFIG->{syntax}{enabled});
+        push @futures, get_compilation_errors($source, $dir) if (defined $PLS::Server::State::CONFIG->{syntax}{enabled} and $PLS::Server::State::CONFIG->{syntax}{enabled});
         push @futures, get_perlcritic_errors($source, $uri->file)
           if (defined $PLS::Server::State::CONFIG->{perlcritic}{enabled} and $PLS::Server::State::CONFIG->{perlcritic}{enabled});
     } ## end if (not $args{close})
@@ -88,7 +88,7 @@ sub new
 
 sub get_compilation_errors
 {
-    my ($source, $dir, $filename) = @_;
+    my ($source, $dir) = @_;
 
     my $temp;
     my $future = $loop->new_future();
