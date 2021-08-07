@@ -83,7 +83,6 @@ sub new
             return Future->done(bless $self, $class);
         }
     );
-
 } ## end sub new
 
 sub get_compilation_errors
@@ -107,7 +106,7 @@ sub get_compilation_errors
         close $temp;
 
         open $fh, '<', $source;
-    } ## end if (ref $path eq 'SCALAR'...)
+    } ## end if (ref $source eq 'SCALAR'...)
     else
     {
         $path = $source;
@@ -204,11 +203,11 @@ sub run_perlcritic
 {
     my ($profile, $source, $path) = @_;
 
-    my $critic      = Perl::Critic->new(-profile => $profile);
-    my %args        = ();
+    my $critic = Perl::Critic->new(-profile => $profile);
+    my %args;
     $args{filename} = $path if (ref $source eq 'SCALAR');
-    my $doc         = PPI::Document->new($source, %args);
-    my @violations  = $critic->critique($doc);
+    my $doc        = PPI::Document->new($source, %args);
+    my @violations = $critic->critique($doc);
 
     my @diagnostics;
 

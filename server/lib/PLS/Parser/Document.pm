@@ -1396,12 +1396,16 @@ sub find_word_under_cursor
         }
     } ## end if (not blessed($element...))
 
-    if ((   not blessed($element)
-        or not $element->isa('PLS::Parser::Element'))
+    if (
+        (
+            not blessed($element)
+         or not $element->isa('PLS::Parser::Element')
+        )
         and blessed($closest_operator)
         and $closest_operator->isa('PLS::Parser::Element')
         and $closest_operator->name eq '->'
-        and $closest_operator->lsp_column_number + length($closest_operator->content) == $character)
+        and $closest_operator->lsp_column_number + length($closest_operator->content) == $character
+       )
     {
         my $range = $closest_operator->range;
         $range->{start}{character} += length $closest_operator->content;
@@ -1424,7 +1428,7 @@ sub find_word_under_cursor
         {
             return $range, 1, '', '';
         }
-    } ## end if (not blessed($element...))
+    } ## end if ((not blessed($element...)))
 
     return if (not blessed($element) or not $element->isa('PLS::Parser::Element'));
 
