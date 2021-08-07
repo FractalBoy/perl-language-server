@@ -5,9 +5,9 @@ on:
     tags: '**'
     paths:
       - 'client/**'
-  
+
   workflow_dispatch:
-      
+
 defaults:
   run:
     working-directory: 'client'
@@ -17,7 +17,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       VSCE_PAT: ${{ secrets.VSCE_PAT }}
-    
+
     steps:
     - uses: actions/checkout@v2
 
@@ -28,9 +28,9 @@ jobs:
 
     - name: Install dependencies
       run: yarn install
-      
+
     - name: Install vsce
       run: yarn global add vsce
-      
+
     - name: Publish extension
       run: vsce publish
