@@ -11,7 +11,7 @@ use IO::Async::Loop;
 use IO::Async::Timer::Countdown;
 
 use PLS::Parser::Document;
-use PLS::Server::Request::Diagnostics::PublishDiagnostics;
+use PLS::Server::Request::TextDocument::PublishDiagnostics;
 
 =head1 NAME
 
@@ -47,7 +47,7 @@ sub service
             delay => 2,
             on_expire => sub {
                 my $text = PLS::Parser::Document::text_from_uri($uri);
-                $server->send_server_request(PLS::Server::Request::Diagnostics::PublishDiagnostics->new(uri => $uri, unsaved => 1));
+                $server->send_server_request(PLS::Server::Request::TextDocument::PublishDiagnostics->new(uri => $uri, unsaved => 1));
                 delete $timers{$uri};
             },
             remove_on_expire => 1

@@ -1,4 +1,4 @@
-package PLS::Server::Request::Diagnostics::PublishDiagnostics;
+package PLS::Server::Request::TextDocument::PublishDiagnostics;
 
 use strict;
 use warnings;
@@ -21,7 +21,7 @@ use PLS::Server::State;
 
 =head1 NAME
 
-PLS::Server::Request::Diagnostics::PublishDiagnostics
+PLS::Server::Request::TextDocument::PublishDiagnostics
 
 =head1 DESCRIPTION
 

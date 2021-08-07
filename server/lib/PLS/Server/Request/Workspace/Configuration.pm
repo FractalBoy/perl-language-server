@@ -10,7 +10,7 @@ use Scalar::Util;
 use PLS::Parser::Document;
 use PLS::Parser::Pod;
 use PLS::Server::State;
-use PLS::Server::Request::Diagnostics::PublishDiagnostics;
+use PLS::Server::Request::TextDocument::PublishDiagnostics;
 
 =head1 NAME
 
@@ -74,7 +74,7 @@ sub handle_response
     # @INC may have changed - republish diagnostics
     foreach my $uri (@{PLS::Parser::Document->open_files()})
     {
-        $server->send_server_request(PLS::Server::Request::Diagnostics::PublishDiagnostics->new(uri => $uri, unsaved => 1));
+        $server->send_server_request(PLS::Server::Request::TextDocument::PublishDiagnostics->new(uri => $uri, unsaved => 1));
     }
 
     return;

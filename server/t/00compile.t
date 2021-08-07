@@ -15,7 +15,7 @@ use_ok('PLS::Server::Request::Client::RegisterCapability');
 
 use_ok('PLS::Server::Request::CompletionItem::Resolve');
 
-use_ok('PLS::Server::Request::Diagnostics::PublishDiagnostics');
+use_ok('PLS::Server::Request::TextDocument::PublishDiagnostics');
 
 use_ok('PLS::Server::Request::TextDocument::Completion');
 use_ok('PLS::Server::Request::TextDocument::Definition');

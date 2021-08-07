@@ -9,7 +9,7 @@ use List::Util qw(any uniq);
 use Path::Tiny;
 
 use PLS::Parser::Document;
-use PLS::Server::Request::Diagnostics::PublishDiagnostics;
+use PLS::Server::Request::TextDocument::PublishDiagnostics;
 
 =head1 NAME
 

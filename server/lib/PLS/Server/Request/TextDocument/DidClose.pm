@@ -6,7 +6,7 @@ use warnings;
 use parent 'PLS::Server::Request';
 
 use PLS::Parser::Document;
-use PLS::Server::Request::Diagnostics::PublishDiagnostics;
+use PLS::Server::Request::TextDocument::PublishDiagnostics;
 
 =head1 NAME
 
@@ -26,7 +26,7 @@ sub service
     my $text_document = $self->{params}{textDocument};
     PLS::Parser::Document->close_file(%{$text_document});
 
-    $server->send_server_request(PLS::Server::Request::Diagnostics::PublishDiagnostics->new(uri => $self->{params}{textDocument}{uri}, close => 1));
+    $server->send_server_request(PLS::Server::Request::TextDocument::PublishDiagnostics->new(uri => $self->{params}{textDocument}{uri}, close => 1));
 
     return;
 } ## end sub service

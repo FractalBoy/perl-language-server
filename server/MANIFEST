@@ -53,7 +53,6 @@ lib/PLS/Server/Request/CancelRequest.pm
 lib/PLS/Server/Request/Initialized.pm
 lib/PLS/Server/Request/CompletionItem/Resolve.pm
 lib/PLS/Server/Request/Factory.pm
-lib/PLS/Server/Request/Diagnostics/PublishDiagnostics.pm
 lib/PLS/Server/Request/TextDocument/DidOpen.pm
 lib/PLS/Server/Request/TextDocument/DidChange.pm
 lib/PLS/Server/Request/TextDocument/DidSave.pm
@@ -62,6 +61,7 @@ lib/PLS/Server/Request/TextDocument/DocumentSymbol.pm
 lib/PLS/Server/Request/TextDocument/DidClose.pm
 lib/PLS/Server/Request/TextDocument/Formatting.pm
 lib/PLS/Server/Request/TextDocument/Definition.pm
+lib/PLS/Server/Request/TextDocument/PublishDiagnostics.pm
 lib/PLS/Server/Request/TextDocument/RangeFormatting.pm
 lib/PLS/Server/Request/TextDocument/SignatureHelp.pm
 lib/PLS/Server/Request/TextDocument/Hover.pm
