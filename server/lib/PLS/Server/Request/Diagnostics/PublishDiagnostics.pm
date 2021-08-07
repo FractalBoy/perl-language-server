@@ -90,30 +90,23 @@ sub get_compilation_errors
 {
     my ($source, $dir, $filename) = @_;
 
-    my ($temp_dir, $temp_file);
+    my $temp;
     my $future = $loop->new_future();
     my $fh;
     my $path;
 
     if (ref $source eq 'SCALAR')
     {
-        $temp_dir = eval { File::Temp->newdir(CLEANUP => 0, TEMPLATE => '.pls-tmp-XXXXXXXXXX', DIR => $dir) };
-        $temp_dir = eval { File::Temp->newdir(CLEANUP => 0) } if (ref $temp_dir ne 'File::Temp::Dir');
+        $temp = eval { File::Temp->new(CLEANUP => 0, TEMPLATE => '.pls-tmp-XXXXXXXXXX', DIR => $dir) };
+        $temp = eval { File::Temp->new(CLEANUP => 0) } if (ref $temp ne 'File::Temp');
+        $path = $temp->filename;
 
-        $future->on_done(sub { File::Path::remove_tree($temp_dir->dirname) });
+        $future->on_done(sub { unlink $temp });
+
+        print {$temp} $$source;
+        close $temp;
 
         open $fh, '<', $source;
-        $path = File::Spec->catfile($temp_dir, $filename);
-
-        if (open my $wfh, '>', $path)
-        {
-            print {$wfh} $$source;
-            close $wfh;
-        }
-        else
-        {
-            return [];
-        }
     } ## end if (ref $path eq 'SCALAR'...)
     else
     {
