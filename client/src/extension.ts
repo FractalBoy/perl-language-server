@@ -9,10 +9,11 @@ import { LanguageClient, LanguageClientOptions, ServerOptions } from 'vscode-lan
 export function activate(context: vscode.ExtensionContext) {
 	const perl = vscode.workspace.getConfiguration('perl');
 	const serverCmd = perl.get<string>('pls') ?? 'pls';
+    const serverArgs = perl.get<string[]>('plsargs') ?? [];
 
 	const serverOptions: ServerOptions = {
-		run: { command: serverCmd },
-		debug: { command: serverCmd }
+		run: { command: serverCmd, args: serverArgs },
+		debug: { command: serverCmd, args: serverArgs }
 	};
 
 	const clientOptions: LanguageClientOptions = {

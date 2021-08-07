@@ -31,6 +31,11 @@
           "default": "pls",
           "description": "Path to the pls executable script"
         },
+        "perl.plsargs": {
+          "type": "array",
+          "default": [],
+          "description": "Arguments to pass to the pls command"
+        },
         "perl.syntax.enabled": {
           "type": "boolean",
           "default": true,
@@ -60,15 +65,6 @@
           "type": "string",
           "default": ".",
           "description": "Current working directory to use"
-        },
-        "perl.sortImports.args": {
-          "type": "array",
-          "description": "Arguments passed in. Each argument is a separate item in the array.",
-          "default": [],
-          "items": {
-            "type": "string"
-          },
-          "scope": "resource"
         }
       }
     },
