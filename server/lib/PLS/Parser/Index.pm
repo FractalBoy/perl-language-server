@@ -61,6 +61,7 @@ sub load_trie
     my ($self) = @_;
 
     my $index = $self->index();
+    return if (ref $index ne 'HASH');
 
     foreach my $sub (keys %{$index->{subs}})
     {
@@ -218,7 +219,13 @@ sub index
     $self->{last_mtime} = $mtime;
 
     open my $fh, '<', $self->{location} or die $!;
-    flock $fh, LOCK_SH unless $no_lock;
+
+    unless ($no_lock)
+    {
+        my $locked = flock $fh, LOCK_SH | LOCK_NB;
+        return unless $locked;
+    }
+
     $self->{cache} = eval { Storable::fd_retrieve($fh) };
     flock $fh, LOCK_UN unless $no_lock;
 
@@ -402,6 +409,7 @@ sub find_package_subroutine
     my ($self, $package, $subroutine) = @_;
 
     my $index     = $self->index();
+    return [] if (ref $index ne 'HASH');
     my $locations = $index->{packages}{$package};
 
     if (ref $locations ne 'ARRAY')
@@ -424,6 +432,7 @@ sub find_subroutine
     my ($self, $subroutine, @files) = @_;
 
     my $index = $self->index;
+    return [] if (ref $index ne 'HASH');
     my $found = $index->{subs}{$subroutine};
     return [] unless (ref $found eq 'ARRAY');
 
@@ -462,6 +471,7 @@ sub find_package
     my ($self, $package, @files) = @_;
 
     my $index = $self->index;
+    return [] if (ref $index ne 'HASH');
     my $found = $index->{packages}{$package};
 
     if (ref $found ne 'ARRAY')
