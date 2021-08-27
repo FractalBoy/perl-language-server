@@ -5,6 +5,7 @@ use warnings;
 
 use parent 'PLS::Server::Request';
 
+use Encode;
 use File::Basename;
 use File::Path;
 use File::Spec;
@@ -101,11 +102,12 @@ sub get_compilation_errors
         $path = $temp->filename;
 
         $future->on_done(sub { unlink $temp });
+        my $source_text = Encode::encode_utf8($$source);
 
-        print {$temp} $$source;
+        print {$temp} $source_text;
         close $temp;
 
-        open $fh, '<', $source;
+        open $fh, '<', \$source_text;
     } ## end if (ref $source eq 'SCALAR'...)
     else
     {
