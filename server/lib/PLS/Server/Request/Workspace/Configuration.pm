@@ -12,6 +12,8 @@ use PLS::Parser::Pod;
 use PLS::Server::State;
 use PLS::Server::Request::TextDocument::PublishDiagnostics;
 
+use JJ;
+
 =head1 NAME
 
 PLS::Server::Request::Workspace::Configuration
@@ -45,8 +47,43 @@ sub handle_response
 {
     my ($self, $response, $server) = @_;
 
+    JJ::jjlog("response", $response);
+
     return unless (Scalar::Util::reftype $response eq 'HASH' and ref $response->{result} eq 'ARRAY');
+
     my $config = $response->{result}[0];
+
+    # TODO: Remove this once we have figured out what is going on with BBEdit's WorkspaceConfigurations.
+    if (1) {
+        my $json = << 'EOF';
+{
+  "jsonrpc": "2.0",
+  "id": null,
+  "result": [
+    {
+      "inc": [],
+      "pls": "pls",
+      "syntax": {
+        "enabled": true,
+        "perl": ""
+      },
+      "perltidyrc": "~/.perltidyrc",
+      "perlcritic": {
+        "perlcriticrc": "~/.perlcriticrc",
+        "enabled": true
+      },
+      "cwd": "",
+      "sortImports": {
+        "args": []
+      }
+    }
+  ]
+}
+EOF
+
+        $config = JSON::PP->new->utf8->decode($json);
+    }
+
     return unless (ref $config eq 'HASH');
 
     # Replace $ROOT_PATH with actual workspace root in inc

@@ -98,6 +98,17 @@ sub initialize_server
     return $response;
 } ## end sub initialize_server
 
+sub shutdown_server
+{
+    my ($comm) = @_;
+
+    my $request  = slurp 'shutdown.json';
+    my $response = $comm->send_message_and_recv_response($request);
+    $request = slurp 'shutdown.json';
+    $comm->send_message($request);
+    return $response;
+} ## end sub shutdown_server
+
 sub complete_initialization
 {
     my ($comm) = @_;

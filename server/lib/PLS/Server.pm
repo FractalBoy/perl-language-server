@@ -16,6 +16,9 @@ use Scalar::Util qw(blessed);
 use PLS::Server::Request::Factory;
 use PLS::Server::Response;
 use PLS::Server::Response::Cancelled;
+use PLS::Server::Response::Shutdown;
+
+use JJ;
 
 =head1 NAME
 
@@ -133,6 +136,8 @@ sub run
                 my $json = substr $$buffref, 0, $size, '';
                 $size = 0;
 
+                JJ::jjlog('_C', $json);
+
                 my $content = JSON::PP->new->utf8->decode($json);
 
                 $self->handle_client_message($content);
@@ -209,6 +214,9 @@ sub send_message
 
     return if (not blessed($message) or not $message->isa('PLS::Server::Message'));
     my $json   = $message->serialize();
+
+    JJ::jjlog('S_', $json);
+
     my $length = length $json;
     $self->{stream}->write("Content-Length: $length\r\n\r\n$json")->await;
 

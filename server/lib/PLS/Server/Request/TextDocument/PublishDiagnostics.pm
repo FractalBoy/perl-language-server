@@ -63,9 +63,9 @@ sub new
 
     if (not $args{close})
     {
-        push @futures, get_compilation_errors($source, $dir) if (defined $PLS::Server::State::CONFIG->{syntax}{enabled} and $PLS::Server::State::CONFIG->{syntax}{enabled});
-        push @futures, get_perlcritic_errors($source, $uri->file)
-          if (defined $PLS::Server::State::CONFIG->{perlcritic}{enabled} and $PLS::Server::State::CONFIG->{perlcritic}{enabled});
+        # TODO: Remove the '1 or' when its clear what is going one with CONFIG.
+        push @futures, get_compilation_errors($source, $dir) if (1 or defined $PLS::Server::State::CONFIG->{syntax}{enabled} and $PLS::Server::State::CONFIG->{syntax}{enabled});
+        push @futures, get_perlcritic_errors($source, $uri->file) if (1 or defined $PLS::Server::State::CONFIG->{perlcritic}{enabled} and $PLS::Server::State::CONFIG->{perlcritic}{enabled});
     } ## end if (not $args{close})
 
     return Future->wait_all(@futures)->then(

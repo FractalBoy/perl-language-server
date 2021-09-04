@@ -1,3 +1,4 @@
 .pls_cache
 .pls-tmp-*
 .vscode
+.DS_Store

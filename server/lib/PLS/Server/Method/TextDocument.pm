@@ -12,8 +12,9 @@ use PLS::Server::Request::TextDocument::DidSave;
 use PLS::Server::Request::TextDocument::DocumentSymbol;
 use PLS::Server::Request::TextDocument::Formatting;
 use PLS::Server::Request::TextDocument::Hover;
-use PLS::Server::Request::TextDocument::SignatureHelp;
+use PLS::Server::Request::TextDocument::PublishDiagnostics;
 use PLS::Server::Request::TextDocument::RangeFormatting;
+use PLS::Server::Request::TextDocument::SignatureHelp;
 
 =head1 NAME
 
@@ -125,6 +126,10 @@ sub get_request
     if ($method eq 'completion')
     {
         return PLS::Server::Request::TextDocument::Completion->new($request);
+    }
+    if ($method eq 'publishDiagnostics')
+    {
+        return PLS::Server::Request::TextDocument::PublishDiagnostics->new($request);
     }
 } ## end sub get_request
 
