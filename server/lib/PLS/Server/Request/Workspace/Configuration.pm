@@ -38,7 +38,7 @@ sub new
         id     => undef,                       # assigned by the server
         method => 'workspace/configuration',
         params => {
-                   items => [{section => 'perl'}]
+                   items => [{section => 'perl', scopeUri => '*'}]
                   }
                  }, $class;
 } ## end sub new
@@ -52,37 +52,6 @@ sub handle_response
     return unless (Scalar::Util::reftype $response eq 'HASH' and ref $response->{result} eq 'ARRAY');
 
     my $config = $response->{result}[0];
-
-    # TODO: Remove this once we have figured out what is going on with BBEdit's WorkspaceConfigurations.
-    if (1) {
-        my $json = << 'EOF';
-{
-  "jsonrpc": "2.0",
-  "id": null,
-  "result": [
-    {
-      "inc": [],
-      "pls": "pls",
-      "syntax": {
-        "enabled": true,
-        "perl": ""
-      },
-      "perltidyrc": "~/.perltidyrc",
-      "perlcritic": {
-        "perlcriticrc": "~/.perlcriticrc",
-        "enabled": true
-      },
-      "cwd": "",
-      "sortImports": {
-        "args": []
-      }
-    }
-  ]
-}
-EOF
-
-        $config = JSON::PP->new->utf8->decode($json);
-    }
 
     return unless (ref $config eq 'HASH');
 
