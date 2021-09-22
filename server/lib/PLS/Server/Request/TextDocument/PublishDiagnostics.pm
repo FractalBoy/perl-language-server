@@ -38,7 +38,6 @@ my $function = IO::Async::Function->new(max_workers => 1,
 
 my $loop = IO::Async::Loop->new();
 $loop->add($function);
-$function->start();
 
 sub new
 {
@@ -61,12 +60,10 @@ sub new
 
     my @futures;
 
-    if (not $args{close})
-    {
-        push @futures, get_compilation_errors($source, $dir) if (defined $PLS::Server::State::CONFIG->{syntax}{enabled} and $PLS::Server::State::CONFIG->{syntax}{enabled});
-        push @futures, get_perlcritic_errors($source, $uri->file)
-          if (defined $PLS::Server::State::CONFIG->{perlcritic}{enabled} and $PLS::Server::State::CONFIG->{perlcritic}{enabled});
-    } ## end if (not $args{close})
+    push @futures, get_compilation_errors($source, $dir, $args{close}) if (defined $PLS::Server::State::CONFIG->{syntax}{enabled} and $PLS::Server::State::CONFIG->{syntax}{enabled});
+    push @futures, get_perlcritic_errors($source, $uri->file, $args{close})
+      if (defined $PLS::Server::State::CONFIG->{perlcritic}{enabled} and $PLS::Server::State::CONFIG->{perlcritic}{enabled});
+
 
     return Future->wait_all(@futures)->then(
         sub {
@@ -88,10 +85,17 @@ sub new
 
 sub get_compilation_errors
 {
-    my ($source, $dir) = @_;
+    my ($source, $dir, $close) = @_;
 
     my $temp;
     my $future = $loop->new_future();
+
+    if ($close)
+    {
+        $future->done();
+        return $future;
+    }
+
     my $fh;
     my $path;
 
@@ -146,8 +150,8 @@ sub get_compilation_errors
                     next if $line =~ /Subroutine .+ redefined/;
 
                     # Hide "BEGIN failed" and "Compilation failed" messages - these provide no useful info.
-                    next if $line =~ /^BEGIN failed/;
-                    next if $line =~ /^Compilation failed/;
+                    #next if $line =~ /^BEGIN failed/;
+                    #next if $line =~ /^Compilation failed/;
                     if (my ($error, $file, $line, $area) = $line =~ /^(.+) at (.+) line (\d+)(, .+)?/)
                     {
                         $error .= $area if (length $area);
@@ -193,17 +197,19 @@ sub get_compilation_errors
 
 sub get_perlcritic_errors
 {
-    my ($source, $path) = @_;
+    my ($source, $path, $close) = @_;
 
     my ($profile) = glob $PLS::Server::State::CONFIG->{perlcritic}{perlcriticrc};
     undef $profile if (not length $profile or not -f $profile or not -r $profile);
 
-    return $function->call(args => [$profile, $source, $path]);
+    return $function->call(args => [$profile, $source, $path, $close]);
 } ## end sub get_perlcritic_errors
 
 sub run_perlcritic
 {
-    my ($profile, $source, $path) = @_;
+    my ($profile, $source, $path, $close) = @_;
+
+    return if $close;
 
     my $critic = Perl::Critic->new(-profile => $profile);
     my %args;
