@@ -16,9 +16,6 @@ sub new
     my $index = PLS::Parser::Document->get_index()->index();
     my @symbols;
 
-    use Data::Dumper;
-    warn Dumper $index;
-
     foreach my $name (keys %{$index->{subs}})
     {
         next if ($name !~ /\Q$query\E/i);
