@@ -5,6 +5,8 @@ use warnings;
 
 use parent q(PLS::Server::Response);
 
+use JSON::PP;
+
 use PLS::Server::State;
 
 =head1 NAME
@@ -28,28 +30,29 @@ sub new
                 id     => $request->{id},
                 result => {
                            capabilities => {
-                                            definitionProvider     => \1,
-                                            documentSymbolProvider => \1,
-                                            hoverProvider          => \1,
+                                            definitionProvider     => JSON::PP::true,
+                                            documentSymbolProvider => JSON::PP::true,
+                                            hoverProvider          => JSON::PP::true,
                                             signatureHelpProvider  => {
                                                                       triggerCharacters => ['(', ',']
                                                                      },
                                             textDocumentSync => {
-                                                                 openClose => \1,
+                                                                 openClose => JSON::PP::true,
                                                                  change    => 2,
-                                                                 save => \1
+                                                                 save => JSON::PP::true,
                                                                 },
-                                            documentFormattingProvider      => \1,
-                                            documentRangeFormattingProvider => \1,
+                                            documentFormattingProvider      => JSON::PP::true,
+                                            documentRangeFormattingProvider => JSON::PP::true,
                                             completionProvider              => {
                                                                    triggerCharacters => ['>', ':', '$', '@', '%'],
-                                                                   resolveProvider   => \1
+                                                                   resolveProvider   => JSON::PP::true,
                                                                   },
                                             executeCommandProvider => {
                                                 commands => [
                                                     'perl.sortImports'
                                                 ]
-                                            }
+                                            },
+                                            workspaceSymbolProvider => JSON::PP::true
                                            }
                           }
                );

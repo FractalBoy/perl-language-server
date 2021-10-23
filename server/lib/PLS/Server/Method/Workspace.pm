@@ -7,6 +7,7 @@ use PLS::Server::Request::Workspace::Configuration;
 use PLS::Server::Request::Workspace::DidChangeConfiguration;
 use PLS::Server::Request::Workspace::DidChangeWatchedFiles;
 use PLS::Server::Request::Workspace::ExecuteCommand;
+use PLS::Server::Request::Workspace::Symbol;
 
 =head1 NAME
 
@@ -62,6 +63,10 @@ sub get_request
     if ($method eq 'executeCommand')
     {
         return PLS::Server::Request::Workspace::ExecuteCommand->new($request);
+    }
+    if ($method eq 'symbol')
+    {
+        return PLS::Server::Request::Workspace::Symbol->new($request);
     }
 } ## end sub get_request
 
