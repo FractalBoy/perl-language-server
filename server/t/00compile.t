@@ -1,7 +1,7 @@
 use strict;
 use warnings;
 
-use Test::More tests => 63;
+use Test::More tests => 65;
 
 use_ok('PLS');
 use_ok('PLS::Server');
@@ -34,6 +34,7 @@ use_ok('PLS::Server::Request::Workspace::Configuration');
 use_ok('PLS::Server::Request::Workspace::DidChangeConfiguration');
 use_ok('PLS::Server::Request::Workspace::DidChangeWatchedFiles');
 use_ok('PLS::Server::Request::Workspace::ExecuteCommand');
+use_ok('PLS::Server::Request::Workspace::Symbol');
 
 use_ok('PLS::Server::Request::CancelRequest');
 use_ok('PLS::Server::Request::Factory');
@@ -51,6 +52,7 @@ use_ok('PLS::Server::Response::RangeFormatting');
 use_ok('PLS::Server::Response::Resolve');
 use_ok('PLS::Server::Response::ServerNotInitialized');
 use_ok('PLS::Server::Response::SignatureHelp');
+use_ok('PLS::Server::Response::WorkspaceSymbols');
 
 use_ok('PLS::Server::Message');
 use_ok('PLS::Server::Request');
