@@ -121,3 +121,8 @@ Revision history for perl module PLS
    use of the temporary file now.
    - Temporary directories are no longer created, only temporary files.
    - Temporary files now have a predictable prefix: .pls-tmp-
+
+0.897 2021-10-23
+
+ - Fixed an issue causing diagnostics to be displayed for closed files
+ - Added workspace symbol support
