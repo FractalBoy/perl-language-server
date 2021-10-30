@@ -20,7 +20,7 @@ that the server exits.
 
 sub service
 {
-    exit 1;
+    exit 0;
 } ## end sub service
 
 1;

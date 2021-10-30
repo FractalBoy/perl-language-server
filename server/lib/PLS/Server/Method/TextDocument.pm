@@ -127,10 +127,6 @@ sub get_request
     {
         return PLS::Server::Request::TextDocument::Completion->new($request);
     }
-    if ($method eq 'publishDiagnostics')
-    {
-        return PLS::Server::Request::TextDocument::PublishDiagnostics->new($request);
-    }
 } ## end sub get_request
 
 1;
