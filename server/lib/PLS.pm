@@ -3,7 +3,7 @@ package PLS;
 use strict;
 use warnings;
 
-our $VERSION = '0.897';
+our $VERSION = '0.898';
 
 =head1 NAME
 
@@ -87,7 +87,7 @@ extension to Visual Studio Code in order to use this language server.
 
 =head1 COPYRIGHT
 
-Copyright 2021 Marc Reisner
+Copyright 2022 Marc Reisner
 
 =head1 LICENSE
 

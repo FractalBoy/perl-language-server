@@ -126,3 +126,8 @@ Revision history for perl module PLS
 
  - Fixed an issue causing diagnostics to be displayed for closed files
  - Added workspace symbol support
+
+0.898 2022-01-19
+
+ - Compilation errors are now displayed if there is a filehandle context
+   in the error - thank you @bscan (https://github.com/bscan)!

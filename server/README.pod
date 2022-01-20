@@ -1,3 +1,4 @@
+
 =head1 NAME
 
 PLS - Perl Language Server
@@ -80,7 +81,7 @@ extension to Visual Studio Code in order to use this language server.
 
 =head1 COPYRIGHT
 
-Copyright 2021 Marc Reisner
+Copyright 2022 Marc Reisner
 
 =head1 LICENSE
 
