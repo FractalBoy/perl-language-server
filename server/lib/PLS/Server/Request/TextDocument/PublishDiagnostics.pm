@@ -152,7 +152,7 @@ sub get_compilation_errors
                     # Hide "BEGIN failed" and "Compilation failed" messages - these provide no useful info.
                     #next if $line =~ /^BEGIN failed/;
                     #next if $line =~ /^Compilation failed/;
-                    if (my ($error, $file, $line, $area) = $line =~ /^(.+) at (.+) line (\d+)(, .+)?/)
+                    if (my ($error, $file, $line, $area) = $line =~ /^(.+) at (.+?) line (\d+)(, .+)?/)
                     {
                         $error .= $area if (length $area);
                         $line = int $line;
