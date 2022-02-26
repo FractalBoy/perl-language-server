@@ -16,6 +16,7 @@ use Scalar::Util qw(blessed);
 use PLS::Server::Request::Factory;
 use PLS::Server::Response;
 use PLS::Server::Response::Cancelled;
+use PLS::Server::Response::Shutdown;
 
 =head1 NAME
 
