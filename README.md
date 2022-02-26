@@ -72,24 +72,24 @@ BBEdit version 14.0 and higher adds support for Language Server Protocols, inclu
 
 ```
 {
-	"initializationOptions": {},
-	"workspaceConfigurations": {
-		"*": {
-			"perl": {
-				"inc": [],
-				"syntax": {
-					"enabled": true,
-					"perl": "/usr/bin/perl"
-				},
-				"perltidyrc": "~/.perltidyrc",
-				"perlcritic": {
-					"enabled": true,
-					"perlcriticrc": "~/.perlcriticrc"
-				},
-				"cwd": "."
-			}
-		}
-	}
+  "initializationOptions": {},
+  "workspaceConfigurations": {
+    "*": {
+      "perl": {
+        "inc": [],
+        "syntax": {
+          "enabled": true,
+          "perl": "/usr/bin/perl"
+        },
+        "perltidyrc": "~/.perltidyrc",
+        "perlcritic": {
+          "enabled": true,
+          "perlcriticrc": "~/.perlcriticrc"
+        },
+        "cwd": "."
+      }
+    }
+  }
 }
 ```
 
