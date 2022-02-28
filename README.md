@@ -51,6 +51,7 @@ local config = {
       inc = { '/my/perl/5.34/lib', '/some/other/perl/lib' },  -- add list of dirs to @INC
       cwd = { '/my/projects' },   -- working directory for PLS
       perlcritic = { enabled = true, perlcriticrc = '/my/projects/.perlcriticrc' },  -- use perlcritic and pass a non-default location for its config
+      syntax = { enabled = true, perl = '/usr/bin/perl' }, -- enable syntax checking and use a non-default perl binary
       perltidyrc = '/my/projects/.perltidyrc'  -- non-default location for perltidy's config
     } 
   }
@@ -68,9 +69,10 @@ EOF
 
 ## Configuration
 
-1. Optionally, add paths to @INC by modifying the `perl.inc` setting. You can use the $ROOT_PATH mnemonic to stand in for your project's root directory. PLS does not yet support multiple workspace folders.
+1. Optionally, add paths to `@INC` by modifying the `perl.inc` setting. You can use the `$ROOT_PATH` mnemonic to stand in for your project's root directory. PLS does not yet support multiple workspace folders.
 2. Optionally, change the current working directory to run PLS in by modifying the `perl.cwd` setting.
-3. Optionally, configure the path to your .perltidyrc file using the `perl.perltidyrc` setting. By default, `~/.perltidyrc` is used.
-4. Optionally, configure the path to your .perlcriticrc file using the `perl.perlcritic.perlcriticrc` setting. By default, `~/.perlcriticrc` is used. You can also disable perlcritic checking entirely by disabling the `perl.perlcritic.enabled` setting.
-5. Optionally, create a .plsignore file in your workspace root with Perl glob patterns that you do not wish to index. By default, PLS will index all files that look like Perl files, with the exception of `.t` files. If you have a lot of files that are not Perl files in your workspace, it may slow down indexing unless they are ignored. This is the case for PLS itself, where the entire `client` directory is not Perl and contains many small files in `node_modules`.
+3. Optionally, configure the path to your `.perltidyrc` file using the `perl.perltidyrc` setting. By default, `~/.perltidyrc` is used.
+4. Optionally, configure the path to your `.perlcriticrc` file using the `perl.perlcritic.perlcriticrc` setting. By default, `~/.perlcriticrc` is used. You can also disable `perlcritic` checking entirely by disabling the `perl.perlcritic.enabled` setting.
+5. Optionally, configure the path to an alternate `perl` to use for syntax checking using the `perl.syntax.perl` setting. By default, the `perl` used to run PLS will be used. You can also disable syntax checking entirely by disabling the `perl.syntax.enabled` setting. 
+6. Optionally, create a `.plsignore` file in your workspace root with Perl glob patterns that you do not wish to index. By default, PLS will index all files that look like Perl files, with the exception of `.t` files. If you have a lot of files that are not Perl files in your workspace, it may slow down indexing unless they are ignored. This is the case for PLS itself, where the entire `client` directory is not Perl and contains many small files in `node_modules`.
 

@@ -39,9 +39,9 @@ The following settings may be configured using your text editor:
 
 =over
 
-=item perl.inc - a list of paths to include in @INC
+=item perl.inc - a list of paths to include in C<@INC>
 
-You can use $ROOT_PATH to stand in for your project's root directory,
+You can use C<$ROOT_PATH> to stand in for your project's root directory,
 to allow for configuration to work the same for multiple directories
 of the same project. This is useful if you use SVN and check out each
 branch to a different directory.
@@ -61,6 +61,12 @@ Defaults to C<~/.perltidyrc> if not configured.
 =item perl.perlcritic.perlcriticrc - the location of your C<.perlcriticrc> file.
 
 Defaults to C<~/.perlcriticrc> if not configured.
+
+=item perl.syntax.enabled - whether to enable syntax checking.
+
+=item perl.syntax.perl - path to an alternate C<perl> to use for syntax checking.
+
+Defaults to the C<perl> used to run PLS.
 
 =back
 
