@@ -30,10 +30,12 @@ sub new
 
     # create and return request classes here
 
-    if (PLS::Server::Method::ServerMethod::is_server_method($method) or not $PLS::Server::State::INITIALIZED)
+    if (   PLS::Server::Method::ServerMethod::is_server_method($method)
+        or not $PLS::Server::State::INITIALIZED
+        or $PLS::Server::State::SHUTDOWN)
     {
         return PLS::Server::Method::ServerMethod::get_request($request);
-    }
+    } ## end if (PLS::Server::Method::ServerMethod::is_server_method...)
     elsif ($method eq 'textDocument')
     {
         return PLS::Server::Method::TextDocument::get_request($request);
