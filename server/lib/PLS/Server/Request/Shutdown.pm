@@ -5,7 +5,7 @@ use warnings;
 
 use parent 'PLS::Server::Request';
 
-use Scalar::Util qw(blessed);
+use PLS::Server::State;
 
 =head1 NAME
 
@@ -22,6 +22,7 @@ sub service
 {
     my ($self) = @_;
 
+    $PLS::Server::State::SHUTDOWN = 1;
     return PLS::Server::Response::Shutdown->new($self);
 } ## end sub service
 

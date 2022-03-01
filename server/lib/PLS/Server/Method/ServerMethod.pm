@@ -10,6 +10,7 @@ use PLS::Server::Request::CancelRequest;
 use PLS::Server::Request::Shutdown;
 use PLS::Server::Request::Exit;
 use PLS::Server::Response::ServerNotInitialized;
+use PLS::Server::Response::InvalidRequest;
 
 =head1 NAME
 
@@ -22,6 +23,9 @@ subclass of L<PLS::Server::Request>.
 
 It will also return the appropriate error if the client is attempting to make a
 request before the server has been initialized (L<PLS::Server::Response::ServerNotInitialized>).
+
+If a shutdown request has been sent and another request is sent that is not an exit
+request, the appropriate error will be returned (L<PLS::Server::Response::InvalidRequest>).
 
 Requests currently implemented:
 
@@ -58,6 +62,13 @@ sub get_request
 
     my $method = $request->{method};
 
+    if ($method eq 'exit')
+    {
+        return PLS::Server::Request::Exit->new($request);
+    }
+
+    return PLS::Server::Response::InvalidRequest->new($request) if $PLS::Server::State::SHUTDOWN;
+
     if ($method eq 'initialize')
     {
         return PLS::Server::Request::Initialize->new($request);
@@ -74,15 +85,10 @@ sub get_request
     {
         return PLS::Server::Request::CancelRequest->new($request);
     }
-    
+
     if ($method eq 'shutdown')
     {
         return PLS::Server::Request::Shutdown->new($request);
-    }
-
-    if ($method eq 'exit')
-    {
-        return PLS::Server::Request::Exit->new($request);
     }
 
     return;

@@ -5,5 +5,7 @@ use warnings;
 
 use PLS::Server;
 
-my $server = PLS::Server->new();
-$server->run;
+my $server    = PLS::Server->new();
+my $exit_code = $server->run();
+
+exit $exit_code;

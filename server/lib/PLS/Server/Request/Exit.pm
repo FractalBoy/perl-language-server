@@ -5,7 +5,7 @@ use warnings;
 
 use parent 'PLS::Server::Request';
 
-use Scalar::Util qw(blessed);
+use PLS::Server::State;
 
 =head1 NAME
 
@@ -20,7 +20,12 @@ that the server exits.
 
 sub service
 {
-    exit 0;
+    my ($self, $server) = @_;
+
+    my $exit_code = $PLS::Server::State::SHUTDOWN ? 0 : 1;
+    $server->stop($exit_code);
+
+    return;
 } ## end sub service
 
 1;

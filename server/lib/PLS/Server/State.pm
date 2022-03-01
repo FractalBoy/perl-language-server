@@ -6,6 +6,7 @@ use warnings;
 our $INITIALIZED = 0;
 our $ROOT_PATH;
 our $CONFIG;
+our $SHUTDOWN = 0;
 
 =head1 NAME
 
