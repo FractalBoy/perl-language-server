@@ -6,6 +6,7 @@ use warnings;
 use parent 'PLS::Server::Request';
 
 use PLS::Server::State;
+use PLS::Server::Response::Shutdown;
 
 =head1 NAME
 

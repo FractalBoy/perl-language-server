@@ -11,7 +11,7 @@ use File::Path;
 use File::Spec;
 use JSON::PP;
 use List::Util qw(first all);
-use Test::More tests => 5;
+use Test::More tests => 6;
 use URI;
 
 use t::Communicate;
@@ -127,7 +127,7 @@ subtest 'server not initialized' => sub {
 };
 
 subtest 'initialize server' => sub {
-    plan tests => 15;
+    plan tests => 16;
 
     my $comm     = t::Communicate->new();
     my $response = initialize_server($comm);
@@ -138,7 +138,7 @@ subtest 'initialize server' => sub {
 
     cmp_ok(scalar keys %{$response->{result}}, '==', 1, 'result has 1 key');
     is(ref $response->{result}{capabilities}, 'HASH', 'response capabilities is json object');
-    cmp_ok(scalar keys %{$response->{result}{capabilities}}, '==', 9, 'capabiltiies has 9 keys');
+    cmp_ok(scalar keys %{$response->{result}{capabilities}}, '==', 10, 'capabilities has 10 keys');
 
     my $capabilities = $response->{result}{capabilities};
 
@@ -151,6 +151,7 @@ subtest 'initialize server' => sub {
     ok($capabilities->{documentRangeFormattingProvider}, 'server is document formatting provider');
     is_deeply($capabilities->{completionProvider},     {triggerCharacters => ['>', ':', '$', '@', '%'], resolveProvider => JSON::PP::true}, 'server is completion provider');
     is_deeply($capabilities->{executeCommandProvider}, {commands          => ['perl.sortImports']},                                         'server can execute commands');
+    ok($capabilities->{workspaceSymbolProvider}, 'server is workspace symbol provider');
 
     chomp(my $error = $comm->recv_err());
   SKIP:
@@ -224,8 +225,35 @@ subtest 'bad message' => sub {
     my $comm = t::Communicate->new();
     $comm->send_raw_message("Bad-Header: BAD\r\n\r\nnot json");
     chomp(my $error = $comm->recv_err());
-    $comm->stop_server();
     like($error, qr/no content-length header/i, 'no content length header error thrown');
+    waitpid $comm->{pid}, 0;
+};
+
+subtest 'shutdown and exit' => sub {
+    plan tests => 5;
+
+    my $comm = t::Communicate->new();
+    initialize_server($comm);
+    complete_initialization($comm);
+
+    my $shutdown_response = $comm->send_message_and_recv_response(slurp('shutdown.json', 2));
+    cmp_ok($shutdown_response->{id}, '==', 2, 'got shutdown response');
+
+    my $invalid_request = $comm->send_message_and_recv_response(slurp('formatting.json', 3));
+    cmp_ok($invalid_request->{id},          '==', 3,      'got invalid request response');
+    cmp_ok($invalid_request->{error}{code}, '==', -32600, 'got correct error code');
+
+    $comm->send_message(slurp('exit.json'));
+    waitpid $comm->{pid}, 0;
+    cmp_ok($? >> 8, '==', 0, 'got 0 exit code when shutdown request sent before exit');
+
+    $comm = t::Communicate->new();
+    initialize_server($comm);
+    complete_initialization($comm);
+
+    $comm->send_message(slurp('exit.json'));
+    waitpid $comm->{pid}, 0;
+    cmp_ok($? >> 8, '==', 1, 'got 1 exit code when exit request sent without shutdown');
 };
 
 END
