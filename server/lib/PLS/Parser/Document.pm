@@ -1126,21 +1126,7 @@ sub format_range
     $stderr =~ s/^.*To save a full \.LOG file.*$//m;
     $stderr =~ s/^\s*$//gm;
 
-    if ($error == 1)
-    {
-        return (0, {code => -32700, message => 'Perltidy failed to format the text.', data => $stderr});
-    }
-    if (length $stderr)
-    {
-        return (
-                0,
-                {
-                 code    => -32700,
-                 message => 'There were warnings or errors when running Perltidy. Formatting aborted.',
-                 data    => $stderr
-                }
-               );
-    } ## end if (length $stderr)
+    return (1, undef) if ($error == 1 or length $stderr);
 
     return (
             1,
