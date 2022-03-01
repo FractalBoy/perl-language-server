@@ -7,7 +7,10 @@ use PLS::Server::State;
 use PLS::Server::Request::Initialize;
 use PLS::Server::Request::Initialized;
 use PLS::Server::Request::CancelRequest;
+use PLS::Server::Request::Shutdown;
+use PLS::Server::Request::Exit;
 use PLS::Server::Response::ServerNotInitialized;
+use PLS::Server::Response::InvalidRequest;
 
 =head1 NAME
 
@@ -20,6 +23,9 @@ subclass of L<PLS::Server::Request>.
 
 It will also return the appropriate error if the client is attempting to make a
 request before the server has been initialized (L<PLS::Server::Response::ServerNotInitialized>).
+
+If a shutdown request has been sent and another request is sent that is not an exit
+request, the appropriate error will be returned (L<PLS::Server::Response::InvalidRequest>).
 
 Requests currently implemented:
 
@@ -37,6 +43,15 @@ L<PLS::Server::Request::Initialized>
 
 L<PLS::Server::Request::CancelRequest>
 
+=item shutdown - L<https://microsoft.github.io/language-server-protocol/specifications/specification-current/#shutdown>
+
+L<PLS::Server::Request::Shutdown>
+
+=item exit - L<https://microsoft.github.io/language-server-protocol/specifications/specification-current/#exit>
+
+L<PLS::Server::Request::Exit>
+
+
 =back
 
 =cut
@@ -46,6 +61,13 @@ sub get_request
     my ($request) = @_;
 
     my $method = $request->{method};
+
+    if ($method eq 'exit')
+    {
+        return PLS::Server::Request::Exit->new($request);
+    }
+
+    return PLS::Server::Response::InvalidRequest->new($request) if $PLS::Server::State::SHUTDOWN;
 
     if ($method eq 'initialize')
     {
@@ -64,6 +86,11 @@ sub get_request
         return PLS::Server::Request::CancelRequest->new($request);
     }
 
+    if ($method eq 'shutdown')
+    {
+        return PLS::Server::Request::Shutdown->new($request);
+    }
+
     return;
 } ## end sub get_request
 
@@ -73,6 +100,8 @@ sub is_server_method
 
     return 1 if ($method eq 'initialize');
     return 1 if ($method eq 'initialized');
+    return 1 if ($method eq 'shutdown');
+    return 1 if ($method eq 'exit');
     return 1 if ($method eq '$');
     return 0;
 } ## end sub is_server_method

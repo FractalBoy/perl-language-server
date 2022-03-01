@@ -47,8 +47,7 @@ sub new
         open STDIN,  '>&', $server_read_fh;
         open STDERR, '>&', $server_err_fh;
         my $server = PLS::Server->new();
-        $server->run();
-        exit;
+        exit $server->run();
     } ## end else [ if ($pid) ]
 
     return;

@@ -30,7 +30,9 @@ This server communicates to a language client through STDIN/STDOUT.
 =head1 SYNOPSIS
 
     my $server = PLS::Server->new();
-    $server->run() # never returns
+    my $exit_code = $server->run();
+
+    exit $exit_code;
 
 =cut
 
@@ -142,11 +144,17 @@ sub run
     );
 
     $self->{loop}->add($self->{stream});
-    $self->{loop}->add(IO::Async::Signal->new(name => 'TERM', on_receipt => sub { exit; })) if ($^O ne 'MSWin32');
+    $self->{loop}->add(
+                       IO::Async::Signal->new(
+                                              name       => 'TERM',
+                                              on_receipt => sub { $self->stop(0) }
+                                             )
+                      )
+      if ($^O ne 'MSWin32');
 
-    $self->{loop}->loop_forever();
+    my $exit_code = $self->{loop}->run();
 
-    return;
+    return (length $exit_code) ? $exit_code : 1;
 } ## end sub run
 
 sub handle_client_message
@@ -194,12 +202,14 @@ sub send_server_request
     }
     elsif ($request->isa('Future'))
     {
-        $request->on_done(sub {
-            my ($request) = @_;
+        $request->on_done(
+            sub {
+                my ($request) = @_;
 
-            $self->{server_requests}->push($request);
-        })->retain();
-    }
+                $self->{server_requests}->push($request);
+            }
+        )->retain();
+    } ## end elsif ($request->isa('Future'...))
     return;
 } ## end sub send_server_request
 
@@ -287,5 +297,14 @@ sub handle_server_response
     $self->send_message($response);
     return;
 } ## end sub handle_server_response
+
+sub stop
+{
+    my ($self, $exit_code) = @_;
+
+    $self->{loop}->stop($exit_code);
+
+    return;
+} ## end sub stop
 
 1;

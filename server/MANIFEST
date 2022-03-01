@@ -43,6 +43,8 @@ lib/PLS/Server/Response/Hover.pm
 lib/PLS/Server/Response/Resolve.pm
 lib/PLS/Server/Response/Location.pm
 lib/PLS/Server/Response/WorkspaceSymbols.pm
+lib/PLS/Server/Response/Shutdown.pm
+lib/PLS/Server/Response/InvalidRequest.pm
 lib/PLS/Server/Message.pm
 lib/PLS/Server/Request/Workspace/DidChangeWatchedFiles.pm
 lib/PLS/Server/Request/Workspace/DidChangeConfiguration.pm
@@ -53,6 +55,8 @@ lib/PLS/Server/Request/Workspace/Symbol.pm
 lib/PLS/Server/Request/Client/RegisterCapability.pm
 lib/PLS/Server/Request/CancelRequest.pm
 lib/PLS/Server/Request/Initialized.pm
+lib/PLS/Server/Request/Shutdown.pm
+lib/PLS/Server/Request/Exit.pm
 lib/PLS/Server/Request/CompletionItem/Resolve.pm
 lib/PLS/Server/Request/Factory.pm
 lib/PLS/Server/Request/TextDocument/DidOpen.pm

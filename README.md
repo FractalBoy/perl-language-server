@@ -67,9 +67,37 @@ lua <<EOF
 EOF
 ```
 
+### BBEdit
+
+BBEdit version 14.0 and higher adds support for Language Server Protocols, including PLS. Add the following JSON configuration file, adjusting paths accordingly, to the folder `~/Library/Application Support/BBEdit/Language Servers/Configuration/`. Then enable the language server support for Perl following their [recommendations](https://www.barebones.com/support/bbedit/lsp-notes.html), selecting the file you saved for the configuration.
+
+```
+{
+  "initializationOptions": {},
+  "workspaceConfigurations": {
+    "*": {
+      "perl": {
+        "inc": [],
+        "syntax": {
+          "enabled": true,
+          "perl": "/usr/bin/perl"
+        },
+        "perltidyrc": "~/.perltidyrc",
+        "perlcritic": {
+          "enabled": true,
+          "perlcriticrc": "~/.perlcriticrc"
+        },
+        "cwd": "."
+      }
+    }
+  }
+}
+```
+
+
 ## Configuration
 
-1. Optionally, add paths to `@INC` by modifying the `perl.inc` setting. You can use the `$ROOT_PATH` mnemonic to stand in for your project's root directory. PLS does not yet support multiple workspace folders.
+1. Optionally, add paths to `@INC` by modifying the `perl.inc` setting. You can use the `$ROOT_PATH` mnemonic to stand in for your project's root directory, for example `$ROOT_PATH/lib`. PLS does not yet support multiple workspace folders.
 2. Optionally, change the current working directory to run PLS in by modifying the `perl.cwd` setting.
 3. Optionally, configure the path to your `.perltidyrc` file using the `perl.perltidyrc` setting. By default, `~/.perltidyrc` is used.
 4. Optionally, configure the path to your `.perlcriticrc` file using the `perl.perlcritic.perlcriticrc` setting. By default, `~/.perlcriticrc` is used. You can also disable `perlcritic` checking entirely by disabling the `perl.perlcritic.enabled` setting.

@@ -1,7 +1,7 @@
 use strict;
 use warnings;
 
-use Test::More tests => 65;
+use Test::More tests => 69;
 
 use_ok('PLS');
 use_ok('PLS::Server');
@@ -40,6 +40,8 @@ use_ok('PLS::Server::Request::CancelRequest');
 use_ok('PLS::Server::Request::Factory');
 use_ok('PLS::Server::Request::Initialize');
 use_ok('PLS::Server::Request::Initialized');
+use_ok('PLS::Server::Request::Shutdown');
+use_ok('PLS::Server::Request::Exit');
 
 use_ok('PLS::Server::Response::Cancelled');
 use_ok('PLS::Server::Response::Completion');
@@ -53,6 +55,8 @@ use_ok('PLS::Server::Response::Resolve');
 use_ok('PLS::Server::Response::ServerNotInitialized');
 use_ok('PLS::Server::Response::SignatureHelp');
 use_ok('PLS::Server::Response::WorkspaceSymbols');
+use_ok('PLS::Server::Response::Shutdown');
+use_ok('PLS::Server::Response::InvalidRequest');
 
 use_ok('PLS::Server::Message');
 use_ok('PLS::Server::Request');
