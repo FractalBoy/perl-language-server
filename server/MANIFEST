@@ -74,5 +74,15 @@ lib/PLS/Server/Request/TextDocument/Hover.pm
 lib/PLS/Server/Request/Initialize.pm
 lib/PLS/Server.pm
 t/00compile.t
+t/01server.t
 t/02document-new.t
 t/03document-find_word_under_cursor.t
+t/packets/cancel.json
+t/packets/configuration.json
+t/packets/didopen.json
+t/packets/exit.json
+t/packets/formatting.json
+t/packets/initialize.json
+t/packets/initialized.json
+t/packets/shutdown.json
+t/Communicate.pm
