@@ -131,3 +131,11 @@ Revision history for perl module PLS
 
  - Compilation errors are now displayed if there is a filehandle context
    in the error - thank you @bscan (https://github.com/bscan)!
+
+0.899 2022-03-01
+
+ - PLS is now compatible with BBEdit - thank you @mixio (https://github.com/mixio) and @tjparnell (https://github.com/tjparnell)!
+ - Errors formatting text with perltidy no longer result in errors from the client, and
+   the text will now simply not be formatted. In VSCode, this prevents disruptive
+   notifications that a request has failed.
+ - Documentation has been updated to include information about syntax related settings.

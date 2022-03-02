@@ -19,3 +19,15 @@ All notable changes to the "pls" extension will be documented in this file.
 - Added new configuration item - perl.plsargs, which
   allows you to pass arguments to your pls command. This is useful
   for using with docker, ssh, or some other, more complex command.
+
+## [0.0.12] - 2021-10-23
+###
+- This release contains NPM package security updates only.
+
+## [0.0.13] - 2022-01-19
+###
+- Updated copyright
+
+## [0.0.14] - 2022-03-01
+###
+- Updated README to include information about syntax related settings.
