@@ -244,18 +244,33 @@ sub subroutine_package_and_name
 
     my $element = $self->element;
 
-    return if (not blessed($element) or not $element->isa('PPI::Token::Word'));
+    return unless blessed($element);
 
-    if ($element->content =~ /::/)
+    my $content = '';
+
+    if ($element->isa('PPI::Token::Symbol') and $element->content =~ /^&/)
     {
-        my @parts      = split /::/, $element->content;
+        $content = $element->content =~ s/^&//r;
+    }
+    elsif ($element->isa('PPI::Token::Word'))
+    {
+        $content = $element->content;
+    }
+    else
+    {
+        return;
+    }
+
+    if ($content =~ /::/)
+    {
+        my @parts      = split /::/, $content;
         my $subroutine = pop @parts;
         my $package    = join '::', @parts;
         return $package, $subroutine;
     } ## end if ($element->content ...)
     else
     {
-        return '', $element->content;
+        return '', $content;
     }
 
     return;
