@@ -28,6 +28,7 @@ sub new
                      }, $class;
 
     my $document = PLS::Parser::Document->new(uri => $request->{params}{textDocument}{uri});
+    return $self if (ref $document ne 'PLS::Parser::Document');
     my ($ok, $pod) = $document->find_pod(@{$request->{params}{position}}{qw(line character)});
     return $self unless $ok;
 

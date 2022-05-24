@@ -34,7 +34,7 @@ sub new
     my $self = bless {id => $request->{id}, result => undef}, $class;
 
     my $document = PLS::Parser::Document->new(uri => $request->{params}{textDocument}{uri}, line => $request->{params}{position}{line});
-    return $self unless (ref $document eq 'PLS::Parser::Document');
+    return $self if (ref $document ne 'PLS::Parser::Document');
 
     my @word_under_cursor_info = $document->find_word_under_cursor(@{$request->{params}{position}}{qw(line character)});
     return $self unless (scalar @word_under_cursor_info);

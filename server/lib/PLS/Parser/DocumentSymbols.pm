@@ -30,7 +30,7 @@ sub new
     my ($class, $uri) = @_;
 
     my $document = PLS::Parser::Document->new(uri => $uri);
-    return unless (ref $document eq 'PLS::Parser::Document');
+    return if (ref $document ne 'PLS::Parser::Document');
     return bless {document => $document}, $class;
 } ## end sub new
 

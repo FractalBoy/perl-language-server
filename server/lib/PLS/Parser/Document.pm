@@ -538,10 +538,10 @@ sub find_external_subroutine
 
     my $include = PLS::Parser::Pod->get_clean_inc();
     my $package = Module::Metadata->new_from_module($package_name, inc => $include);
-    return unless (ref $package eq 'Module::Metadata');
+    return if (ref $package ne 'Module::Metadata');
 
     my $doc = PLS::Parser::Document->new(path => $package->filename);
-    return unless (ref $doc eq 'PLS::Parser::Document');
+    return if (ref $doc ne 'PLS::Parser::Document');
 
     foreach my $subroutine (@{$doc->get_subroutines()})
     {
@@ -572,10 +572,10 @@ sub find_external_package
     my $include  = PLS::Parser::Pod->get_clean_inc();
     my $metadata = Module::Metadata->new_from_module($package_name, inc => $include);
 
-    return unless (ref $metadata eq 'Module::Metadata');
+    return if (ref $metadata ne 'Module::Metadata');
 
     my $document = PLS::Parser::Document->new(path => $metadata->filename);
-    return unless (ref $document eq 'PLS::Parser::Document');
+    return if (ref $document ne 'PLS::Parser::Document');
 
     foreach my $package (@{$document->get_packages()})
     {

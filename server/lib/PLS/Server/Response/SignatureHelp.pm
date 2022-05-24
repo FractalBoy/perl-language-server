@@ -22,20 +22,23 @@ sub new
 {
     my ($class, $request) = @_;
 
+    my $self = bless {
+                      id     => $request->{id},
+                      result => undef
+                     }, $class;
+
     my ($line, $character) = @{$request->{params}{position}}{qw(line character)};
     my $document = PLS::Parser::Document->new(uri => $request->{params}{textDocument}{uri}, line => $line);
+    return $self if (ref $document ne 'PLS::Parser::Document');
 
     my $list             = $document->find_current_list($line, $character);
     my $results          = $document->go_to_definition_of_closest_subroutine($list, $line, $character);
     my @signatures       = map { $_->{signature} } @{$results};
     my $active_parameter = $document->get_list_index($list, $request->{params}{position}{line}, $request->{params}{position}{character});
 
-    my %self = (
-                id     => $request->{id},
-                result => scalar @signatures ? {signatures => \@signatures, activeParameter => $active_parameter} : undef
-               );
+    $self->{result} = {signatures => \@signatures, activeParameter => $active_parameter} if (scalar @signatures);
 
-    return bless \%self, $class;
+    return $self;
 } ## end sub new
 
 1;
