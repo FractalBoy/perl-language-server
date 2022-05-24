@@ -150,15 +150,10 @@ sub find_current_list
     my $find     = PPI::Find->new(sub { $_[0]->isa('PPI::Structure::List') });
 
     # Find the nearest list structure that completely surrounds the column.
-    return first
-    {
-        $_->lsp_column_number < $column_number
-          and $column_number < $_->lsp_column_number +
-          length($_->content)
-    }
-    sort  { abs($column_number - $a->lsp_column_number) - abs($column_number - $b->lsp_column_number) }
-      map { PLS::Parser::Element->new(element => $_, document => $self->{document}, file => $self->{path}) }
-      map { $find->in($_->element) } @elements;
+    return first { $_->lsp_column_number < $column_number and $column_number < $_->lsp_column_number + length($_->content) }
+      sort { abs($column_number - $a->lsp_column_number) - abs($column_number - $b->lsp_column_number) }
+      map  { PLS::Parser::Element->new(element => $_, document => $self->{document}, file => $self->{path}) }
+      map  { $find->in($_->element) } @elements;
 } ## end sub find_current_list
 
 =head2 go_to_definition_of_closest_subroutine
@@ -394,7 +389,7 @@ sub pod_link
                 )?
                 > # final closing >
             }gx
-              )
+          )
         {
             my $start = $-[1];
             my $end   = $+[1];
@@ -752,9 +747,29 @@ sub update_file
             my ($starting_text, $ending_text);
 
             # get the text that we're not replacing at the start and end of each selection
-            $starting_text = substr $lines[$change->{range}{start}{line}], 0, $change->{range}{start}{character}
-              if ($#lines >= $change->{range}{start}{line});
-            $ending_text = substr $lines[$change->{range}{end}{line}], $change->{range}{end}{character} if ($#lines >= $change->{range}{end}{line});
+            # this needs to be done in UTF-16 according to the LSP specification.
+            # the byte order doesn't matter because we're decoding immediately,
+            # so we are using little endian.
+
+            if ($#lines >= $change->{range}{start}{line})
+            {
+                my $first_line = Encode::encode('UTF-16LE', $lines[$change->{range}{start}{line}]);
+
+                # each code unit is two bytes long
+                my $starting_code_unit = $change->{range}{start}{character} * 2;
+                $starting_text = substr $first_line, 0, $starting_code_unit;
+                $starting_text = Encode::decode('UTF-16LE', $starting_text);
+            } ## end if ($#lines >= $change...)
+
+            if ($#lines >= $change->{range}{end}{line})
+            {
+                my $last_line = Encode::encode('UTF-16LE', $lines[$change->{range}{end}{line}]);
+
+                # each code unit is two bytes long
+                my $ending_code_unit = $change->{range}{end}{character} * 2;
+                $ending_text = substr $last_line, $ending_code_unit;
+                $ending_text = Encode::decode('UTF-16LE', $ending_text);
+            } ## end if ($#lines >= $change...)
 
             # append the existing text to the replacement
             if (length $starting_text)
