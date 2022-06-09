@@ -217,7 +217,7 @@ sub new
          label            => 'reverse sort { $a <=> $b } ...',
          filterText       => 'sort',
          sortText         => 'sort2',
-         detail           => 'Sort numerically decending',
+         detail           => 'Sort numerically descending',
          kind             => 15,
          insertTextFormat => 2,
          insertText       => 'reverse sort { \$a <=> \$b } $1'
