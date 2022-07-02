@@ -5,8 +5,6 @@ MANIFEST
 README.pod
 bin/pls
 lib/PLS.pm
-lib/PLS/Trie.pm
-lib/PLS/Trie/Node.pm
 lib/PLS/Parser/Element/VariableStatement.pm
 lib/PLS/Parser/Element/Subroutine.pm
 lib/PLS/Parser/Element/Variable.pm

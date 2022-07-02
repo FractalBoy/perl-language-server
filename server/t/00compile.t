@@ -1,7 +1,7 @@
 use strict;
 use warnings;
 
-use Test::More tests => 69;
+use Test::More tests => 67;
 
 use_ok('PLS');
 use_ok('PLS::Server');
@@ -62,9 +62,6 @@ use_ok('PLS::Server::Message');
 use_ok('PLS::Server::Request');
 use_ok('PLS::Server::Response');
 use_ok('PLS::Server::State');
-
-use_ok('PLS::Trie');
-use_ok('PLS::Trie::Node');
 
 use_ok('PLS::Parser::Document');
 use_ok('PLS::Parser::DocumentSymbols');

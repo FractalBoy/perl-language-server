@@ -17,8 +17,6 @@ use Path::Tiny;
 use Time::Piece;
 use Storable;
 
-use PLS::Trie;
-
 use constant {INDEX_LOCATION => File::Spec->catfile('.pls_cache', 'index')};
 
 =head1 NAME
@@ -39,12 +37,10 @@ sub new
     my %args = @args;
 
     my $self = bless {
-                      root          => $args{root},
-                      location      => File::Spec->catfile($args{root}, INDEX_LOCATION),
-                      cache         => {},
-                      subs_trie     => PLS::Trie->new(),
-                      packages_trie => PLS::Trie->new(),
-                      last_mtime    => 0,
+                      root       => $args{root},
+                      location   => File::Spec->catfile($args{root}, INDEX_LOCATION),
+                      cache      => {},
+                      last_mtime => 0,
                      }, $class;
 
     my (undef, $parent_dir) = File::Spec->splitpath($self->{location});
@@ -55,28 +51,6 @@ sub new
 
     return $self;
 } ## end sub new
-
-sub load_trie
-{
-    my ($self) = @_;
-
-    my $index = $self->index();
-    return if (ref $index ne 'HASH');
-
-    foreach my $sub (keys %{$index->{subs}})
-    {
-        my $count = scalar @{$index->{subs}{$sub}};
-        $self->{subs_trie}->insert($sub, $count);
-    }
-
-    foreach my $package (keys %{$index->{packages}})
-    {
-        my $count = scalar @{$index->{packages}{$package}};
-        $self->{packages_trie}->insert($package, $count);
-    }
-
-    return;
-} ## end sub load_trie
 
 sub start_indexing_function
 {
@@ -106,8 +80,6 @@ sub start_indexing_function
             my $total   = scalar @files;
             my $current = 0;
 
-            $self->load_trie();
-
             foreach my $file (@files)
             {
                 $current++;
@@ -131,7 +103,7 @@ sub start_indexing_function
 
             flock $fh, LOCK_UN;
 
-            return [@{$self}{qw(cache last_mtime subs_trie packages_trie)}];
+            return [@{$self}{qw(cache last_mtime)}];
         }
     );
 
@@ -176,7 +148,7 @@ sub index_files
     my ($self, @files) = @_;
 
     my $class     = ref $self;
-    my $self_copy = bless {%{$self}{qw(root location cache last_mtime subs_trie packages_trie)}}, $class;
+    my $self_copy = bless {%{$self}{qw(root location cache last_mtime)}}, $class;
 
     $self->{indexing_function}->call(
         args      => [$self_copy, @files],
@@ -185,7 +157,7 @@ sub index_files
 
             return if ($result ne 'return');
 
-            @{$self}{qw(cache last_mtime subs_trie packages_trie)} = @{$data};
+            @{$self}{qw(cache last_mtime)} = @{$data};
         }
     );
 
@@ -260,22 +232,13 @@ sub cleanup_index
 {
     my ($self, $index, $type, $file) = @_;
 
-    my $trie = $self->{"${type}_trie"};
-
     if (ref $index->{files}{$file}{$type} eq 'ARRAY')
     {
         foreach my $ref (@{$index->{files}{$file}{$type}})
         {
             @{$index->{$type}{$ref}} = grep { $_->{file} ne $file } @{$index->{$type}{$ref}};
             delete $index->{$type}{$ref} unless (scalar @{$index->{$type}{$ref}});
-
-            my $node = $trie->find_node($ref);
-            if (ref $node eq 'Node')
-            {
-                $node->{value}--;
-                $trie->delete($ref) unless ($node->{value});
-            }
-        } ## end foreach my $ref (@{$index->...})
+        }
 
         @{$index->{files}{$file}{$type}} = ();
     } ## end if (ref $index->{files...})
@@ -294,8 +257,6 @@ sub update_index
     my $stat = stat $file;
     return unless (ref $stat eq 'File::stat');
 
-    my $trie = $self->{"${type}_trie"};
-
     foreach my $reference (@references)
     {
         my $info = $reference->location_info();
@@ -303,22 +264,10 @@ sub update_index
         if (ref $index->{$type}{$reference->name} eq 'ARRAY')
         {
             push @{$index->{$type}{$reference->name}}, $info;
-
-            my $node = $trie->find_node($reference->name);
-
-            if (ref $node eq 'Node')
-            {
-                $node->{value}++;
-            }
-            else
-            {
-                $trie->insert($reference->name, 1);
-            }
-        } ## end if (ref $index->{$type...})
+        }
         else
         {
             $index->{$type}{$reference->name} = [$info];
-            $trie->insert($reference->name, 1);
         }
 
         push @{$index->{files}{$file}{$type}}, $reference->name;
@@ -408,7 +357,7 @@ sub find_package_subroutine
 {
     my ($self, $package, $subroutine) = @_;
 
-    my $index     = $self->index();
+    my $index = $self->index();
     return [] if (ref $index ne 'HASH');
     my $locations = $index->{packages}{$package};
 
@@ -538,6 +487,26 @@ sub get_ignored_files
     return $self->{ignored_files};
 } ## end sub get_ignored_files
 
+sub get_all_subroutines
+{
+    my ($self) = @_;
+
+    my $index = $self->index();
+    return [] if (ref $index ne 'HASH');
+
+    return [keys %{$index->{subs}}];
+} ## end sub get_all_subroutines
+
+sub get_all_packages
+{
+    my ($self) = @_;
+
+    my $index = $self->index();
+    return [] if (ref $index ne 'HASH');
+
+    return [keys %{$index->{packages}}];
+} ## end sub get_all_packages
+
 sub is_ignored
 {
     my ($self, $file) = @_;
@@ -578,7 +547,7 @@ sub get_all_perl_files
          }
         },
         $self->{root}
-                    );
+    );
 
     return \@perl_files;
 } ## end sub get_all_perl_files

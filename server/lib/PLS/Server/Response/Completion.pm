@@ -7,6 +7,7 @@ use parent q(PLS::Server::Response);
 use feature 'state';
 
 use Pod::Functions;
+use List::Util;
 use Module::CoreList;
 use Module::Metadata;
 use ExtUtils::Installed;
@@ -340,22 +341,20 @@ sub get_subroutines
 {
     my ($document, $filter, $full_text) = @_;
 
-    my %seen_subs;
     my @subroutines;
 
     foreach my $sub (@{$document->get_subroutines_fast($full_text)})
     {
-        next if $seen_subs{$sub}++;
         next if ($sub =~ /\n/);
-        push @subroutines, {label => $sub, kind => 3};
-    } ## end foreach my $sub (@{$document...})
+        push @subroutines, $sub;
+    }
 
     if (ref $document->{index} eq 'PLS::Parser::Index')
     {
-        my $subs = $document->{index}{subs_trie}->find($filter);
-        @{$subs} = map { {label => $_, kind => 3} } grep { not $seen_subs{$_}++ } @{$subs};
-        push @subroutines, @{$subs};
-    } ## end if (ref $document->{index...})
+        push @subroutines, @{$document->{index}->get_all_subroutines()};
+    }
+
+    @subroutines = map { {label => $_, kind => 3} } List::Util::uniq sort @subroutines;
 
     return \@subroutines;
 } ## end sub get_subroutines
@@ -372,25 +371,18 @@ sub get_packages
     state $core_modules = [Module::CoreList->find_modules(qr//, $])];
     my $ext_modules = get_ext_modules();
 
-    my %seen_packages;
-
     foreach my $pack (@{$curr_doc_packages}, @{$core_modules}, @{$ext_modules})
     {
-        next if $seen_packages{$pack}++;
         next if ($pack =~ /\n/);
-        push @packages,
-          {
-            label => $pack,
-            kind  => 7
-          };
-    } ## end foreach my $pack (@{$curr_doc_packages...})
+        push @packages, $pack;
+    }
 
     if (ref $document->{index} eq 'PLS::Parser::Index')
     {
-        my $packages = $document->{index}{packages_trie}->find($filter);
-        @{$packages} = map { {label => $_, kind => 7} } grep { not $seen_packages{$_}++ } @{$packages};
-        push @packages, @{$packages};
-    } ## end if (ref $document->{index...})
+        push @packages, @{$document->{index}->get_all_packages()};
+    }
+
+    @packages = map { {label => $_, kind => 7} } List::Util::uniq sort @packages;
 
     return \@packages;
 } ## end sub get_packages
