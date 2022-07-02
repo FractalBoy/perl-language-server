@@ -9,6 +9,7 @@ use Future::Utils;
 use IO::Async::Loop;
 use IO::Async::Signal;
 use IO::Async::Stream;
+use IO::Async::Timer::Periodic;
 use IO::Handle;
 use JSON::PP;
 use Scalar::Util qw(blessed);
@@ -145,10 +146,8 @@ sub run
 
     $self->{loop}->add($self->{stream});
     $self->{loop}->add(
-                       IO::Async::Signal->new(
-                                              name       => 'TERM',
-                                              on_receipt => sub { $self->stop(0) }
-                                             )
+                       IO::Async::Signal->new(name       => 'TERM',
+                                              on_receipt => sub { $self->stop(0) })
                       )
       if ($^O ne 'MSWin32');
 
@@ -297,6 +296,24 @@ sub handle_server_response
     $self->send_message($response);
     return;
 } ## end sub handle_server_response
+
+sub monitor_client_process
+{
+    my ($self, $pid) = @_;
+
+    my $timer = IO::Async::Timer::Periodic->new(
+        interval => 30,
+        on_tick  => sub {
+            return if (kill 'ZERO', $pid);
+            $self->stop(1);
+        }
+    );
+    $self->{loop}->add($timer);
+
+    $timer->start();
+
+    return;
+} ## end sub monitor_client_process
 
 sub stop
 {

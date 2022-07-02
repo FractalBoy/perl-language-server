@@ -28,7 +28,7 @@ some initialization for itself and returns its capabilities.
 
 sub service
 {
-    my ($self) = @_;
+    my ($self, $server) = @_;
 
     my $root_uri = $self->{params}{rootUri};
 
@@ -42,6 +42,11 @@ sub service
 
         PLS::Parser::Document->set_index($index);
     } ## end if (length $root_uri)
+
+    if (length $self->{params}{processId})
+    {
+        $server->monitor_client_process($self->{params}{processId});
+    }
 
     return PLS::Server::Response::InitializeResult->new($self);
 } ## end sub service
