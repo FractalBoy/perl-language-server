@@ -1433,6 +1433,12 @@ sub find_word_under_cursor
 
     return if (not blessed($element) or not $element->isa('PLS::Parser::Element'));
 
+    # If we're typing right before a sigil, return the previous element.
+    if ($element->type eq 'PPI::Token::Symbol' and $element->lsp_column_number == $character)
+    {
+        $element = $element->previous_sibling;
+    }
+
     # Short-circuit if this is a HASH reference subscript.
     my $parent = $element->parent;
     $parent = $parent->parent if (blessed($parent) and ref $parent eq 'PLS::Parser::Element');

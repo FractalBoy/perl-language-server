@@ -1,7 +1,7 @@
 use strict;
 use warnings;
 
-use Test::More tests => 15;
+use Test::More tests => 16;
 use FindBin;
 use File::Basename;
 use File::Path;
@@ -226,6 +226,17 @@ subtest 'class method arrow with start of method name inside method parentheses'
     is($filter,  'c',          'filter correct');
 };
 
+subtest 'variable typed before another variable' => sub {
+    plan tests => 4;
+
+    my $doc = PLS::Parser::Document->new(uri => $uri->as_string, line => 24);
+    my ($range, $arrow, $package, $filter) = $doc->find_word_under_cursor(1, 2);
+    is_deeply($range, {start => {line => 0, character => 0}, end => {line => 0, character => 2}}, 'correct range');
+    ok(!$arrow,           'no arrow');
+    ok(!length($package), 'no package');
+    is($filter, '$x', 'correct filter');
+};
+
 END
 {
     # Clean up index created by server
@@ -257,3 +268,4 @@ func(File::)
 $obj->method(File::)
 $obj->method(File::Spec->)
 $obj->method(File::Spec->c)
+$x$obj
