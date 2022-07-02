@@ -1,7 +1,7 @@
 use strict;
 use warnings;
 
-use Test::More tests => 16;
+use Test::More tests => 17;
 use FindBin;
 use File::Basename;
 use File::Path;
@@ -234,7 +234,21 @@ subtest 'variable typed before another variable' => sub {
     is_deeply($range, {start => {line => 0, character => 0}, end => {line => 0, character => 2}}, 'correct range');
     ok(!$arrow,           'no arrow');
     ok(!length($package), 'no package');
-    is($filter, '$x', 'correct filter');
+    is($filter, '$x', 'filter correct');
+};
+
+subtest 'only sigil before arrow' => sub {
+    plan tests => 5;
+
+    my $doc = PLS::Parser::Document->new(uri => $uri->as_string, line => 25);
+    isa_ok($doc, 'PLS::Parser::Document');
+
+    my ($range, $arrow, $package, $filter) = $doc->find_word_under_cursor(1, 1);
+    is_deeply($range, {start => {line => 0, character => 0}, end => {line => 0, character => 1}}, 'correct range');
+    ok(!$arrow,           'no arrow');
+    ok(!length($package), 'no package');
+    is($filter, '$', 'filter correct');
+
 };
 
 END
@@ -269,3 +283,4 @@ $obj->method(File::)
 $obj->method(File::Spec->)
 $obj->method(File::Spec->c)
 $x$obj
+$->method

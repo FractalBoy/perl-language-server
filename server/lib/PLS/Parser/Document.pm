@@ -1337,7 +1337,7 @@ sub find_word_under_cursor
     @elements =
       sort { (abs $character - $a->lsp_column_number) <=> (abs $character - $b->lsp_column_number) } @elements;
     my @in_range         = grep { $_->lsp_column_number <= $character and $_->lsp_column_number + length($_->content) >= $character } @elements;
-    my $element          = first { $_->type eq 'PPI::Token::Word' or $_->type eq 'PPI::Token::Label' or $_->type eq 'PPI::Token::Symbol' } @in_range;
+    my $element          = first { $_->type eq 'PPI::Token::Word' or $_->type eq 'PPI::Token::Label' or $_->type eq 'PPI::Token::Symbol' or $_->type eq 'PPI::Token::Magic' } @in_range;
     my $closest_operator = first { $_->type eq 'PPI::Token::Operator' } @elements;
 
     if (not blessed($element) or not $element->isa('PLS::Parser::Element'))
@@ -1432,6 +1432,14 @@ sub find_word_under_cursor
     } ## end if ((not blessed($element...)))
 
     return if (not blessed($element) or not $element->isa('PLS::Parser::Element'));
+
+    # This is caused by just having a sigil before an arrow and attempting to complete
+    if ($element->type eq 'PPI::Token::Magic' and $element->name eq '$-' and blessed($element->next_sibling) and $element->next_sibling->name =~ /^>/)
+    {
+        my $range = $element->range;
+        $range->{end}{character}--;
+        return $range, 0, '', '$';
+    } ## end if ($element->type eq ...)
 
     # If we're typing right before a sigil, return the previous element.
     if ($element->type eq 'PPI::Token::Symbol' and $element->lsp_column_number == $character)
