@@ -33,8 +33,13 @@ These diagnostics currently include compilation errors and linting (using L<perl
 
 =cut
 
-my $function = IO::Async::Function->new(max_workers => 1,
-                                        code        => \&run_perlcritic);
+my $function = IO::Async::Function->new(
+                                        min_workers      => 0,
+                                        max_workers      => 1,
+                                        code             => \&run_perlcritic,
+                                        idle_timeout     => 30,
+                                        max_worker_calls => 5
+                                       );
 
 my $loop = IO::Async::Loop->new();
 $loop->add($function);
@@ -64,7 +69,6 @@ sub new
     push @futures, get_perlcritic_errors($source, $uri->file, $args{close})
       if (defined $PLS::Server::State::CONFIG->{perlcritic}{enabled} and $PLS::Server::State::CONFIG->{perlcritic}{enabled});
 
-
     return Future->wait_all(@futures)->then(
         sub {
             my @diagnostics = map { $_->result } @_;
@@ -76,7 +80,7 @@ sub new
                            diagnostics => \@diagnostics
                           },
                 notification => 1    # indicates to the server that this should not be assigned an id, and that there will be no response
-                       };
+            };
 
             return Future->done(bless $self, $class);
         }

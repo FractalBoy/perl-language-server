@@ -104,7 +104,9 @@ sub start_indexing_function
             flock $fh, LOCK_UN;
 
             return [@{$self}{qw(cache last_mtime)}];
-        }
+        },
+        idle_timeout     => 30,
+        max_worker_calls => 20
     );
 
     $loop->add($self->{indexing_function});
@@ -135,7 +137,9 @@ sub start_cleanup_function
             flock $fh, LOCK_UN;
 
             return [@{$self}{qw(cache last_mtime)}];
-        }
+        },
+        idle_timeout     => 30,
+        max_worker_calls => 20
     );
 
     $loop->add($self->{cleanup_function});

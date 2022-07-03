@@ -25,13 +25,16 @@ after having been formatted.
 # Set up formatting as a function because it can be slow
 my $loop = IO::Async::Loop->new();
 my $function = IO::Async::Function->new(
+    min_workers => 0,
     max_workers => 1,
     code        => sub {
         my ($self, $request, $text, $perltidyrc) = @_;
 
         my ($ok, $formatted) = PLS::Parser::Document->format(text => $text, formatting_options => $request->{params}{options}, perltidyrc => $perltidyrc);
         return $ok, $formatted;
-    }
+    },
+    idle_timeout     => 30,
+    max_worker_calls => 5
 );
 $loop->add($function);
 
