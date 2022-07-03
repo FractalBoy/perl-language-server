@@ -24,6 +24,7 @@ for sending to the Language Server Protocol.
 =cut
 
 my $PERL_EXE = $^X;
+my $PERL_ARGS = [];
 
 sub new
 {
@@ -102,6 +103,30 @@ Get the perl executable path.
 sub get_perl_exe
 {
     return $PERL_EXE;
+}
+
+=head2 set_perl_args
+
+Set the arguments to be used when using the perl binary.
+
+=cut
+
+sub set_perl_args
+{
+    my (undef, $args) = @_;
+
+    $PERL_ARGS = $args;
+}
+
+=head2 get_perl_args
+
+Get the arguments to be used when using the perl binary.
+
+=cut
+
+sub get_perl_args
+{
+    return $PERL_ARGS;
 }
 
 =head2 get_perldoc_location
