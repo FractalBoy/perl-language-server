@@ -1,7 +1,7 @@
 use strict;
 use warnings;
 
-use Test::More tests => 17;
+use Test::More tests => 20;
 use FindBin;
 use File::Basename;
 use File::Path;
@@ -251,6 +251,45 @@ subtest 'only sigil before arrow' => sub {
 
 };
 
+subtest 'only sigil before close paren' => sub {
+    plan tests => 5;
+
+    my $doc = PLS::Parser::Document->new(uri => $uri->as_string, line => 26);
+    isa_ok($doc, 'PLS::Parser::Document');
+
+    my ($range, $arrow, $package, $filter) = $doc->find_word_under_cursor(1, 2);
+    is_deeply($range, {start => {line => 0, character => 1}, end => {line => 0, character => 2}}, 'correct range');
+    ok(!$arrow,           'no arrow');
+    ok(!length($package), 'no package');
+    is($filter, '$', 'filter correct');
+};
+
+subtest 'only sigil before close curly brace' => sub {
+    plan tests => 5;
+
+    my $doc = PLS::Parser::Document->new(uri => $uri->as_string, line => 27);
+    isa_ok($doc, 'PLS::Parser::Document');
+
+    my ($range, $arrow, $package, $filter) = $doc->find_word_under_cursor(1, 2);
+    is_deeply($range, {start => {line => 0, character => 1}, end => {line => 0, character => 2}}, 'correct range');
+    ok(!$arrow,           'no arrow');
+    ok(!length($package), 'no package');
+    is($filter, '$', 'filter correct');
+};
+
+subtest 'only sigil before comma' => sub {
+    plan tests => 5;
+
+    my $doc = PLS::Parser::Document->new(uri => $uri->as_string, line => 28);
+    isa_ok($doc, 'PLS::Parser::Document');
+
+    my ($range, $arrow, $package, $filter) = $doc->find_word_under_cursor(1, 2);
+    is_deeply($range, {start => {line => 0, character => 1}, end => {line => 0, character => 2}}, 'correct range');
+    ok(!$arrow,           'no arrow');
+    ok(!length($package), 'no package');
+    is($filter, '$', 'filter correct');
+};
+
 END
 {
     # Clean up index created by server
@@ -284,3 +323,6 @@ $obj->method(File::Spec->)
 $obj->method(File::Spec->c)
 $x$obj
 $->method
+($)
+{$}
+($,$y)

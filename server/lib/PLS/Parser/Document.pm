@@ -1437,8 +1437,7 @@ sub find_word_under_cursor
 
     return if (not blessed($element) or not $element->isa('PLS::Parser::Element'));
 
-    # This is caused by just having a sigil before an arrow and attempting to complete
-    if ($element->type eq 'PPI::Token::Magic' and $element->name eq '$-' and blessed($element->next_sibling) and $element->next_sibling->name =~ /^>/)
+    if ($element->type eq 'PPI::Token::Magic')
     {
         my $range = $element->range;
         $range->{end}{character}--;
