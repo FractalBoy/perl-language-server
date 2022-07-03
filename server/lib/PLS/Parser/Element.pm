@@ -65,8 +65,10 @@ sub lsp_line_number
 {
     my ($self) = @_;
 
-    return $self->ppi_line_number - 1;
-}
+    my $line_number = $self->ppi_line_number;
+    return 0 unless $line_number;
+    return $line_number - 1;
+} ## end sub lsp_line_number
 
 =head2 lsp_column_number
 
@@ -78,8 +80,10 @@ sub lsp_column_number
 {
     my ($self) = @_;
 
-    return $self->ppi_column_number - 1;
-}
+    my $column_number = $self->ppi_column_number;
+    return 0 unless $column_number;
+    return $column_number - 1;
+} ## end sub lsp_column_number
 
 =head2 location_info
 
@@ -267,7 +271,7 @@ sub subroutine_package_and_name
         my $subroutine = pop @parts;
         my $package    = join '::', @parts;
         return $package, $subroutine;
-    } ## end if ($element->content ...)
+    } ## end if ($content =~ /::/)
     else
     {
         return '', $content;

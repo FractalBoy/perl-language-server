@@ -705,7 +705,7 @@ sub open_file
 
     return unless $args{languageId} eq 'perl';
 
-    $FILES{$args{uri}} = {text => $args{text}};
+    $FILES{$args{uri}} = \($args{text});
 
     return;
 } ## end sub open_file
@@ -735,13 +735,13 @@ sub update_file
     my %args = @args;
 
     my $file = $FILES{$args{uri}};
-    return unless (ref $file eq 'HASH');
+    return if (ref $file ne 'SCALAR');
 
     foreach my $change (@{$args{changes}})
     {
         if (ref $change->{range} eq 'HASH')
         {
-            my @lines       = _split_lines($file->{text});
+            my @lines       = _split_lines($$file);
             my @replacement = _split_lines($change->{text});
 
             my ($starting_text, $ending_text);
@@ -792,12 +792,12 @@ sub update_file
             # with the replacement, including the existing text that is not changing, that we appended above
             my $lines_replacing = $change->{range}{end}{line} - $change->{range}{start}{line} + 1;
             splice @lines, $change->{range}{start}{line}, $lines_replacing, @replacement;
-            $file->{text} = join '', @lines;
+            $$file = join '', @lines;
         } ## end if (ref $change->{range...})
         else
         {
             # no range means we're updating the entire document
-            $file->{text} = $change->{text};
+            $$file = $change->{text};
         }
     } ## end foreach my $change (@{$args...})
 
@@ -955,8 +955,8 @@ sub get_variables_fast
 {
     my ($self, $text) = @_;
 
-    $text = $self->get_full_text() unless (ref $text eq 'SCALAR');
-    return []                      unless (ref $text eq 'SCALAR');
+    $text = $self->get_full_text() if (ref $text ne 'SCALAR');
+    return []                      if (ref $text ne 'SCALAR');
 
     my @variable_declarations = $$text =~ /((?&PerlVariableDeclaration))$PPR::GRAMMAR/gx;
     @variable_declarations = grep { defined } @variable_declarations;
@@ -981,8 +981,8 @@ sub get_packages_fast
 {
     my ($self, $text) = @_;
 
-    $text = $self->get_full_text() unless (ref $text eq 'SCALAR');
-    return []                      unless (ref $text eq 'SCALAR');
+    $text = $self->get_full_text() if (ref $text ne 'SCALAR');
+    return []                      if (ref $text ne 'SCALAR');
 
     my @package_declarations = $$text =~ /((?&PerlPackageDeclaration))$PPR::GRAMMAR/gx;
     @package_declarations = grep { defined } @package_declarations;
@@ -1007,8 +1007,8 @@ sub get_subroutines_fast
 {
     my ($self, $text) = @_;
 
-    $text = $self->get_full_text() unless (ref $text eq 'SCALAR');
-    return []                      unless (ref $text eq 'SCALAR');
+    $text = $self->get_full_text() if (ref $text ne 'SCALAR');
+    return []                      if (ref $text ne 'SCALAR');
 
     my @subroutine_declarations = $$text =~ /sub\b(?&PerlOWS)((?&PerlOldQualifiedIdentifier))$PPR::GRAMMAR/gx;
 
@@ -1031,8 +1031,8 @@ sub get_constants_fast
 {
     my ($self, $text) = @_;
 
-    $text = $self->get_full_text() unless (ref $text eq 'SCALAR');
-    return []                      unless (ref $text eq 'SCALAR');
+    $text = $self->get_full_text() if (ref $text ne 'SCALAR');
+    return []                      if (ref $text ne 'SCALAR');
 
     my @use_statements = $$text =~ /((?&PerlUseStatement)) $PPR::GRAMMAR/gx;
     @use_statements = grep { defined } @use_statements;
@@ -1190,9 +1190,9 @@ sub text_from_uri
 {
     my ($uri) = @_;
 
-    if (ref $FILES{$uri} eq 'HASH')
+    if (ref $FILES{$uri} eq 'SCALAR')
     {
-        return \($FILES{$uri}{text});
+        return $FILES{$uri};
     }
     else
     {
@@ -1219,9 +1219,9 @@ sub _get_ppi_document
 
     if (length $args{uri})
     {
-        if (ref $FILES{$args{uri}} eq 'HASH')
+        if (ref $FILES{$args{uri}} eq 'SCALAR')
         {
-            $file = \($FILES{$args{uri}}{text});
+            $file = $FILES{$args{uri}};
         }
         else
         {
@@ -1275,15 +1275,19 @@ sub _get_ppi_document
 
     my $digest = $sha->hexdigest();
 
-    if (exists $documents{$digest} and blessed($documents{$digest}{document}) and $documents{$digest}{document}->isa('PPI::Document') and not $args{no_cache})
+    if (    exists $documents{$digest}
+        and blessed($documents{$digest}{document})
+        and $documents{$digest}{document}->isa('PPI::Document')
+        and not $args{no_cache}
+        and not $self->{one_line})
     {
         return $documents{$digest}{document};
-    }
+    } ## end if (exists $documents{...})
 
     my $document = PPI::Document->new($file, readonly => 1);
     return if (not blessed($document) or not $document->isa('PPI::Document'));
     $document->index_locations();
-    $documents{$digest} = {document => $document, time => time} if (length $digest and not $args{no_cache});
+    $documents{$digest} = {document => $document, time => time} if (length $digest and not $args{no_cache} and not $self->{one_line});
 
     # Clear cache after one minute
     foreach my $digest (keys %documents)
