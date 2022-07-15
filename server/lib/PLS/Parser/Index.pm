@@ -397,14 +397,16 @@ sub get_packages
         push @{$packages{$name}},
           {
             uri   => URI::file->new($file)->as_string(),
-            start => {
-                      line      => $start_line,
-                      character => $start
-                     },
-            end => {
-                    line      => $end_line,
-                    character => $end
-                   }
+            range => {
+                      start => {
+                                line      => $start_line,
+                                character => $start
+                               },
+                      end => {
+                              line      => $end_line,
+                              character => $end
+                             }
+                     }
           };
     } ## end while ($$text =~ /$rx/g)
 
@@ -457,14 +459,16 @@ sub get_subroutines
         push @{$subroutines{$name}},
           {
             uri   => URI::file->new($file)->as_string(),
-            start => {
-                      line      => $start_line,
-                      character => $start
+            range => {
+                      start => {
+                                line      => $start_line,
+                                character => $start
+                               },
+                      end => {
+                              line      => $end_line,
+                              character => $end
+                             }
                      },
-            end => {
-                    line      => $end_line,
-                    character => $end
-                   },
             signature => {label => $signature, parameters => \@parameters}
           };
     } ## end while ($$text =~ /$sub_rx/g...)
