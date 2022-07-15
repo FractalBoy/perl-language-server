@@ -38,14 +38,14 @@ sub new
                       cache => {},
                      }, $class;
 
-    $self->start_indexing_function();
-
     return $self;
 } ## end sub new
 
 sub start_indexing_function
 {
     my ($self) = @_;
+
+    return if (ref $self->{indexing_function} eq 'IO::Async::Function');
 
     $self->{indexing_function} = IO::Async::Function->new(
         code => sub {
@@ -97,6 +97,8 @@ sub start_indexing_function
 sub index_files
 {
     my ($self, @files) = @_;
+
+    $self->start_indexing_function();
 
     @files = @{$self->get_all_perl_files()} unless (scalar @files);
 

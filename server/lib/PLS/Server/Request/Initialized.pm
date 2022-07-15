@@ -8,6 +8,7 @@ use parent 'PLS::Server::Request';
 use PLS::Server::State;
 use PLS::Server::Request::Workspace::Configuration;
 use PLS::Server::Request::Client::RegisterCapability;
+use PLS::Parser::Document;
 
 =head1 NAME
 
@@ -51,6 +52,9 @@ sub service
     } ## end if (length $PLS::Server::State::ROOT_PATH...)
 
     $server->send_server_request(PLS::Server::Request::Client::RegisterCapability->new(\@capabilities));
+
+    my $index = PLS::Parser::Document->get_index();
+    $index->index_files();
 
     return;
 } ## end sub service

@@ -25,10 +25,7 @@ sub service
 {
     my ($self, $server) = @_;
 
-    my $index = PLS::Parser::Document->get_index();
-
     $server->send_server_request(PLS::Server::Request::Workspace::Configuration->new());
-    $index->index_files();
 }
 
 1;
