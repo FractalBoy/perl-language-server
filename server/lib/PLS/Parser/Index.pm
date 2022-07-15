@@ -485,6 +485,7 @@ sub get_subroutines
     state $sub_rx   = qr/((?&PerlSubroutineDeclaration))$PPR::GRAMMAR/;
     state $sig_rx   = qr/(?<label>(?<params>(?&PerlVariableDeclaration))(?&PerlOWS)=(?&PerlOWS)\@_)$PPR::GRAMMAR/;
     state $var_rx   = qr/((?&PerlVariable))$PPR::GRAMMAR/;
+    state $proto_rx = qr/\([^)]*+\)/;
     my %subroutines;
 
     my $uri = URI::file->new($file)->as_string();
@@ -514,8 +515,8 @@ sub get_subroutines
             }
         } ## end if ($block =~ /$sig_rx/...)
 
-        ($name) = $name =~ /(?:sub\s+)?(\S+)\s*[;{]/;
-        $name =~ s/\([^)]*+\)//;
+        ($name) = $name =~ /(?:sub\s+)?(\S+)\s*(?:$proto_rx)?\s*[;{]/;
+        $name =~ s/$proto_rx//;
         $name =~ s/^\s+|\s+$//g;
 
         push @{$subroutines{$name}},
