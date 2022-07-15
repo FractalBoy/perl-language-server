@@ -7,9 +7,11 @@ use feature 'state';
 use File::Find;
 use File::stat;
 use File::Spec;
+use IO::Async::Function;
 use URI::file;
 use List::Util qw(any);
 use Path::Tiny;
+use POSIX;
 use PPR;
 use Storable;
 use Time::Piece;
@@ -36,49 +38,110 @@ sub new
                       cache => {},
                      }, $class;
 
+    $self->start_indexing_function();
     $self->index_files();
 
     return $self;
 } ## end sub new
 
+sub start_indexing_function
+{
+    my ($self) = @_;
+
+    $self->{indexing_function} = IO::Async::Function->new(
+        code => sub {
+            my ($job_id, $num_files, @files) = @_;
+
+            my $current = 0;
+            my $total   = scalar @files * $job_id;
+
+            my %packages;
+            my %subs;
+            my %files;
+
+            foreach my $file (@files)
+            {
+                $current++;
+
+                my $text         = PLS::Parser::Document::text_from_uri(URI::file->new($file)->as_string());
+                my $line_offsets = PLS::Parser::Index->get_line_offsets($text);
+                my $packages     = PLS::Parser::Index->get_packages($text, $file, $line_offsets);
+                my $subroutines  = PLS::Parser::Index->get_subroutines($text, $file, $line_offsets);
+
+                $files{$file}{packages} = [];
+                $files{$file}{subs}     = [];
+
+                foreach my $name (keys %{$packages})
+                {
+                    push @{$packages{$name}}, @{$packages->{$name}};
+                    push @{$files{$file}{packages}}, $name;
+                }
+
+                foreach my $name (keys %{$subroutines})
+                {
+                    push @{$subs{$name}}, @{$subroutines->{$name}};
+                    push @{$files{$file}{subs}}, $name;
+                }
+
+            } ## end foreach my $file (@files)
+
+            return \%packages, \%subs, \%files;
+        }
+    );
+
+    my $loop = IO::Async::Loop->new();
+    $loop->add($self->{indexing_function});
+
+    return;
+} ## end sub start_indexing_function
+
 sub index_files
 {
     my ($self, @files) = @_;
 
+    my $class     = ref $self;
+    my $self_copy = bless {%{$self}{qw(root cache)}}, $class;
+
     @files = @{$self->get_all_perl_files()} unless (scalar @files);
+    my $chunk_size  = POSIX::ceil(scalar @files / $self->{indexing_function}{max_workers});
+    my $job_id      = 1;
+    my $total_files = scalar @files;
 
-    my $current = 0;
-    my $total   = scalar @files;
-
-    foreach my $file (@files)
+    while (my @chunk = splice @files, 0, $chunk_size)
     {
-        $current++;
-        open my $fh, '<', $file or next;
+        $self->{indexing_function}->call(
+            args      => [$job_id, $total_files, @chunk],
+            on_result => sub {
+                my ($result, $packages, $subs, $files) = @_;
 
-        my $log_message = "Indexing $file";
-        $log_message .= " ($current/$total)" if ($total > 1);
-        $log_message .= '...';
+                return if ($result ne 'return');
 
-        $self->log($log_message);
+                foreach my $file (keys %{$files})
+                {
+                    foreach my $type (qw(subs packages))
+                    {
+                        $self->cleanup_index($type, $file);
 
-        my $text         = do { local $/; <$fh> };
-        my $line_offsets = $self->get_line_offsets(\$text);
-        my $packages     = $self->get_packages(\$text, $file, $line_offsets);
-        my $subroutines  = $self->get_subroutines(\$text, $file, $line_offsets);
+                        push @{$self->{files}{$file}{$type}}, @{$files->{$file}{$type}};
+                    } ## end foreach my $type (qw(subs packages)...)
+                } ## end foreach my $file (keys %{$files...})
 
-        foreach my $name (keys %{$packages})
-        {
-            push @{$self->{cache}{packages}{$name}},        @{$packages->{$name}};
-            push @{$self->{cache}{files}{$file}{packages}}, $name;
-        }
+                foreach my $ref (keys %{$packages})
+                {
+                    push @{$self->{cache}{packages}{$ref}}, @{$packages->{$ref}};
+                }
 
-        foreach my $name (keys %{$subroutines})
-        {
-            push @{$self->{cache}{subs}{$name}},        @{$subroutines->{$name}};
-            push @{$self->{cache}{files}{$file}{subs}}, $name;
-        }
+                foreach my $ref (keys %{$subs})
+                {
+                    push @{$self->{cache}{subs}{$ref}}, @{$subs->{$ref}};
+                }
 
-    } ## end foreach my $file (@files)
+                return;
+            }
+        );
+
+        $job_id++;
+    } ## end while (my @chunk = splice...)
 
     return;
 } ## end sub index_files
@@ -118,7 +181,6 @@ sub cleanup_old_files
         foreach my $file (keys %{$index->{files}})
         {
             next if -f $file;
-            $self->log("Cleaning up $file from index...");
 
             if (ref $index->{subs} eq 'HASH')
             {
@@ -156,8 +218,6 @@ sub cleanup_old_files
             my $count_after = scalar @{$index->{$type}{$ref}};
             $refs_cleaned++ if ($count_after < $count_before);
         } ## end foreach my $ref (keys %{$index...})
-
-        $self->log("Cleaning up $type references from index...") if ($refs_cleaned);
     } ## end foreach my $type (keys %{$index...})
 
     return;
@@ -307,7 +367,7 @@ sub get_all_perl_files
          }
         },
         $self->{root}
-    );
+                    );
 
     return \@perl_files;
 } ## end sub get_all_perl_files
@@ -454,6 +514,7 @@ sub get_subroutines
         } ## end if ($name =~ s/$block_rx//...)
 
         $name =~ s/my|our|state|sub//g;
+        $name =~ s/\(.*$//;
         $name =~ s/^\s+|\s+$//g;
 
         push @{$subroutines{$name}},

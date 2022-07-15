@@ -40,24 +40,27 @@ sub service
         # If we get another change before the timer goes off, reset the timer.
         # This will allow us to limit the diagnostics to a time one second after the user stopped typing.
         $timers{$uri}->reset();
-    }
+    } ## end if (ref $timers{$uri} ...)
     else
     {
         $timers{$uri} = IO::Async::Timer::Countdown->new(
-            delay => 2,
+            delay     => 2,
             on_expire => sub {
+                my $index = PLS::Parser::Document->get_index();
+                $index->index_files(URI->new($self->{params}{textDocument}{uri})->file);
+
                 $server->send_server_request(PLS::Server::Request::TextDocument::PublishDiagnostics->new(uri => $uri, unsaved => 1));
                 delete $timers{$uri};
             },
             remove_on_expire => 1
-        );
+                                                        );
 
         my $loop = IO::Async::Loop->new();
         $loop->add($timers{$uri});
         $timers{$uri}->start();
-    }
+    } ## end else [ if (ref $timers{$uri} ...)]
 
     return;
-}
+} ## end sub service
 
 1;
