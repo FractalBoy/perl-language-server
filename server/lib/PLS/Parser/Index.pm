@@ -152,7 +152,7 @@ sub cleanup_old_files
         {
             next unless (ref $index->{$type}{$ref} eq 'ARRAY');
             my $count_before = scalar @{$index->{$type}{$ref}};
-            @{$index->{$type}{$ref}} = grep { -e $_->{uri} } @{$index->{$type}{$ref}};
+            @{$index->{$type}{$ref}} = grep { -e URI->new($_->{uri})->file } @{$index->{$type}{$ref}};
             my $count_after = scalar @{$index->{$type}{$ref}};
             $refs_cleaned++ if ($count_after < $count_before);
         } ## end foreach my $ref (keys %{$index...})
