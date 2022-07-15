@@ -68,6 +68,7 @@ sub new
         {
             $full_text = $document->get_full_text();
             push @results, @{get_subroutines($document, $filter, $full_text)};
+            push @results, @{get_constants($document, $filter, $full_text)};
             push @results, @{get_keywords()} unless $arrow;
         } ## end unless (scalar @{$functions...})
 
