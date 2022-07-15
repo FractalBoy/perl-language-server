@@ -8,6 +8,7 @@ use File::Find;
 use File::stat;
 use File::Spec;
 use IO::Async::Function;
+use IO::Async::Loop;
 use URI::file;
 use List::Util qw(any);
 use Path::Tiny;
@@ -15,6 +16,8 @@ use POSIX;
 use PPR;
 use Storable;
 use Time::Piece;
+
+use PLS::Parser::Document;
 
 =head1 NAME
 
@@ -49,47 +52,25 @@ sub start_indexing_function
 
     return if (ref $self->{indexing_function} eq 'IO::Async::Function');
 
-    $self->{indexing_function} = IO::Async::Function->new(
-        code => sub {
-            my (@files) = @_;
-
-            my %packages;
-            my %subs;
-            my %files;
-
-            foreach my $file (@files)
-            {
-                my $text         = PLS::Parser::Document::text_from_uri(URI::file->new($file)->as_string());
-                my $line_offsets = PLS::Parser::Index->get_line_offsets($text);
-                my $packages     = PLS::Parser::Index->get_packages($text, $file, $line_offsets);
-                my $subroutines  = PLS::Parser::Index->get_subroutines($text, $file, $line_offsets);
-
-                $files{$file}{packages} = [];
-                $files{$file}{subs}     = [];
-
-                foreach my $name (keys %{$packages})
-                {
-                    push @{$packages{$name}}, @{$packages->{$name}};
-                    push @{$files{$file}{packages}}, $name;
-                }
-
-                foreach my $name (keys %{$subroutines})
-                {
-                    push @{$subs{$name}}, @{$subroutines->{$name}};
-                    push @{$files{$file}{subs}}, $name;
-                }
-
-            } ## end foreach my $file (@files)
-
-            return \%packages, \%subs, \%files;
-        }
-    );
+    $self->{indexing_function} = IO::Async::Function->new(code => \&_index_files);
 
     my $loop = IO::Async::Loop->new();
     $loop->add($self->{indexing_function});
 
     return;
 } ## end sub start_indexing_function
+
+sub _index_files
+{
+    my ($file) = @_;
+
+    my $text         = PLS::Parser::Document::text_from_uri(URI::file->new($file)->as_string());
+    my $line_offsets = PLS::Parser::Index->get_line_offsets($text);
+    my $packages     = PLS::Parser::Index->get_packages($text, $file, $line_offsets);
+    my $subroutines  = PLS::Parser::Index->get_subroutines($text, $file, $line_offsets);
+
+    return $packages, $subroutines;
+}
 
 sub index_files
 {
@@ -99,41 +80,36 @@ sub index_files
 
     @files = @{$self->get_all_perl_files()} unless (scalar @files);
 
-    my $chunk_size  = POSIX::ceil(scalar @files / $self->{indexing_function}{max_workers});
-
-    while (my @chunk = splice @files, 0, $chunk_size)
+    foreach my $file (@files)
     {
         $self->{indexing_function}->call(
-            args      => [@chunk],
+            args      => [$file],
             on_result => sub {
-                my ($result, $packages, $subs, $files) = @_;
+                my ($result, $packages, $subs) = @_;
 
                 return if ($result ne 'return');
 
-                foreach my $file (keys %{$files})
+                foreach my $type (qw(subs packages))
                 {
-                    foreach my $type (qw(subs packages))
-                    {
-                        $self->cleanup_index($type, $file);
-
-                        push @{$self->{cache}{files}{$file}{$type}}, @{$files->{$file}{$type}};
-                    } ## end foreach my $type (qw(subs packages)...)
-                } ## end foreach my $file (keys %{$files...})
+                    $self->cleanup_index($type, $file);
+                } ## end foreach my $type (qw(subs packages)...)
 
                 foreach my $ref (keys %{$packages})
                 {
                     push @{$self->{cache}{packages}{$ref}}, @{$packages->{$ref}};
+                    push @{$self->{cache}{files}{$file}{packages}}, $ref;
                 }
 
                 foreach my $ref (keys %{$subs})
                 {
                     push @{$self->{cache}{subs}{$ref}}, @{$subs->{$ref}};
+                    push @{$self->{cache}{files}{$file}{subs}}, $ref;
                 }
 
                 return;
             }
         );
-    } ## end while (my @chunk = splice...)
+    }
 
     return;
 } ## end sub index_files
@@ -179,7 +155,7 @@ sub cleanup_index
     {
         foreach my $ref (@{$index->{files}{$file}{$type}})
         {
-            @{$index->{$type}{$ref}} = grep { $_->{uri} ne $file } @{$index->{$type}{$ref}};
+            @{$index->{$type}{$ref}} = grep { $_->{uri} ne URI::file->new($file)->as_string() } @{$index->{$type}{$ref}};
             delete $index->{$type}{$ref} unless (scalar @{$index->{$type}{$ref}});
         }
 
@@ -210,7 +186,7 @@ sub cleanup_old_files
                 foreach my $sub (@{$index->{files}{$file}{subs}})
                 {
                     next unless (ref $index->{subs}{$sub} eq 'ARRAY');
-                    @{$index->{subs}{$sub}} = grep { $_->{uri} eq $file } @{$index->{subs}{$sub}};
+                    @{$index->{subs}{$sub}} = grep { $_->{uri} eq URI::file->new($file)->as_string() } @{$index->{subs}{$sub}};
                     delete $index->{subs}{$sub} unless (scalar @{$index->{subs}{$sub}});
                 } ## end foreach my $sub (@{$index->...})
             } ## end if (ref $index->{subs}...)
@@ -220,7 +196,7 @@ sub cleanup_old_files
                 foreach my $package (@{$index->{files}{$file}{packages}})
                 {
                     next unless (ref $index->{packages}{$package} eq 'ARRAY');
-                    @{$index->{packages}{$package}} = grep { $_->{uri} eq $file } @{$index->{packages}{$package}};
+                    @{$index->{packages}{$package}} = grep { $_->{uri} eq URI::file->new($file)->as_string() } @{$index->{packages}{$package}};
                     delete $index->{packages}{$package} unless (scalar @{$index->{packages}{$package}});
                 } ## end foreach my $package (@{$index...})
             } ## end if (ref $index->{packages...})
@@ -481,9 +457,11 @@ sub get_packages
         $name =~ s/^\s+|\s+$//g;
         $name =~ s/;$//g;
 
+        my $uri = URI::file->new($file)->as_string();
+
         push @{$packages{$name}},
           {
-            uri   => URI::file->new($file)->as_string(),
+            uri   => $uri,
             range => {
                       start => {
                                 line      => $start_line,
@@ -505,10 +483,11 @@ sub get_subroutines
     my ($class, $text, $file, $line_offsets) = @_;
 
     state $sub_rx   = qr/((?&PerlSubroutineDeclaration))$PPR::GRAMMAR/;
-    state $block_rx = qr/((?&PerlOWS)(?&PerlBlock))$PPR::GRAMMAR/;
     state $sig_rx   = qr/(?<label>(?<params>(?&PerlVariableDeclaration))(?&PerlOWS)=(?&PerlOWS)\@_)$PPR::GRAMMAR/;
     state $var_rx   = qr/((?&PerlVariable))$PPR::GRAMMAR/;
     my %subroutines;
+
+    my $uri = URI::file->new($file)->as_string();
 
     while ($$text =~ /$sub_rx/g)
     {
@@ -525,28 +504,23 @@ sub get_subroutines
         my $signature;
         my @parameters;
 
-        if ($name =~ s/$block_rx//)
+        if ($name =~ /$sig_rx/)
         {
-            my $block = $1;
-
-            if ($block =~ /$sig_rx/)
+            $signature = $+{label};
+            my $parameters = $+{params};
+            while ($parameters =~ /$var_rx/g)
             {
-                $signature = $+{label};
-                my $parameters = $+{params};
-                while ($parameters =~ /$var_rx/g)
-                {
-                    push @parameters, {label => $1};
-                }
-            } ## end if ($block =~ /$sig_rx/...)
-        } ## end if ($name =~ s/$block_rx//...)
+                push @parameters, {label => $1};
+            }
+        } ## end if ($block =~ /$sig_rx/...)
 
-        $name =~ s/my|our|state|sub//g;
-        $name =~ s/\(.*$//;
+        ($name) = $name =~ /(?:sub\s+)?(\S+)\s*[;{]/;
+        $name =~ s/\([^)]*+\)//;
         $name =~ s/^\s+|\s+$//g;
 
         push @{$subroutines{$name}},
           {
-            uri   => URI::file->new($file)->as_string(),
+            uri   => $uri,
             range => {
                       start => {
                                 line      => $start_line,
