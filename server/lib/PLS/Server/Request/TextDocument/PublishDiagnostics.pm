@@ -144,13 +144,14 @@ sub get_compilation_errors
     my $new_cwd = $PLS::Server::State::CONFIG->{cwd} // '';
     $new_cwd =~ s/\$ROOT_PATH/$workspace_folder/;
 
+    my @setup;
+    push @setup, (chdir => $new_cwd) if (length $new_cwd and -d $new_cwd);
+
     my @diagnostics;
 
     my $proc = IO::Async::Process->new(
         command => [$perl, @inc, '-c', $path, @{$args}],
-        setup => [
-            (length $new_cwd and -d $new_cwd ? (chdir => $new_cwd) : ())
-        ],
+        setup => \@setup,
         stderr  => {
             on_read => sub {
                 my ($stream, $buffref, $eof) = @_;
