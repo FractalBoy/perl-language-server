@@ -31,16 +31,14 @@ sub service
     my ($self, $server) = @_;
 
     my $root_uri = $self->{params}{rootUri};
+    my $workspace_folders = $self->{params}{workspaceFolders};
+    $workspace_folders = [] if (ref $workspace_folders ne 'ARRAY');
+    @{$workspace_folders} = map { $_->{uri} } @{$workspace_folders};
+    push @{$workspace_folders}, $root_uri if (not scalar @{$workspace_folders} and length $root_uri);
+    @{$workspace_folders} = map { URI->new($_)->file } @{$workspace_folders};
 
-    if (length $root_uri)
-    {
-        my $path = URI->new($root_uri);
-        $PLS::Server::State::ROOT_PATH = $path->file;
-
-        my $index = PLS::Parser::Index->new(root => $path->file);
-
-        PLS::Parser::Document->set_index($index);
-    } ## end if (length $root_uri)
+    # Create and cache index object
+    PLS::Parser::Index->new(workspace_folders => $workspace_folders);
 
     if (length $self->{params}{processId})
     {

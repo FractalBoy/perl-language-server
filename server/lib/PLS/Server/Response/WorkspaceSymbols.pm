@@ -5,7 +5,7 @@ use warnings;
 
 use parent 'PLS::Server::Response';
 
-use PLS::Parser::Document;
+use PLS::Parser::Index;
 
 sub new
 {
@@ -13,7 +13,8 @@ sub new
 
     my $query = $request->{params}{query};
 
-    my $index = PLS::Parser::Document->get_index()->{cache};
+    my $index = PLS::Parser::Index->new();
+    $index = $index->{cache};
     my @symbols;
 
     foreach my $name (keys %{$index->{subs}})

@@ -6,6 +6,7 @@ use warnings;
 use PLS::Server::Request::Workspace::Configuration;
 use PLS::Server::Request::Workspace::DidChangeConfiguration;
 use PLS::Server::Request::Workspace::DidChangeWatchedFiles;
+use PLS::Server::Request::Workspace::DidChangeWorkspaceFolders;
 use PLS::Server::Request::Workspace::ExecuteCommand;
 use PLS::Server::Request::Workspace::Symbol;
 
@@ -29,6 +30,10 @@ L<PLS::Server::Request::Workspace::DidChangeConfiguration>
 =item workspace/didChangeWatchedFiles - L<https://microsoft.github.io/language-server-protocol/specifications/specification-current/#workspace_didChangeWatchedFiles>
 
 L<PLS::Server::Request::Workspace::DidChangeWatchedFiles>
+
+=item workspace/didChangeWorkspaceFolders - L<https://microsoft.github.io/language-server-protocol/specifications/specification-current/#workspace_didChangeWorkspaceFolders>
+
+L<PLS::Server::Request::Workspace::DidChangeWorkspaceFolders>
 
 =item workspace/configuration - L<https://microsoft.github.io/language-server-protocol/specifications/specification-current/#workspace_configuration>
 
@@ -55,6 +60,10 @@ sub get_request
     if ($method eq 'didChangeWatchedFiles')
     {
         return PLS::Server::Request::Workspace::DidChangeWatchedFiles->new($request);
+    }
+    if ($method eq 'didChangeWorkspaceFolders')
+    {
+        return PLS::Server::Request::Workspace::DidChangeWorkspaceFolders->new($request);
     }
     if ($method eq 'configuration')
     {

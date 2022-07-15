@@ -11,6 +11,7 @@ use IO::Async::Loop;
 use IO::Async::Timer::Countdown;
 
 use PLS::Parser::Document;
+use PLS::Parser::Index;
 use PLS::Server::Request::TextDocument::PublishDiagnostics;
 
 =head1 NAME
@@ -46,7 +47,7 @@ sub service
         $timers{$uri} = IO::Async::Timer::Countdown->new(
             delay     => 2,
             on_expire => sub {
-                my $index = PLS::Parser::Document->get_index();
+                my $index = PLS::Parser::Index->new();
                 $index->index_files(URI->new($self->{params}{textDocument}{uri})->file);
 
                 $server->send_server_request(PLS::Server::Request::TextDocument::PublishDiagnostics->new(uri => $uri, unsaved => 1));

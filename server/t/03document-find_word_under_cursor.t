@@ -14,7 +14,8 @@ use PLS::Server::State;
 
 my $text = do { local $/; <DATA> };
 
-local $PLS::Server::State::ROOT_PATH = $FindBin::RealBin;
+# Cache workspace folders
+PLS::Parser::Index->new(workspace_folders => [$FindBin::RealBin]);
 
 my $uri = URI::file->new(File::Spec->catfile($FindBin::RealBin, File::Basename::basename($0)));
 PLS::Parser::Document->open_file(uri => $uri->as_string, text => $text, languageId => 'perl');

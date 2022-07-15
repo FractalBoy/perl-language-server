@@ -33,9 +33,11 @@ sub service
     # request that we receive a notification any time configuration changes
     my @capabilities = ({id => 'did-change-configuration', method => 'workspace/didChangeConfiguration'});
 
-    # if there is a root path, request that we receive a notification every time a file changes,
+    # request that we receive a notification every time a file changes,
     # so that we can reindex it.
-    if (length $PLS::Server::State::ROOT_PATH)
+    my $index = PLS::Parser::Index->new();
+
+    if (scalar @{$index->{workspace_folders}})
     {
         push @capabilities,
           {
@@ -53,7 +55,6 @@ sub service
 
     $server->send_server_request(PLS::Server::Request::Client::RegisterCapability->new(\@capabilities));
 
-    my $index = PLS::Parser::Document->get_index();
     $index->index_files();
 
     return;

@@ -5,7 +5,7 @@ use warnings;
 
 use parent 'PLS::Server::Response';
 
-use PLS::Parser::Document;
+use PLS::Parser::Index;
 use PLS::Parser::Pod::Package;
 use PLS::Parser::Pod::Subroutine;
 use PLS::Parser::Pod::Builtin;
@@ -28,9 +28,7 @@ sub new
     my $self = {id => $request->{id}, result => undef};
     bless $self, $class;
 
-    my $index = PLS::Parser::Document->get_index();
-    return $self unless (ref $index eq 'PLS::Parser::Index');
-
+    my $index = PLS::Parser::Index->new();
     my $kind = $request->{params}{kind};
 
     if ($kind == 7)

@@ -31,10 +31,12 @@ sub new
 {
     my ($class, @args) = @_;
 
-    my %args = @args;
+    state $self;
+    return $self if (ref $self eq 'PLS::Parser::Index');
 
-    my $self = bless {
-                      root  => $args{root},
+    my %args = @args;
+    $self = bless {
+                      workspace_folders => $args{workspace_folders},
                       cache => {},
                      }, $class;
 
@@ -49,10 +51,7 @@ sub start_indexing_function
 
     $self->{indexing_function} = IO::Async::Function->new(
         code => sub {
-            my ($job_id, $num_files, @files) = @_;
-
-            my $current = 0;
-            my $total   = scalar @files * $job_id;
+            my (@files) = @_;
 
             my %packages;
             my %subs;
@@ -60,8 +59,6 @@ sub start_indexing_function
 
             foreach my $file (@files)
             {
-                $current++;
-
                 my $text         = PLS::Parser::Document::text_from_uri(URI::file->new($file)->as_string());
                 my $line_offsets = PLS::Parser::Index->get_line_offsets($text);
                 my $packages     = PLS::Parser::Index->get_packages($text, $file, $line_offsets);
@@ -103,13 +100,11 @@ sub index_files
     @files = @{$self->get_all_perl_files()} unless (scalar @files);
 
     my $chunk_size  = POSIX::ceil(scalar @files / $self->{indexing_function}{max_workers});
-    my $job_id      = 1;
-    my $total_files = scalar @files;
 
     while (my @chunk = splice @files, 0, $chunk_size)
     {
         $self->{indexing_function}->call(
-            args      => [$job_id, $total_files, @chunk],
+            args      => [@chunk],
             on_result => sub {
                 my ($result, $packages, $subs, $files) = @_;
 
@@ -121,7 +116,7 @@ sub index_files
                     {
                         $self->cleanup_index($type, $file);
 
-                        push @{$self->{files}{$file}{$type}}, @{$files->{$file}{$type}};
+                        push @{$self->{cache}{files}{$file}{$type}}, @{$files->{$file}{$type}};
                     } ## end foreach my $type (qw(subs packages)...)
                 } ## end foreach my $file (keys %{$files...})
 
@@ -138,12 +133,41 @@ sub index_files
                 return;
             }
         );
-
-        $job_id++;
     } ## end while (my @chunk = splice...)
 
     return;
 } ## end sub index_files
+
+sub deindex_workspace
+{
+    my ($self, $path) = @_;
+
+    @{$self->{workspace_folders}} = grep { $_ ne $path } @{$self->{workspace_folders}};
+
+    foreach my $file (keys %{$self->{cache}{files}})
+    {
+        next unless path($path)->subsumes($file);
+
+        foreach my $type (qw(subs packages))
+        {
+            $self->cleanup_index($type, $file);
+        }
+    }
+
+    return;
+}
+
+sub index_workspace
+{
+    my ($self, $path) = @_;
+
+    push @{$self->{workspace_folders}}, $path;    
+
+    my @workspace_files = @{$self->get_all_perl_files($path)};
+    $self->index_files(@workspace_files);
+
+    return;
+}
 
 sub cleanup_index
 {
@@ -286,28 +310,31 @@ sub get_ignored_files
 {
     my ($self) = @_;
 
-    my @ignore_files;
-    my $plsignore = File::Spec->catfile($self->{root}, '.plsignore');
+    my @ignored_files;
 
-    return [] unless (-f $plsignore and -r $plsignore);
-
-    my $mtime = stat($plsignore)->mtime;
-    return $self->{ignored_files} if (length $self->{ignore_file_last_mtime} and $self->{ignore_file_last_mtime} >= $mtime);
-
-    if (open my $fh, '<', File::Spec->catfile($self->{root}, '.plsignore'))
+    foreach my $workspace_folder (@{$self->{workspace_folders}})
     {
+        my $plsignore = File::Spec->catfile($workspace_folder, '.plsignore');
+        next if (not -f $plsignore or not -r $plsignore);
+
+        my $mtime = stat($plsignore)->mtime;
+        next if (length $self->{ignore_files_mtimes}{$plsignore} and $self->{ignore_file_mtimes}{$plsignore} >= $mtime);
+
+        open my $fh, '<', $plsignore or next;
+
+        $self->{ignored_files}{$plsignore} = [];
+        $self->{ignore_file_mtimes}{$plsignore} = $mtime;
+
         while (my $line = <$fh>)
         {
             chomp $line;
-            push @ignore_files, glob File::Spec->catfile($self->{root}, $line);
+            push @{$self->{ignored_files}{$plsignore}}, glob File::Spec->catfile($workspace_folder, $line);
         }
-    } ## end if (open my $fh, '<', ...)
 
-    @ignore_files                   = map { path($_)->realpath } @ignore_files;
-    $self->{ignored_files}          = \@ignore_files;
-    $self->{ignore_file_last_mtime} = $mtime;
+        @{$self->{ignored_files}{$plsignore}} = map { path($_)->realpath } @{$self->{ignored_files}{$plsignore}};
+    }
 
-    return $self->{ignored_files};
+    return [map { @{$self->{ignored_files}{$_}} } keys %{$self->{ignored_files}}];
 } ## end sub get_ignored_files
 
 sub get_all_subroutines
@@ -343,9 +370,10 @@ sub is_ignored
 
 sub get_all_perl_files
 {
-    my ($self) = @_;
+    my ($self, @folders) = @_;
 
-    return unless (length $self->{root});
+    @folders = @{$self->{workspace_folders}} unless (scalar @folders);
+    return [] unless (scalar @folders);
 
     my @perl_files;
 
@@ -365,7 +393,7 @@ sub get_all_perl_files
              push @perl_files, $File::Find::name;
          }
         },
-        $self->{root}
+        @folders
                     );
 
     return \@perl_files;

@@ -52,7 +52,13 @@ sub new
                                                     'perl.sortImports'
                                                 ]
                                             },
-                                            workspaceSymbolProvider => JSON::PP::true
+                                            workspaceSymbolProvider => JSON::PP::true,
+                                            workspace => {
+                                                            workspaceFolders => {
+                                                                                    supported => JSON::PP::true,
+                                                                                    changeNotifications => JSON::PP::true
+                                                                                }
+                                                         }
                                            }
                           }
                );

@@ -8,7 +8,7 @@ use parent 'PLS::Server::Request';
 use List::Util qw(any uniq);
 use Path::Tiny;
 
-use PLS::Parser::Document;
+use PLS::Parser::Index;
 use PLS::Server::Request::TextDocument::PublishDiagnostics;
 
 =head1 NAME
@@ -30,8 +30,7 @@ sub service
 
     return if (ref $self->{params}{changes} ne 'ARRAY');
 
-    my $index = PLS::Parser::Document->get_index();
-    return if (ref $index ne 'PLS::Parser::Index');
+    my $index = PLS::Parser::Index->new();
 
     my @changed_files;
     my $any_deletes;

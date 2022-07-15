@@ -5,9 +5,11 @@ use warnings;
 
 use parent 'PLS::Server::Request';
 
+use List::Util;
 use Scalar::Util;
 
 use PLS::Parser::Document;
+use PLS::Parser::Index;
 use PLS::Parser::Pod;
 use PLS::Server::State;
 use PLS::Server::Request::TextDocument::PublishDiagnostics;
@@ -49,18 +51,28 @@ sub handle_response
     my $config = $response->{result}[0];
     return unless (ref $config eq 'HASH');
 
-    # Replace $ROOT_PATH with actual workspace root in inc
-    if (exists $config->{inc} and ref $config->{inc} eq 'ARRAY' and length $PLS::Server::State::ROOT_PATH)
+    my $index = PLS::Parser::Index->new();
+    my @inc;
+
+    # Replace $ROOT_PATH with actual workspace paths in inc
+    if (exists $config->{inc} and ref $config->{inc} eq 'ARRAY')
     {
         foreach my $inc (@{$config->{inc}})
         {
-            $inc =~ s/\$ROOT_PATH/$PLS::Server::State::ROOT_PATH/g;
+            foreach my $folder (@{$index->{workspace_folders}})
+            {
+                my $interpolated = $inc =~ s/\$ROOT_PATH/$folder/gr;
+                push @inc, $interpolated;
+            }
         }
+
+        $config->{inc} = [List::Util::uniq sort @inc];
     } ## end if (exists $config->{inc...})
 
-    if (exists $config->{cwd} and length $config->{cwd} and length $PLS::Server::State::ROOT_PATH)
+    # Can only do a single CWD - just use the first workspace folder.
+    if (exists $config->{cwd} and length $config->{cwd})
     {
-        $config->{cwd} =~ s/\$ROOT_PATH/$PLS::Server::State::ROOT_PATH/g;
+        $config->{cwd} =~ s/\$ROOT_PATH/$index->{workspace_folders}[0]/g;
         chdir $config->{cwd};
     }
 
