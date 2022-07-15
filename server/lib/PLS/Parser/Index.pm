@@ -4,20 +4,14 @@ use strict;
 use warnings;
 use feature 'state';
 
-use Fcntl qw(:flock);
 use File::Find;
-use File::Path;
 use File::stat;
 use File::Spec;
-use FindBin;
-use IO::Async::Loop;
-use IO::Async::Function;
-use List::Util qw(all any);
+use URI::file;
+use List::Util qw(any);
 use Path::Tiny;
+use PPR;
 use Time::Piece;
-use Storable;
-
-use constant {INDEX_LOCATION => File::Spec->catfile('.pls_cache', 'index')};
 
 =head1 NAME
 
@@ -37,210 +31,68 @@ sub new
     my %args = @args;
 
     my $self = bless {
-                      root       => $args{root},
-                      location   => File::Spec->catfile($args{root}, INDEX_LOCATION),
-                      cache      => {},
-                      last_mtime => 0,
+                      root  => $args{root},
+                      cache => {},
                      }, $class;
 
-    my (undef, $parent_dir) = File::Spec->splitpath($self->{location});
-    File::Path::make_path($parent_dir);
-
-    $self->start_indexing_function();
-    $self->start_cleanup_function();
+    $self->index_files();
 
     return $self;
 } ## end sub new
-
-sub start_indexing_function
-{
-    my ($self) = @_;
-
-    my $loop = IO::Async::Loop->new();
-
-    $self->{indexing_function} = IO::Async::Function->new(
-        min_workers => 0,
-        max_workers => 1,
-        code        => sub {
-            my ($self, @files) = @_;
-
-            # Lock the index file for this critical section of code
-            open my $fh, '>>', $self->{location} or die $!;
-            flock $fh, LOCK_EX;
-
-            my $index = $self->index(1);    # 1 indicates that we should not try to lock again
-
-            unless (scalar @files)
-            {
-                @files = @{$self->get_all_perl_files()};
-                $self->_cleanup_old_files($index);
-                @files = grep { not exists $index->{files}{$_}{last_mtime} or not length $index->{files}{$_}{last_mtime} and $index->{files}{$_}{last_mtime} < stat($_)->mtime } @files;
-            } ## end unless (scalar @files)
-
-            my $total   = scalar @files;
-            my $current = 0;
-
-            foreach my $file (@files)
-            {
-                $current++;
-
-                open my $fh, '<', $file or next;
-                my $text     = do { local $/; <$fh> };
-                my $document = PLS::Parser::Document->new(path => $file, text => \$text, no_cache => 1);
-                next unless (ref $document eq 'PLS::Parser::Document');
-
-                my $log_message = "Indexing $file";
-                $log_message .= " ($current/$total)" if (scalar @files > 1);
-                $log_message .= '...';
-
-                $self->log($log_message);
-
-                $self->update_subroutines($index, $document);
-                $self->update_packages($index, $document);
-            } ## end foreach my $file (@files)
-
-            $self->save($index);
-
-            flock $fh, LOCK_UN;
-
-            return [@{$self}{qw(cache last_mtime)}];
-        },
-        idle_timeout     => 30,
-        max_worker_calls => 20
-    );
-
-    $loop->add($self->{indexing_function});
-
-    return;
-} ## end sub start_indexing_function
-
-sub start_cleanup_function
-{
-    my ($self) = @_;
-
-    my $loop = IO::Async::Loop->new();
-
-    $self->{cleanup_function} = IO::Async::Function->new(
-        min_workers => 0,
-        max_workers => 1,
-        code        => sub {
-            my ($self) = @_;
-
-            # Lock the index file for this critical section of code
-            open my $fh, '>>', $self->{location} or die $!;
-            flock $fh, LOCK_EX;
-
-            my $index = $self->index(1);    # 1 indicates that we should not try to lock again
-            $self->_cleanup_old_files($index);
-            $self->save($index);
-
-            flock $fh, LOCK_UN;
-
-            return [@{$self}{qw(cache last_mtime)}];
-        },
-        idle_timeout     => 30,
-        max_worker_calls => 20
-    );
-
-    $loop->add($self->{cleanup_function});
-
-    return;
-} ## end sub start_cleanup_function
 
 sub index_files
 {
     my ($self, @files) = @_;
 
-    my $class     = ref $self;
-    my $self_copy = bless {%{$self}{qw(root location cache last_mtime)}}, $class;
+    @files = @{$self->get_all_perl_files()} unless (scalar @files);
 
-    $self->{indexing_function}->call(
-        args      => [$self_copy, @files],
-        on_result => sub {
-            my ($result, $data) = @_;
+    my $current = 0;
+    my $total   = scalar @files;
 
-            return if ($result ne 'return');
+    foreach my $file (@files)
+    {
+        $current++;
+        open my $fh, '<', $file or next;
 
-            @{$self}{qw(cache last_mtime)} = @{$data};
+        my $log_message = "Indexing $file";
+        $log_message .= " ($current/$total)" if ($total > 1);
+        $log_message .= '...';
+
+        $self->log($log_message);
+
+        my $text         = do { local $/; <$fh> };
+        my $line_offsets = $self->get_line_offsets(\$text);
+        my $packages     = $self->get_packages(\$text, $file, $line_offsets);
+        my $subroutines  = $self->get_subroutines(\$text, $file, $line_offsets);
+
+        foreach my $name (keys %{$packages})
+        {
+            push @{$self->{cache}{packages}{$name}},        @{$packages->{$name}};
+            push @{$self->{cache}{files}{$file}{packages}}, $name;
         }
-    );
+
+        foreach my $name (keys %{$subroutines})
+        {
+            push @{$self->{cache}{subs}{$name}},        @{$subroutines->{$name}};
+            push @{$self->{cache}{files}{$file}{subs}}, $name;
+        }
+
+    } ## end foreach my $file (@files)
 
     return;
 } ## end sub index_files
 
-sub save
-{
-    my ($self, $index) = @_;
-
-    my (undef, $parent_dir) = File::Spec->splitpath($self->{location});
-    File::Path::make_path($parent_dir);
-
-    Storable::nstore($index, $self->{location});
-
-    $self->{cache}      = $index;
-    $self->{last_mtime} = (stat $self->{location})->mtime;
-
-    return;
-} ## end sub save
-
-sub index
-{
-    my ($self, $no_lock) = @_;
-
-    return {} unless -f $self->{location};
-
-    my $mtime = (stat $self->{location})->mtime;
-    return $self->{cache} if ($mtime <= $self->{last_mtime});
-
-    $self->{last_mtime} = $mtime;
-
-    open my $fh, '<', $self->{location} or die $!;
-
-    unless ($no_lock)
-    {
-        my $locked = flock $fh, LOCK_SH | LOCK_NB;
-        return unless $locked;
-    }
-
-    $self->{cache} = eval { Storable::fd_retrieve($fh) };
-    flock $fh, LOCK_UN unless $no_lock;
-
-    return $self->{cache};
-} ## end sub index
-
-sub update_subroutines
-{
-    my ($self, $index, $document) = @_;
-
-    my $subroutines = $document->get_subroutines();
-    my $constants   = $document->get_constants();
-
-    $self->cleanup_index($index, 'subs', $document->{path});
-    $self->update_index($index, 'subs', $document->{path}, @$subroutines, @$constants);
-    return;
-} ## end sub update_subroutines
-
-sub update_packages
-{
-    my ($self, $index, $document) = @_;
-
-    my $packages = $document->get_packages();
-
-    $self->cleanup_index($index, 'packages', $document->{path});
-    return unless (ref $packages eq 'ARRAY');
-    $self->update_index($index, 'packages', $document->{path}, @$packages);
-    return;
-} ## end sub update_packages
-
 sub cleanup_index
 {
-    my ($self, $index, $type, $file) = @_;
+    my ($self, $type, $file) = @_;
+
+    my $index = $self->{cache};
 
     if (ref $index->{files}{$file}{$type} eq 'ARRAY')
     {
         foreach my $ref (@{$index->{files}{$file}{$type}})
         {
-            @{$index->{$type}{$ref}} = grep { $_->{file} ne $file } @{$index->{$type}{$ref}};
+            @{$index->{$type}{$ref}} = grep { $_->{uri} ne $file } @{$index->{$type}{$ref}};
             delete $index->{$type}{$ref} unless (scalar @{$index->{$type}{$ref}});
         }
 
@@ -254,58 +106,11 @@ sub cleanup_index
     return;
 } ## end sub cleanup_index
 
-sub update_index
-{
-    my ($self, $index, $type, $file, @references) = @_;
-
-    my $stat = stat $file;
-    return unless (ref $stat eq 'File::stat');
-
-    foreach my $reference (@references)
-    {
-        my $info = $reference->location_info();
-
-        if (ref $index->{$type}{$reference->name} eq 'ARRAY')
-        {
-            push @{$index->{$type}{$reference->name}}, $info;
-        }
-        else
-        {
-            $index->{$type}{$reference->name} = [$info];
-        }
-
-        push @{$index->{files}{$file}{$type}}, $reference->name;
-    } ## end foreach my $reference (@references...)
-
-    $index->{files}{$file}{last_mtime} = $stat->mtime;
-
-    return;
-} ## end sub update_index
-
 sub cleanup_old_files
 {
     my ($self) = @_;
 
-    my $class     = ref $self;
-    my $self_copy = bless {%{$self}{qw(root location cache last_mtime)}}, $class;
-
-    $self->{cleanup_function}->call(
-        args      => [$self_copy],
-        on_result => sub {
-            my ($result, $data) = @_;
-
-            return if ($result ne 'return');
-
-            @{$self}{qw(cache last_mtime)} = @{$data};
-        }
-    );
-
-    return;
-} ## end sub cleanup_old_files
-
-sub _cleanup_old_files
-{
-    my ($self, $index) = @_;
+    my $index = $self->{cache};
 
     if (ref $index->{files} eq 'HASH')
     {
@@ -319,7 +124,7 @@ sub _cleanup_old_files
                 foreach my $sub (@{$index->{files}{$file}{subs}})
                 {
                     next unless (ref $index->{subs}{$sub} eq 'ARRAY');
-                    @{$index->{subs}{$sub}} = grep { $_->{file} eq $file } @{$index->{subs}{$sub}};
+                    @{$index->{subs}{$sub}} = grep { $_->{uri} eq $file } @{$index->{subs}{$sub}};
                     delete $index->{subs}{$sub} unless (scalar @{$index->{subs}{$sub}});
                 } ## end foreach my $sub (@{$index->...})
             } ## end if (ref $index->{subs}...)
@@ -329,7 +134,7 @@ sub _cleanup_old_files
                 foreach my $package (@{$index->{files}{$file}{packages}})
                 {
                     next unless (ref $index->{packages}{$package} eq 'ARRAY');
-                    @{$index->{packages}{$package}} = grep { $_->{file} eq $file } @{$index->{packages}{$package}};
+                    @{$index->{packages}{$package}} = grep { $_->{uri} eq $file } @{$index->{packages}{$package}};
                     delete $index->{packages}{$package} unless (scalar @{$index->{packages}{$package}});
                 } ## end foreach my $package (@{$index...})
             } ## end if (ref $index->{packages...})
@@ -346,7 +151,7 @@ sub _cleanup_old_files
         {
             next unless (ref $index->{$type}{$ref} eq 'ARRAY');
             my $count_before = scalar @{$index->{$type}{$ref}};
-            @{$index->{$type}{$ref}} = grep { -e $_->{file} } @{$index->{$type}{$ref}};
+            @{$index->{$type}{$ref}} = grep { -e $_->{uri} } @{$index->{$type}{$ref}};
             my $count_after = scalar @{$index->{$type}{$ref}};
             $refs_cleaned++ if ($count_after < $count_before);
         } ## end foreach my $ref (keys %{$index...})
@@ -355,14 +160,13 @@ sub _cleanup_old_files
     } ## end foreach my $type (keys %{$index...})
 
     return;
-} ## end sub _cleanup_old_files
+} ## end sub cleanup_old_files
 
 sub find_package_subroutine
 {
     my ($self, $package, $subroutine) = @_;
 
-    my $index = $self->index();
-    return [] if (ref $index ne 'HASH');
+    my $index     = $self->{cache};
     my $locations = $index->{packages}{$package};
 
     if (ref $locations ne 'ARRAY')
@@ -372,9 +176,9 @@ sub find_package_subroutine
         return [];
     } ## end if (ref $locations ne ...)
 
-    foreach my $file (@$locations)
+    foreach my $file (@{$locations})
     {
-        return $self->find_subroutine($subroutine, $file->{file});
+        return $self->find_subroutine($subroutine, $file->{uri});
     }
 
     return;
@@ -382,49 +186,30 @@ sub find_package_subroutine
 
 sub find_subroutine
 {
-    my ($self, $subroutine, @files) = @_;
+    my ($self, $subroutine, @uris) = @_;
 
-    my $index = $self->index;
-    return [] if (ref $index ne 'HASH');
+    my $index = $self->{cache};
     my $found = $index->{subs}{$subroutine};
     return [] unless (ref $found eq 'ARRAY');
 
     my @locations = @$found;
 
-    if (scalar @files)
+    if (scalar @uris)
     {
         @locations = grep {
             my $location = $_;
-            scalar grep { $location->{file} eq $_ } @files;
+            scalar grep { $location->{uri} eq $_ } @uris;
         } @locations;
-    } ## end if (scalar @files)
+    } ## end if (scalar @uris)
 
-    return [
-        map {
-            {
-             uri   => URI::file->new($_->{file})->as_string,
-             range => {
-                       start => {
-                                 line      => $_->{location}{line_number},
-                                 character => $_->{location}{column_number}
-                                },
-                       end => {
-                               line      => $_->{location}{line_number},
-                               character => $_->{location}{column_number} + (length $subroutine) + ($_->{constant} ? 0 : (length 'sub '))
-                              }
-                      },
-             signature => $_->{signature}
-            }
-          } @locations
-    ];
+    return \@locations;
 } ## end sub find_subroutine
 
 sub find_package
 {
-    my ($self, $package, @files) = @_;
+    my ($self, $package) = @_;
 
-    my $index = $self->index;
-    return [] if (ref $index ne 'HASH');
+    my $index = $self->{cache};
     my $found = $index->{packages}{$package};
 
     if (ref $found ne 'ARRAY')
@@ -434,33 +219,7 @@ sub find_package
         return [];
     } ## end if (ref $found ne 'ARRAY'...)
 
-    my @locations = @$found;
-
-    if (scalar @files)
-    {
-        @locations = grep {
-            my $location = $_;
-            grep { $location->{file} eq $_ } @files
-        } @locations;
-    } ## end if (scalar @files)
-
-    return [
-        map {
-            {
-             uri   => URI::file->new($_->{file})->as_string,
-             range => {
-                       start => {
-                                 line      => $_->{location}{line_number},
-                                 character => $_->{location}{column_number}
-                                },
-                       end => {
-                               line      => $_->{location}{line_number},
-                               character => $_->{location}{column_number} + length("package $package;")
-                              }
-                      }
-            }
-          } @locations
-    ];
+    return $found;
 } ## end sub find_package
 
 sub get_ignored_files
@@ -579,5 +338,137 @@ sub log
 
     return;
 } ## end sub log
+
+sub get_line_offsets
+{
+    my ($class, $text) = @_;
+
+    my @line_offsets = (0);
+
+    while ($$text =~ /\r?\n/g)
+    {
+        push @line_offsets, pos($$text);
+    }
+
+    return \@line_offsets;
+} ## end sub get_line_offsets
+
+sub get_line_by_offset
+{
+    my ($class, $line_offsets, $offset) = @_;
+
+    for (my $i = 0 ; $i <= $#{$line_offsets} ; $i++)
+    {
+        my $current_offset = $line_offsets->[$i];
+        my $next_offset    = $i + 1 <= $#{$line_offsets} ? $line_offsets->[$i + 1] : undef;
+
+        if ($current_offset <= $offset and (not defined $next_offset or $next_offset > $offset))
+        {
+            return $i;
+        }
+    } ## end for (my $i = 0 ; $i <= ...)
+
+    return $#{$line_offsets};
+} ## end sub get_line_by_offset
+
+sub get_packages
+{
+    my ($class, $text, $file, $line_offsets) = @_;
+
+    state $rx = qr/((?&PerlPackageDeclaration))$PPR::GRAMMAR/x;
+    my %packages;
+
+    while ($$text =~ /$rx/g)
+    {
+        my $name = $1;
+
+        my $end        = pos($$text);
+        my $start      = $end - length $name;
+        my $start_line = $class->get_line_by_offset($line_offsets, $start);
+        $start -= $line_offsets->[$start_line];
+        my $end_line = $class->get_line_by_offset($line_offsets, $end);
+        $end -= $line_offsets->[$end_line];
+
+        $name =~ s/package//;
+        $name =~ s/^\s+|\s+$//g;
+        $name =~ s/;$//g;
+
+        push @{$packages{$name}},
+          {
+            uri   => URI::file->new($file)->as_string(),
+            start => {
+                      line      => $start_line,
+                      character => $start
+                     },
+            end => {
+                    line      => $end_line,
+                    character => $end
+                   }
+          };
+    } ## end while ($$text =~ /$rx/g)
+
+    return \%packages;
+} ## end sub get_packages
+
+sub get_subroutines
+{
+    my ($class, $text, $file, $line_offsets) = @_;
+
+    state $sub_rx   = qr/((?&PerlSubroutineDeclaration))$PPR::GRAMMAR/;
+    state $block_rx = qr/((?&PerlOWS)(?&PerlBlock))$PPR::GRAMMAR/;
+    state $sig_rx   = qr/(?<label>(?<params>(?&PerlVariableDeclaration))(?&PerlOWS)=(?&PerlOWS)\@_)$PPR::GRAMMAR/;
+    state $var_rx   = qr/((?&PerlVariable))$PPR::GRAMMAR/;
+    my %subroutines;
+
+    while ($$text =~ /$sub_rx/g)
+    {
+        my $name = $1;
+        my $end  = pos($$text);
+
+        my $start = $end - length $name;
+
+        my $start_line = $class->get_line_by_offset($line_offsets, $start);
+        $start -= $line_offsets->[$start_line];
+        my $end_line = $class->get_line_by_offset($line_offsets, $end);
+        $end -= $line_offsets->[$end_line];
+
+        my $signature;
+        my @parameters;
+
+        if ($name =~ s/$block_rx//)
+        {
+            my $block = $1;
+
+            if ($block =~ /$sig_rx/)
+            {
+                $signature = $+{label};
+                my $parameters = $+{params};
+                while ($parameters =~ /$var_rx/g)
+                {
+                    push @parameters, {label => $1};
+                }
+            } ## end if ($block =~ /$sig_rx/...)
+        } ## end if ($name =~ s/$block_rx//...)
+
+        $name =~ s/my|our|state|sub//g;
+        $name =~ s/^\s+|\s+$//g;
+
+        push @{$subroutines{$name}},
+          {
+            uri   => URI::file->new($file)->as_string(),
+            start => {
+                      line      => $start_line,
+                      character => $start
+                     },
+            end => {
+                    line      => $end_line,
+                    character => $end
+                   },
+            signature => {label => $signature, parameters => \@parameters}
+          };
+    } ## end while ($$text =~ /$sub_rx/g...)
+
+    return \%subroutines;
+} ## end sub get_subroutines
 
 1;
