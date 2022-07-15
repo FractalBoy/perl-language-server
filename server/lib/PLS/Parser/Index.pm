@@ -99,10 +99,8 @@ sub index_files
 {
     my ($self, @files) = @_;
 
-    my $class     = ref $self;
-    my $self_copy = bless {%{$self}{qw(root cache)}}, $class;
-
     @files = @{$self->get_all_perl_files()} unless (scalar @files);
+
     my $chunk_size  = POSIX::ceil(scalar @files / $self->{indexing_function}{max_workers});
     my $job_id      = 1;
     my $total_files = scalar @files;

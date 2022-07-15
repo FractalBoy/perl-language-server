@@ -41,6 +41,7 @@ sub service
         my $file = URI->new($change->{uri});
 
         next unless (ref $file eq 'URI::file');
+        next if ($file->file =~ /\/\.pls-tmp-.*$/);
 
         if ($change->{type} == 3)
         {
