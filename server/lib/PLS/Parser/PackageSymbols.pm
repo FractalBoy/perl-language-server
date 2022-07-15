@@ -6,7 +6,9 @@ use warnings;
 use Fcntl ();
 use Storable ();
 
+use PLS::Parser::Index;
 use PLS::Parser::Pod;
+use PLS::Server::State;
 
 =head1 NAME
 
@@ -28,6 +30,14 @@ sub get_package_functions
     return unless (length $package);
 
     pipe my $read_fh, my $write_fh;
+
+    # Just use the first workspace folder as ROOT_PATH - we don't know
+    # which folder the code will ultimately be in, and it doesn't really matter
+    # for anyone except me.
+    my $index = PLS::Parser::Index->new();
+    my $cwd = $PLS::Server::State::CONFIG->{cwd};
+    $cwd =~ s/\$ROOT_PATH/$index->{workspace_folders}[0]/;
+
     my $pid = fork;
 
     if ($pid)
@@ -60,6 +70,8 @@ sub get_package_functions
 
         my @inc = map { "-I$_" } @{$config->{inc} // []};
         my $perl = PLS::Parser::Pod->get_perl_exe();
+
+        chdir $cwd;
         exec $perl, @inc, '-e', $script, fileno($write_fh), $package;
     }
 } ## end sub get_package_functions

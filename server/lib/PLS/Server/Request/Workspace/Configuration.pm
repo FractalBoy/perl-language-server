@@ -69,13 +69,6 @@ sub handle_response
         $config->{inc} = [List::Util::uniq sort @inc];
     } ## end if (exists $config->{inc...})
 
-    # Can only do a single CWD - just use the first workspace folder.
-    if (exists $config->{cwd} and length $config->{cwd})
-    {
-        $config->{cwd} =~ s/\$ROOT_PATH/$index->{workspace_folders}[0]/g;
-        chdir $config->{cwd};
-    }
-
     if (exists $config->{syntax}{perl} and length $config->{syntax}{perl})
     {
         PLS::Parser::Pod->set_perl_exe($config->{syntax}{perl});
