@@ -38,7 +38,6 @@ sub service
         $PLS::Server::State::ROOT_PATH = $path->file;
 
         my $index = PLS::Parser::Index->new(root => $path->file);
-        $index->index_files();
 
         PLS::Parser::Document->set_index($index);
     } ## end if (length $root_uri)
