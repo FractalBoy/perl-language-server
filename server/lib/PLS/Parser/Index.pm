@@ -11,6 +11,7 @@ use URI::file;
 use List::Util qw(any);
 use Path::Tiny;
 use PPR;
+use Storable;
 use Time::Piece;
 
 =head1 NAME
@@ -202,7 +203,7 @@ sub find_subroutine
         } @locations;
     } ## end if (scalar @uris)
 
-    return \@locations;
+    return Storable::dclone(\@locations);
 } ## end sub find_subroutine
 
 sub find_package
@@ -219,7 +220,7 @@ sub find_package
         return [];
     } ## end if (ref $found ne 'ARRAY'...)
 
-    return $found;
+    return Storable::dclone($found);
 } ## end sub find_package
 
 sub get_ignored_files
