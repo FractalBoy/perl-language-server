@@ -85,7 +85,6 @@ sub valid_notification
     return 0 if (exists $packet->{params} and ref $packet->{params} ne 'HASH' and ref $packet->{params} ne 'ARRAY');
     return 1;
 } ## end sub valid_notification
-use Data::Dumper;
 
 sub initialize_server
 {
