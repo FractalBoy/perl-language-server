@@ -495,20 +495,16 @@ sub get_all_subroutines
 {
     my ($self) = @_;
 
-    my $index = $self->index();
-    return [] if (ref $index ne 'HASH');
-
-    return [keys %{$index->{subs}}];
+    return [] if (ref $self->{cache}{subs} ne 'HASH');
+    return [keys %{$self->{cache}{subs}}];
 } ## end sub get_all_subroutines
 
 sub get_all_packages
 {
     my ($self) = @_;
 
-    my $index = $self->index();
-    return [] if (ref $index ne 'HASH');
-
-    return [keys %{$index->{packages}}];
+    return [] if (ref $self->{cache}{packages} ne 'HASH');
+    return [keys %{$self->{cache}{packages}}];
 } ## end sub get_all_packages
 
 sub is_ignored
