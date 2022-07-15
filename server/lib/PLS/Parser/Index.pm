@@ -39,9 +39,9 @@ sub new
 
     my %args = @args;
     $self = bless {
-                      workspace_folders => $args{workspace_folders},
-                      cache => {},
-                     }, $class;
+                   workspace_folders => $args{workspace_folders},
+                   cache             => {},
+                  }, $class;
 
     return $self;
 } ## end sub new
@@ -70,7 +70,7 @@ sub _index_files
     my $subroutines  = PLS::Parser::Index->get_subroutines($text, $file, $line_offsets);
 
     return $packages, $subroutines;
-}
+} ## end sub _index_files
 
 sub index_files
 {
@@ -92,7 +92,7 @@ sub index_files
                 foreach my $type (qw(subs packages))
                 {
                     $self->cleanup_index($type, $file);
-                } ## end foreach my $type (qw(subs packages)...)
+                }
 
                 foreach my $ref (keys %{$packages})
                 {
@@ -109,7 +109,7 @@ sub index_files
                 return;
             }
         );
-    }
+    } ## end foreach my $file (@files)
 
     return;
 } ## end sub index_files
@@ -128,22 +128,22 @@ sub deindex_workspace
         {
             $self->cleanup_index($type, $file);
         }
-    }
+    } ## end foreach my $file (keys %{$self...})
 
     return;
-}
+} ## end sub deindex_workspace
 
 sub index_workspace
 {
     my ($self, $path) = @_;
 
-    push @{$self->{workspace_folders}}, $path;    
+    push @{$self->{workspace_folders}}, $path;
 
     my @workspace_files = @{$self->get_all_perl_files($path)};
     $self->index_files(@workspace_files);
 
     return;
-}
+} ## end sub index_workspace
 
 sub cleanup_index
 {
@@ -298,7 +298,7 @@ sub get_ignored_files
 
         open my $fh, '<', $plsignore or next;
 
-        $self->{ignored_files}{$plsignore} = [];
+        $self->{ignored_files}{$plsignore}      = [];
         $self->{ignore_file_mtimes}{$plsignore} = $mtime;
 
         while (my $line = <$fh>)
@@ -308,7 +308,7 @@ sub get_ignored_files
         }
 
         @{$self->{ignored_files}{$plsignore}} = map { path($_)->realpath } @{$self->{ignored_files}{$plsignore}};
-    }
+    } ## end foreach my $workspace_folder...
 
     return [map { @{$self->{ignored_files}{$_}} } keys %{$self->{ignored_files}}];
 } ## end sub get_ignored_files
@@ -349,7 +349,7 @@ sub get_all_perl_files
     my ($self, @folders) = @_;
 
     @folders = @{$self->{workspace_folders}} unless (scalar @folders);
-    return [] unless (scalar @folders);
+    return []                                unless (scalar @folders);
 
     my @perl_files;
 
@@ -482,42 +482,73 @@ sub get_subroutines
 {
     my ($class, $text, $file, $line_offsets) = @_;
 
-    state $sub_rx   = qr/((?&PerlSubroutineDeclaration))$PPR::GRAMMAR/;
-    state $sig_rx   = qr/(?<label>(?<params>(?&PerlVariableDeclaration))(?&PerlOWS)=(?&PerlOWS)\@_)$PPR::GRAMMAR/;
-    state $var_rx   = qr/((?&PerlVariable))$PPR::GRAMMAR/;
-    state $proto_rx = qr/\([^)]*+\)/;
+    # Stolen mostly from PPR definition for PerlSubroutineDeclaration
+    state $sub_rx = qr/
+        (?<full>
+        (?<declaration>(?>
+            (?: (?> my | our | state ) \b      (?>(?&PerlOWS)) )?+
+            sub \b                             (?>(?&PerlOWS))
+            (?<name>(?>(?&PerlOldQualifiedIdentifier)))    (?&PerlOWS)
+        |
+            (?<name>AUTOLOAD)                              (?&PerlOWS)
+        |
+            (?<name>DESTROY)                               (?&PerlOWS)
+        ))
+        (?:
+            # Perl pre 5.028
+            (?:
+                (?>
+                    (?&PerlParenthesesList)    # Parameter list
+                |
+                    \( [^)]*+ \)               # Prototype (
+                )
+                (?&PerlOWS)
+            )?+
+            (?: (?>(?&PerlAttributes))  (?&PerlOWS) )?+
+        |
+            # Perl post 5.028
+            (?: (?>(?&PerlAttributes))       (?&PerlOWS) )?+
+            (?: (?>(?&PerlParenthesesList))  (?&PerlOWS) )?+    # Parameter list
+        )
+        (?> ; | \{
+            (?&PerlOWS)
+			(?<label>(?<params>(?&PerlVariableDeclaration))(?&PerlOWS)=(?&PerlOWS)\@_;?)?
+            (?&PerlOWS)
+			(?>(?&PerlStatementSequence))
+		\} )
+        )
+        $PPR::GRAMMAR/x;
+
+    state $var_rx = qr/((?&PerlVariable))$PPR::GRAMMAR/;
+
     my %subroutines;
 
     my $uri = URI::file->new($file)->as_string();
 
     while ($$text =~ /$sub_rx/g)
     {
-        my $name = $1;
-        my $end  = pos($$text);
-
-        my $start = $end - length $name;
+        my $end   = pos($$text);
+        my $start = $end - length $+{full};
+        $end = $start + length $+{declaration};
 
         my $start_line = $class->get_line_by_offset($line_offsets, $start);
         $start -= $line_offsets->[$start_line];
         my $end_line = $class->get_line_by_offset($line_offsets, $end);
         $end -= $line_offsets->[$end_line];
 
-        my $signature;
+        my $signature = $+{label};
         my @parameters;
 
-        if ($name =~ /$sig_rx/)
+        if (length $+{params})
         {
-            $signature = $+{label};
             my $parameters = $+{params};
             while ($parameters =~ /$var_rx/g)
             {
                 push @parameters, {label => $1};
             }
-        } ## end if ($block =~ /$sig_rx/...)
+        } ## end if (length $+{params})
 
-        ($name) = $name =~ /(?:sub\s+)?(\S+)\s*(?:$proto_rx)?\s*[;{]/;
-        $name =~ s/$proto_rx//;
-        $name =~ s/^\s+|\s+$//g;
+        my $name = $+{name};
 
         push @{$subroutines{$name}},
           {
