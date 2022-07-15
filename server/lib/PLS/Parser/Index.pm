@@ -39,7 +39,6 @@ sub new
                      }, $class;
 
     $self->start_indexing_function();
-    $self->index_files();
 
     return $self;
 } ## end sub new
