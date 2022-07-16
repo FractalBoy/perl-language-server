@@ -74,9 +74,9 @@ sub handle_response
         PLS::Parser::Pod->set_perl_exe($config->{syntax}{perl});
     }
 
-    if (exists $config->{syntax}{perlargs} and ref $config->{syntax}{perlargs} eq 'ARRAY' and scalar @{$config->{syntax}{perlargs}})
+    if (exists $config->{syntax}{args} and ref $config->{syntax}{args} eq 'ARRAY' and scalar @{$config->{syntax}{args}})
     {
-        PLS::Parser::Pod->set_perl_args($config->{syntax}{perlargs});
+        PLS::Parser::Pod->set_perl_args($config->{syntax}{args});
     }
 
     $PLS::Server::State::CONFIG = $config;
