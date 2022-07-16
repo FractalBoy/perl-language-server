@@ -32,7 +32,6 @@ use PLS::Parser::Pod::Subroutine;
 use PLS::Parser::Pod::Variable;
 
 my %FILES;
-my $INDEX;
 
 =head1 NAME
 
@@ -82,43 +81,13 @@ sub new
                       uri  => $uri
                      }, $class;
 
-    $self->{index} = $self->get_index();
+    $self->{index} = PLS::Parser::Index->new();
     my $document = $self->_get_ppi_document(%args);
     return unless (ref $document eq 'PPI::Document');
     $self->{document} = $document;
 
     return $self;
 } ## end sub new
-
-=head2 set_index
-
-This sets the L<PLS::Parser::Index> object to be used by all L<PLS::Parser::Document>
-objects.
-
-=cut
-
-sub set_index
-{
-    my ($class, $index) = @_;
-
-    $INDEX = $index;
-}
-
-=head2 get_index
-
-This gets the L<PLS::Parser::Index> object to use.
-It will set it for other objects to use if it does not already exist.
-
-=cut
-
-sub get_index
-{
-    my ($class) = @_;
-
-    return                                                                   unless (length $PLS::Server::State::ROOT_PATH);
-    $INDEX = PLS::Parser::Index->new(root => $PLS::Server::State::ROOT_PATH) unless (ref $INDEX eq 'PLS::Parser::Index');
-    return $INDEX;
-} ## end sub get_index
 
 =head2 go_to_definition
 

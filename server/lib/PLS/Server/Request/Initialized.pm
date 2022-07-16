@@ -8,6 +8,7 @@ use parent 'PLS::Server::Request';
 use PLS::Server::State;
 use PLS::Server::Request::Workspace::Configuration;
 use PLS::Server::Request::Client::RegisterCapability;
+use PLS::Parser::Document;
 
 =head1 NAME
 
@@ -32,9 +33,11 @@ sub service
     # request that we receive a notification any time configuration changes
     my @capabilities = ({id => 'did-change-configuration', method => 'workspace/didChangeConfiguration'});
 
-    # if there is a root path, request that we receive a notification every time a file changes,
+    # request that we receive a notification every time a file changes,
     # so that we can reindex it.
-    if (length $PLS::Server::State::ROOT_PATH)
+    my $index = PLS::Parser::Index->new();
+
+    if (scalar @{$index->workspace_folders})
     {
         push @capabilities,
           {
@@ -48,9 +51,12 @@ sub service
                                             ]
                                }
           };
-    } ## end if (length $PLS::Server::State::ROOT_PATH...)
+    } ## end if (scalar @{$index->workspace_folders...})
 
     $server->send_server_request(PLS::Server::Request::Client::RegisterCapability->new(\@capabilities));
+
+    # Now is a good time to start indexing files.
+    $index->index_files();
 
     return;
 } ## end sub service

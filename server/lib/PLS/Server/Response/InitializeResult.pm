@@ -39,7 +39,7 @@ sub new
                                             textDocumentSync => {
                                                                  openClose => JSON::PP::true,
                                                                  change    => 2,
-                                                                 save => JSON::PP::true,
+                                                                 save      => JSON::PP::true,
                                                                 },
                                             documentFormattingProvider      => JSON::PP::true,
                                             documentRangeFormattingProvider => JSON::PP::true,
@@ -48,11 +48,15 @@ sub new
                                                                    resolveProvider   => JSON::PP::true,
                                                                   },
                                             executeCommandProvider => {
-                                                commands => [
-                                                    'perl.sortImports'
-                                                ]
-                                            },
-                                            workspaceSymbolProvider => JSON::PP::true
+                                                                       commands => ['perl.sortImports']
+                                                                      },
+                                            workspaceSymbolProvider => JSON::PP::true,
+                                            workspace               => {
+                                                          workspaceFolders => {
+                                                                               supported           => JSON::PP::true,
+                                                                               changeNotifications => JSON::PP::true
+                                                                              }
+                                                         }
                                            }
                           }
                );
@@ -66,6 +70,6 @@ sub serialize
 
     $PLS::Server::State::INITIALIZED = 1;
     return $self->SUPER::serialize();
-}
+} ## end sub serialize
 
 1;

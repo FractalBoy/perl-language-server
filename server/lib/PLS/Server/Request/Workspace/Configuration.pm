@@ -5,9 +5,11 @@ use warnings;
 
 use parent 'PLS::Server::Request';
 
+use List::Util;
 use Scalar::Util;
 
 use PLS::Parser::Document;
+use PLS::Parser::Index;
 use PLS::Parser::Pod;
 use PLS::Server::State;
 use PLS::Server::Request::TextDocument::PublishDiagnostics;
@@ -49,29 +51,32 @@ sub handle_response
     my $config = $response->{result}[0];
     return unless (ref $config eq 'HASH');
 
-    # Replace $ROOT_PATH with actual workspace root in inc
-    if (exists $config->{inc} and ref $config->{inc} eq 'ARRAY' and length $PLS::Server::State::ROOT_PATH)
+    my $index = PLS::Parser::Index->new();
+    my @inc;
+
+    # Replace $ROOT_PATH with actual workspace paths in inc
+    if (exists $config->{inc} and ref $config->{inc} eq 'ARRAY')
     {
         foreach my $inc (@{$config->{inc}})
         {
-            $inc =~ s/\$ROOT_PATH/$PLS::Server::State::ROOT_PATH/g;
-        }
-    } ## end if (exists $config->{inc...})
+            foreach my $folder (@{$index->workspace_folders})
+            {
+                my $interpolated = $inc =~ s/\$ROOT_PATH/$folder/gr;
+                push @inc, $interpolated;
+            }
+        } ## end foreach my $inc (@{$config->...})
 
-    if (exists $config->{cwd} and length $config->{cwd} and length $PLS::Server::State::ROOT_PATH)
-    {
-        $config->{cwd} =~ s/\$ROOT_PATH/$PLS::Server::State::ROOT_PATH/g;
-        chdir $config->{cwd};
-    }
+        $config->{inc} = [List::Util::uniq sort @inc];
+    } ## end if (exists $config->{inc...})
 
     if (exists $config->{syntax}{perl} and length $config->{syntax}{perl})
     {
         PLS::Parser::Pod->set_perl_exe($config->{syntax}{perl});
     }
 
-    if (exists $config->{syntax}{perlargs} and ref $config->{syntax}{perlargs} eq 'ARRAY' and scalar @{$config->{syntax}{perlargs}})
+    if (exists $config->{syntax}{args} and ref $config->{syntax}{args} eq 'ARRAY' and scalar @{$config->{syntax}{args}})
     {
-        PLS::Parser::Pod->set_perl_args($config->{syntax}{perlargs});
+        PLS::Parser::Pod->set_perl_args($config->{syntax}{args});
     }
 
     $PLS::Server::State::CONFIG = $config;

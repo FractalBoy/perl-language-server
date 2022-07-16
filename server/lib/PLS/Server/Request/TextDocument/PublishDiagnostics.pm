@@ -13,6 +13,7 @@ use File::Temp;
 use IO::Async::Function;
 use IO::Async::Loop;
 use IO::Async::Process;
+use Path::Tiny;
 use Perl::Critic;
 use PPI;
 use URI;
@@ -133,15 +134,24 @@ sub get_compilation_errors
 
     close $fh;
 
-    my $perl = PLS::Parser::Pod->get_perl_exe();
-    my $inc  = PLS::Parser::Pod->get_clean_inc();
-    my $args = PLS::Parser::Pod->get_perl_args();
-    my @inc  = map { "-I$_" } @{$inc // []};
+    my $perl             = PLS::Parser::Pod->get_perl_exe();
+    my $inc              = PLS::Parser::Pod->get_clean_inc();
+    my $args             = PLS::Parser::Pod->get_perl_args();
+    my @inc              = map { "-I$_" } @{$inc // []};
+    my $index            = PLS::Parser::Index->new();
+    my $workspace_folder = List::Util::first { path($_)->subsumes($path) } @{$index->workspace_folders};
+    ($workspace_folder) = @{$index->workspace_folders} unless (length $workspace_folder);
+    my $new_cwd = $PLS::Server::State::CONFIG->{cwd} // '';
+    $new_cwd =~ s/\$ROOT_PATH/$workspace_folder/;
+
+    my @setup;
+    push @setup, (chdir => $new_cwd) if (length $new_cwd and -d $new_cwd);
 
     my @diagnostics;
 
     my $proc = IO::Async::Process->new(
         command => [$perl, @inc, '-c', $path, @{$args}],
+        setup   => \@setup,
         stderr  => {
             on_read => sub {
                 my ($stream, $buffref, $eof) = @_;

@@ -85,7 +85,6 @@ sub valid_notification
     return 0 if (exists $packet->{params} and ref $packet->{params} ne 'HASH' and ref $packet->{params} ne 'ARRAY');
     return 1;
 } ## end sub valid_notification
-use Data::Dumper;
 
 sub initialize_server
 {
@@ -127,7 +126,7 @@ subtest 'server not initialized' => sub {
 };
 
 subtest 'initialize server' => sub {
-    plan tests => 16;
+    plan tests => 15;
 
     my $comm     = t::Communicate->new();
     my $response = initialize_server($comm);
@@ -138,7 +137,7 @@ subtest 'initialize server' => sub {
 
     cmp_ok(scalar keys %{$response->{result}}, '==', 1, 'result has 1 key');
     is(ref $response->{result}{capabilities}, 'HASH', 'response capabilities is json object');
-    cmp_ok(scalar keys %{$response->{result}{capabilities}}, '==', 10, 'capabilities has 10 keys');
+    cmp_ok(scalar keys %{$response->{result}{capabilities}}, '==', 11, 'capabilities has 11 keys');
 
     my $capabilities = $response->{result}{capabilities};
 
@@ -152,13 +151,6 @@ subtest 'initialize server' => sub {
     is_deeply($capabilities->{completionProvider},     {triggerCharacters => ['>', ':', '$', '@', '%'], resolveProvider => JSON::PP::true}, 'server is completion provider');
     is_deeply($capabilities->{executeCommandProvider}, {commands          => ['perl.sortImports']},                                         'server can execute commands');
     ok($capabilities->{workspaceSymbolProvider}, 'server is workspace symbol provider');
-
-    chomp(my $error = $comm->recv_err());
-  SKIP:
-    {
-        skip('timing issue - indexing not logged yet', 1) unless (length $error);
-        like($error, qr/Indexing/, 'indexing logged');
-    }
 };
 
 subtest 'initial requests' => sub {

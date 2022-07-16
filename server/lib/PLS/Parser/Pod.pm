@@ -10,6 +10,7 @@ use Pod::Markdown;
 use Pod::Simple::Search;
 use Symbol qw(gensym);
 
+use PLS::Parser::Index;
 use PLS::Server::State;
 
 =head1 NAME
@@ -23,7 +24,7 @@ for sending to the Language Server Protocol.
 
 =cut
 
-my $PERL_EXE = $^X;
+my $PERL_EXE  = $^X;
 my $PERL_ARGS = [];
 
 sub new
@@ -291,7 +292,9 @@ sub get_clean_inc
     } ## end if (my $pid = open my ...)
 
     unshift @include, @{$PLS::Server::State::CONFIG->{inc}} if (ref $PLS::Server::State::CONFIG->{inc} eq 'ARRAY');
-    unshift @include, $PLS::Server::State::ROOT_PATH        if (length $PLS::Server::State::ROOT_PATH);
+    my $index = PLS::Parser::Index->new();
+    unshift @include, @{PLS::Parser::Index->new->workspace_folders};
+
     return \@include;
 } ## end sub get_clean_inc
 

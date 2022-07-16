@@ -46,6 +46,7 @@ lib/PLS/Server/Response/InvalidRequest.pm
 lib/PLS/Server/Message.pm
 lib/PLS/Server/Request/Workspace/DidChangeWatchedFiles.pm
 lib/PLS/Server/Request/Workspace/DidChangeConfiguration.pm
+lib/PLS/Server/Request/Workspace/DidChangeWorkspaceFolders.pm
 lib/PLS/Server/Request/Workspace/ExecuteCommand.pm
 lib/PLS/Server/Request/Workspace/ApplyEdit.pm
 lib/PLS/Server/Request/Workspace/Configuration.pm

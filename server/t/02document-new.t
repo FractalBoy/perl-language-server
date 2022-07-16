@@ -12,7 +12,7 @@ use URI;
 use PLS::Parser::Document;
 use PLS::Server::State;
 
-local $PLS::Server::State::ROOT_PATH = $FindBin::RealBin;
+my $index = PLS::Parser::Index->new(workspace_folders => [$FindBin::RealBin]);
 
 subtest 'new with uri' => sub {
     plan tests => 4;
@@ -27,8 +27,10 @@ subtest 'new with uri' => sub {
     subtest 'new with line' => sub {
         plan tests => 5;
 
-        PLS::Parser::Document->set_index(undef);
-        $doc = PLS::Parser::Document->new(uri => $uri->as_string, line => 5);
+        $doc               = PLS::Parser::Document->new(uri => $uri->as_string, line => 5);
+        $index->{subs}     = {};
+        $index->{packages} = {};
+        $index->{files}    = {};
         isa_ok($doc,             'PLS::Parser::Document');
         isa_ok($doc->{document}, 'PPI::Document');
         isa_ok($doc->{index},    'PLS::Parser::Index');
@@ -44,7 +46,9 @@ subtest 'new with path' => sub {
     plan tests => 3;
 
     my $uri = URI::file->new(File::Spec->catfile($FindBin::RealBin, $FindBin::RealScript));
-    PLS::Parser::Document->set_index(undef);
+    $index->{subs}     = {};
+    $index->{packages} = {};
+    $index->{files}    = {};
     my $doc = PLS::Parser::Document->new(path => $uri->file);
 
     isa_ok($doc,             'PLS::Parser::Document');
