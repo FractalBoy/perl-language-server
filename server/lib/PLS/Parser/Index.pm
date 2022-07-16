@@ -428,6 +428,8 @@ sub get_packages
     state $rx = qr/((?&PerlPackageDeclaration))$PPR::GRAMMAR/x;
     my %packages;
 
+    my $uri = URI::file->new($file)->as_string();
+
     while ($$text =~ /$rx/g)
     {
         my $name = $1;
@@ -440,10 +442,8 @@ sub get_packages
         $end -= $line_offsets->[$end_line];
 
         $name =~ s/package//;
+        $name =~ s/;\s*$//g;
         $name =~ s/^\s+|\s+$//g;
-        $name =~ s/;$//g;
-
-        my $uri = URI::file->new($file)->as_string();
 
         push @{$packages{$name}},
           {
@@ -484,7 +484,7 @@ sub get_subroutines
             # Perl pre 5.028
             (?:
                 (?>
-                    (?&PerlParenthesesList)    # Parameter list
+                    (?<params>(?<label>(?&PerlParenthesesList)))    # Parameter list
                 |
                     \( [^)]*+ \)               # Prototype (
                 )
@@ -494,7 +494,7 @@ sub get_subroutines
         |
             # Perl post 5.028
             (?: (?>(?&PerlAttributes))       (?&PerlOWS) )?+
-            (?: (?>(?&PerlParenthesesList))  (?&PerlOWS) )?+    # Parameter list
+            (?<params>(?<label>(?: (?>(?&PerlParenthesesList))  (?&PerlOWS) )?+))    # Parameter list
         )
         (?> ; | \{
             (?&PerlOWS)
