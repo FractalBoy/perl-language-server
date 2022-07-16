@@ -34,9 +34,9 @@ sub get_package_functions
     # Just use the first workspace folder as ROOT_PATH - we don't know
     # which folder the code will ultimately be in, and it doesn't really matter
     # for anyone except me.
-    my $index = PLS::Parser::Index->new();
-    my $cwd   = $PLS::Server::State::CONFIG->{cwd};
-    $cwd =~ s/\$ROOT_PATH/$index->{workspace_folders}[0]/;
+    my ($workspace_folder) = @{PLS::Parser::Index->new->workspace_folders};
+    my $cwd = $PLS::Server::State::CONFIG->{cwd};
+    $cwd =~ s/\$ROOT_PATH/$workspace_folder/;
 
     my $pid = fork;
 

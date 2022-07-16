@@ -293,7 +293,7 @@ sub get_clean_inc
 
     unshift @include, @{$PLS::Server::State::CONFIG->{inc}} if (ref $PLS::Server::State::CONFIG->{inc} eq 'ARRAY');
     my $index = PLS::Parser::Index->new();
-    unshift @include, @{$index->{workspace_folders}};
+    unshift @include, @{PLS::Parser::Index->new->workspace_folders};
 
     return \@include;
 } ## end sub get_clean_inc

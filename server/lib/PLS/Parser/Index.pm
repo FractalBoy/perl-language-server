@@ -232,12 +232,14 @@ sub find_package_subroutine
         return [];
     } ## end if (ref $locations ne ...)
 
+    my @subroutines;
+
     foreach my $file (@{$locations})
     {
-        return $self->find_subroutine($subroutine, $file->{uri});
+        push @subroutines, @{$self->find_subroutine($subroutine, $file->{uri})};
     }
 
-    return;
+    return \@subroutines;
 } ## end sub find_package_subroutine
 
 sub find_subroutine

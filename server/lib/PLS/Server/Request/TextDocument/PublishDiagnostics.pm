@@ -139,8 +139,8 @@ sub get_compilation_errors
     my $args             = PLS::Parser::Pod->get_perl_args();
     my @inc              = map { "-I$_" } @{$inc // []};
     my $index            = PLS::Parser::Index->new();
-    my $workspace_folder = List::Util::first { path($_)->subsumes($path) } @{$index->{workspace_folders}};
-    $workspace_folder = $index->{workspace_folders}[0] unless (length $workspace_folder);
+    my $workspace_folder = List::Util::first { path($_)->subsumes($path) } @{$index->workspace_folders};
+    ($workspace_folder) = @{$index->workspace_folders} unless (length $workspace_folder);
     my $new_cwd = $PLS::Server::State::CONFIG->{cwd} // '';
     $new_cwd =~ s/\$ROOT_PATH/$workspace_folder/;
 
