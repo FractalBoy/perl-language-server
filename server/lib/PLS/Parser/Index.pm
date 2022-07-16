@@ -2,20 +2,21 @@ package PLS::Parser::Index;
 
 use strict;
 use warnings;
+
 use feature 'state';
 
 use File::Find;
-use File::stat;
 use File::Spec;
+use File::stat;
 use IO::Async::Function;
 use IO::Async::Loop;
-use URI::file;
 use List::Util qw(any);
-use Path::Tiny;
 use POSIX;
 use PPR;
+use Path::Tiny;
 use Storable;
 use Time::Piece;
+use URI::file;
 
 use PLS::Parser::Document;
 
