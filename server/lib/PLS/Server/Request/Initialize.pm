@@ -30,7 +30,7 @@ sub service
 {
     my ($self, $server) = @_;
 
-    my $root_uri = $self->{params}{rootUri};
+    my $root_uri          = $self->{params}{rootUri};
     my $workspace_folders = $self->{params}{workspaceFolders};
     $workspace_folders = [] if (ref $workspace_folders ne 'ARRAY');
     @{$workspace_folders} = map { $_->{uri} } @{$workspace_folders};

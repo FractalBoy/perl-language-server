@@ -134,11 +134,11 @@ sub get_compilation_errors
 
     close $fh;
 
-    my $perl = PLS::Parser::Pod->get_perl_exe();
-    my $inc  = PLS::Parser::Pod->get_clean_inc();
-    my $args = PLS::Parser::Pod->get_perl_args();
-    my @inc  = map { "-I$_" } @{$inc // []};
-    my $index = PLS::Parser::Index->new();
+    my $perl             = PLS::Parser::Pod->get_perl_exe();
+    my $inc              = PLS::Parser::Pod->get_clean_inc();
+    my $args             = PLS::Parser::Pod->get_perl_args();
+    my @inc              = map { "-I$_" } @{$inc // []};
+    my $index            = PLS::Parser::Index->new();
     my $workspace_folder = List::Util::first { path($_)->subsumes($path) } @{$index->{workspace_folders}};
     $workspace_folder = $index->{workspace_folders}[0] unless (length $workspace_folder);
     my $new_cwd = $PLS::Server::State::CONFIG->{cwd} // '';
@@ -151,7 +151,7 @@ sub get_compilation_errors
 
     my $proc = IO::Async::Process->new(
         command => [$perl, @inc, '-c', $path, @{$args}],
-        setup => \@setup,
+        setup   => \@setup,
         stderr  => {
             on_read => sub {
                 my ($stream, $buffref, $eof) = @_;

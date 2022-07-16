@@ -15,6 +15,8 @@ PLS::Server::Request::Workspace::DidChangeWorkspaceFolders
 
 =head1 DESCRIPTION
 
+This is a notification from the client to the server that
+workspace folders were added or removed.
 
 =cut
 

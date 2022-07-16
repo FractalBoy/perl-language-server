@@ -37,7 +37,7 @@ sub service
     # so that we can reindex it.
     my $index = PLS::Parser::Index->new();
 
-    if (scalar @{$index->{workspace_folders}})
+    if (scalar @{$index->workspace_folders})
     {
         push @capabilities,
           {
@@ -51,10 +51,11 @@ sub service
                                             ]
                                }
           };
-    } ## end if (length $PLS::Server::State::ROOT_PATH...)
+    } ## end if (scalar @{$index->workspace_folders...})
 
     $server->send_server_request(PLS::Server::Request::Client::RegisterCapability->new(\@capabilities));
 
+    # Now is a good time to start indexing files.
     $index->index_files();
 
     return;

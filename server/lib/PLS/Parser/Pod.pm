@@ -24,7 +24,7 @@ for sending to the Language Server Protocol.
 
 =cut
 
-my $PERL_EXE = $^X;
+my $PERL_EXE  = $^X;
 my $PERL_ARGS = [];
 
 sub new

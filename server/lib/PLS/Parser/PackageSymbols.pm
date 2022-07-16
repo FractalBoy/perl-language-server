@@ -3,7 +3,7 @@ package PLS::Parser::PackageSymbols;
 use strict;
 use warnings;
 
-use Fcntl ();
+use Fcntl    ();
 use Storable ();
 
 use PLS::Parser::Index;
@@ -35,7 +35,7 @@ sub get_package_functions
     # which folder the code will ultimately be in, and it doesn't really matter
     # for anyone except me.
     my $index = PLS::Parser::Index->new();
-    my $cwd = $PLS::Server::State::CONFIG->{cwd};
+    my $cwd   = $PLS::Server::State::CONFIG->{cwd};
     $cwd =~ s/\$ROOT_PATH/$index->{workspace_folders}[0]/;
 
     my $pid = fork;
@@ -55,12 +55,12 @@ sub get_package_functions
             kill 'KILL', $pid;
             waitpid $pid, 0;
             return;
-        }
+        } ## end if ($timeout)
 
         waitpid $pid, 0;
         return if (ref $result ne 'HASH' or not $result->{ok});
         return $result->{functions};
-    }
+    } ## end if ($pid)
     else
     {
         close $read_fh;
@@ -68,12 +68,12 @@ sub get_package_functions
         my $flags = fcntl $write_fh, Fcntl::F_GETFD, 0;
         fcntl $write_fh, Fcntl::F_SETFD, $flags & ~Fcntl::FD_CLOEXEC;
 
-        my @inc = map { "-I$_" } @{$config->{inc} // []};
+        my @inc  = map { "-I$_" } @{$config->{inc} // []};
         my $perl = PLS::Parser::Pod->get_perl_exe();
 
         chdir $cwd;
         exec $perl, @inc, '-e', $script, fileno($write_fh), $package;
-    }
+    } ## end else [ if ($pid) ]
 } ## end sub get_package_functions
 
 1;

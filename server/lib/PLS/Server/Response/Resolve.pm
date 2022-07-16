@@ -29,7 +29,7 @@ sub new
     bless $self, $class;
 
     my $index = PLS::Parser::Index->new();
-    my $kind = $request->{params}{kind};
+    my $kind  = $request->{params}{kind};
 
     if ($kind == 7)
     {
@@ -75,14 +75,14 @@ sub new
     elsif ($kind == 14)
     {
         my $pod = PLS::Parser::Pod::Builtin->new(function => $request->{params}{label});
-        my $ok = $pod->find();
+        my $ok  = $pod->find();
 
         if ($ok)
         {
             $self->{result} = $request->{params};
             $self->{result}{documentation} = {kind => 'markdown', value => ${$pod->{markdown}}};
         }
-    }
+    } ## end elsif ($kind == 14)
 
     return $self;
 } ## end sub new
