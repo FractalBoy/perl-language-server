@@ -97,8 +97,8 @@ BBEdit version 14.0 and higher adds support for Language Server Protocols, inclu
 
 ## Configuration
 
-1. Optionally, add paths to `@INC` by modifying the `perl.inc` setting. You can use the `$ROOT_PATH` mnemonic to stand in for your project's root directory, for example `$ROOT_PATH/lib`. PLS does not yet support multiple workspace folders.
-2. Optionally, change the current working directory to run PLS in by modifying the `perl.cwd` setting.
+1. Optionally, add paths to `@INC` by modifying the `perl.inc` setting. You can use the `$ROOT_PATH` mnemonic to stand in for your project's root directory, for example `$ROOT_PATH/lib`. If you are using multiple workspace folders and use `$ROOT_PATH`, the path will be multiplied by the number of workspace folders, and will be replaced that many times.
+2. Optionally, change the current working directory to run PLS in by modifying the `perl.cwd` setting. If you use `$ROOT_PATH` here, it will be replaced by the first or only workspace folder.
 3. Optionally, configure the path to your `.perltidyrc` file using the `perl.perltidyrc` setting. By default, `~/.perltidyrc` is used.
 4. Optionally, configure the path to your `.perlcriticrc` file using the `perl.perlcritic.perlcriticrc` setting. By default, `~/.perlcriticrc` is used. You can also disable `perlcritic` checking entirely by disabling the `perl.perlcritic.enabled` setting.
 5. Optionally, configure the path to an alternate `perl` to use for syntax checking using the `perl.syntax.perl` setting. By default, the `perl` used to run PLS will be used. You can also disable syntax checking entirely by disabling the `perl.syntax.enabled` setting. 
