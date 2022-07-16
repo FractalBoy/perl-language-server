@@ -1,7 +1,7 @@
 use strict;
 use warnings;
 
-use Test::More tests => 67;
+use Test::More tests => 68;
 
 use_ok('PLS');
 use_ok('PLS::Server');
@@ -33,6 +33,7 @@ use_ok('PLS::Server::Request::Workspace::ApplyEdit');
 use_ok('PLS::Server::Request::Workspace::Configuration');
 use_ok('PLS::Server::Request::Workspace::DidChangeConfiguration');
 use_ok('PLS::Server::Request::Workspace::DidChangeWatchedFiles');
+use_ok('PLS::Server::Request::Workspace::DidChangeWorkspaceFolders');
 use_ok('PLS::Server::Request::Workspace::ExecuteCommand');
 use_ok('PLS::Server::Request::Workspace::Symbol');
 
