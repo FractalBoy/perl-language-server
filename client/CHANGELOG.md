@@ -31,3 +31,7 @@ All notable changes to the "pls" extension will be documented in this file.
 ## [0.0.14] - 2022-03-01
 ###
 - Updated README to include information about syntax related settings.
+
+## [0.0.15] - TBD
+###
+- Added perl.syntax.args setting.

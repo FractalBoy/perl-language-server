@@ -139,3 +139,25 @@ Revision history for perl module PLS
    the text will now simply not be formatted. In VSCode, this prevents disruptive
    notifications that a request has failed.
  - Documentation has been updated to include information about syntax related settings.
+
+0.900 TBD
+
+ - Improvements to indexing:
+   - Indexing is done using PPR now, instead of PPI, which is much faster.
+   - Indexing is now performed by multiple child processes, which is faster.
+   - The index is no longer written to a file, instead it is done during startup.
+   - Files are now reindexed on change, not just when they are saved.
+   - .pls-tmp-* file deletion no longer triggers a cleanup of the index, which should
+     improve performance, because it prevents a synchronous stat() of all files.
+   - Indexing progress is no longer logged.
+ - Support for multiple workspace folders has been added.
+ - Handling for edge cases related to completion has been improved.
+ - Support for non-ASCII characters in your Perl source code has been added.
+ - Go to definition now works for subroutine calls or references,
+   where the subroutine name is prefixed by &.
+ - Go to definition now works for method calls prefixed by "SUPER".
+ - The client process is now periodically checked to make sure it is still
+   running. If it isn't, the server will exit.
+ - Added Perl code snippets for common patterns.
+ - Instead of attempting to filter completion results on the server side first,
+   everything relevant is returned and filtering is now all done by the client.
