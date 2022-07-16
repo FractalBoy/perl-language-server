@@ -59,12 +59,12 @@ sub handle_response
     {
         foreach my $inc (@{$config->{inc}})
         {
-            foreach my $folder (@{$index->{workspace_folders}})
+            foreach my $folder (@{$index->workspace_folders})
             {
                 my $interpolated = $inc =~ s/\$ROOT_PATH/$folder/gr;
                 push @inc, $interpolated;
             }
-        }
+        } ## end foreach my $inc (@{$config->...})
 
         $config->{inc} = [List::Util::uniq sort @inc];
     } ## end if (exists $config->{inc...})

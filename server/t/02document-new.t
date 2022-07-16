@@ -27,8 +27,10 @@ subtest 'new with uri' => sub {
     subtest 'new with line' => sub {
         plan tests => 5;
 
-        $doc = PLS::Parser::Document->new(uri => $uri->as_string, line => 5);
-        $index->{cache} = {};
+        $doc               = PLS::Parser::Document->new(uri => $uri->as_string, line => 5);
+        $index->{subs}     = {};
+        $index->{packages} = {};
+        $index->{files}    = {};
         isa_ok($doc,             'PLS::Parser::Document');
         isa_ok($doc->{document}, 'PPI::Document');
         isa_ok($doc->{index},    'PLS::Parser::Index');
@@ -44,7 +46,9 @@ subtest 'new with path' => sub {
     plan tests => 3;
 
     my $uri = URI::file->new(File::Spec->catfile($FindBin::RealBin, $FindBin::RealScript));
-    $index->{cache} = {};
+    $index->{subs}     = {};
+    $index->{packages} = {};
+    $index->{files}    = {};
     my $doc = PLS::Parser::Document->new(path => $uri->file);
 
     isa_ok($doc,             'PLS::Parser::Document');

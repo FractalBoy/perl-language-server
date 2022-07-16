@@ -14,14 +14,13 @@ sub new
     my $query = $request->{params}{query};
 
     my $index = PLS::Parser::Index->new();
-    $index = $index->{cache};
     my @symbols;
 
-    foreach my $name (keys %{$index->{subs}})
+    foreach my $name (keys %{$index->subs})
     {
         next if ($name !~ /\Q$query\E/i);
 
-        my $refs = $index->{subs}{$name};
+        my $refs = $index->subs->{$name};
 
         foreach my $sub (@{$refs})
         {
@@ -34,11 +33,11 @@ sub new
         } ## end foreach my $sub (@{$refs})
     } ## end foreach my $name (keys %{$index...})
 
-    foreach my $name (keys %{$index->{packages}})
+    foreach my $name (keys %{$index->packages})
     {
         next if ($name !~ /\Q$query\E/i);
 
-        my $refs = $index->{packages}{$name};
+        my $refs = $index->packages->{$name};
 
         foreach my $package (@{$refs})
         {

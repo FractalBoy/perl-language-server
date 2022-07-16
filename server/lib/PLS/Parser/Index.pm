@@ -39,28 +39,60 @@ sub new
 
     my %args = @args;
     $self = bless {
-                   workspace_folders => $args{workspace_folders},
-                   cache             => {},
+                   workspace_folders   => $args{workspace_folders},
+                   subs                => {},
+                   packages            => {},
+                   files               => {},
+                   ignored_files       => {},
+                   ignore_files_mtimes => {}
                   }, $class;
 
     return $self;
 } ## end sub new
 
-sub start_indexing_function
+sub workspace_folders
+{
+    my ($self) = @_;
+
+    return $self->{workspace_folders};
+}
+
+sub subs
+{
+    my ($self) = @_;
+
+    return $self->{subs};
+}
+
+sub packages
+{
+    my ($self) = @_;
+
+    return $self->{packages};
+}
+
+sub files
+{
+    my ($self) = @_;
+
+    return $self->{files};
+}
+
+sub _start_indexing_function
 {
     my ($self) = @_;
 
     return if (ref $self->{indexing_function} eq 'IO::Async::Function');
 
-    $self->{indexing_function} = IO::Async::Function->new(code => \&_index_files);
+    $self->{indexing_function} = IO::Async::Function->new(code => \&_index_file);
 
     my $loop = IO::Async::Loop->new();
     $loop->add($self->{indexing_function});
 
     return;
-} ## end sub start_indexing_function
+} ## end sub _start_indexing_function
 
-sub _index_files
+sub _index_file
 {
     my ($file) = @_;
 
@@ -70,13 +102,13 @@ sub _index_files
     my $subroutines  = PLS::Parser::Index->get_subroutines($text, $file, $line_offsets);
 
     return $packages, $subroutines;
-} ## end sub _index_files
+} ## end sub _index_file
 
 sub index_files
 {
     my ($self, @files) = @_;
 
-    $self->start_indexing_function();
+    $self->_start_indexing_function();
 
     @files = @{$self->get_all_perl_files()} unless (scalar @files);
 
@@ -91,19 +123,19 @@ sub index_files
 
                 foreach my $type (qw(subs packages))
                 {
-                    $self->cleanup_index($type, $file);
+                    $self->_cleanup_index($type, $file);
                 }
 
                 foreach my $ref (keys %{$packages})
                 {
-                    push @{$self->{cache}{packages}{$ref}}, @{$packages->{$ref}};
-                    push @{$self->{cache}{files}{$file}{packages}}, $ref;
+                    push @{$self->packages->{$ref}},         @{$packages->{$ref}};
+                    push @{$self->files->{$file}{packages}}, $ref;
                 }
 
                 foreach my $ref (keys %{$subs})
                 {
-                    push @{$self->{cache}{subs}{$ref}}, @{$subs->{$ref}};
-                    push @{$self->{cache}{files}{$file}{subs}}, $ref;
+                    push @{$self->subs->{$ref}},         @{$subs->{$ref}};
+                    push @{$self->files->{$file}{subs}}, $ref;
                 }
 
                 return;
@@ -118,15 +150,15 @@ sub deindex_workspace
 {
     my ($self, $path) = @_;
 
-    @{$self->{workspace_folders}} = grep { $_ ne $path } @{$self->{workspace_folders}};
+    @{$self->workspace_folders} = grep { $_ ne $path } @{$self->workspace_folders};
 
-    foreach my $file (keys %{$self->{cache}{files}})
+    foreach my $file (keys %{$self->files})
     {
         next unless path($path)->subsumes($file);
 
         foreach my $type (qw(subs packages))
         {
-            $self->cleanup_index($type, $file);
+            $self->_cleanup_index($type, $file);
         }
     } ## end foreach my $file (keys %{$self...})
 
@@ -137,7 +169,7 @@ sub index_workspace
 {
     my ($self, $path) = @_;
 
-    push @{$self->{workspace_folders}}, $path;
+    push @{$self->workspace_folders}, $path;
 
     my @workspace_files = @{$self->get_all_perl_files($path)};
     $self->index_files(@workspace_files);
@@ -145,79 +177,43 @@ sub index_workspace
     return;
 } ## end sub index_workspace
 
-sub cleanup_index
+sub _cleanup_index
 {
     my ($self, $type, $file) = @_;
 
-    my $index = $self->{cache};
-
-    if (ref $index->{files}{$file}{$type} eq 'ARRAY')
+    if (ref $self->files->{$file}{$type} eq 'ARRAY')
     {
-        foreach my $ref (@{$index->{files}{$file}{$type}})
+        foreach my $ref (@{$self->files->{$file}{$type}})
         {
-            @{$index->{$type}{$ref}} = grep { $_->{uri} ne URI::file->new($file)->as_string() } @{$index->{$type}{$ref}};
-            delete $index->{$type}{$ref} unless (scalar @{$index->{$type}{$ref}});
+            @{$self->$type->{$ref}} = grep { $_->{uri} ne URI::file->new($file)->as_string() } @{$self->$type->{$ref}};
+            delete $self->$type->{$ref} unless (scalar @{$self->$type->{$ref}});
         }
 
-        @{$index->{files}{$file}{$type}} = ();
-    } ## end if (ref $index->{files...})
+        @{$self->files->{$file}{$type}} = ();
+    } ## end if (ref $self->files->...)
     else
     {
-        $index->{files}{$file}{$type} = [];
+        $self->files->{$file}{$type} = [];
     }
 
     return;
-} ## end sub cleanup_index
+} ## end sub _cleanup_index
 
 sub cleanup_old_files
 {
     my ($self) = @_;
 
-    my $index = $self->{cache};
-
-    if (ref $index->{files} eq 'HASH')
+    foreach my $file (keys %{$self->files})
     {
-        foreach my $file (keys %{$index->{files}})
+        next if (-e $file);
+
+        foreach my $type (qw(subs packages))
         {
-            next if -f $file;
+            $self->_cleanup_index($type, $file);
+        }
 
-            if (ref $index->{subs} eq 'HASH')
-            {
-                foreach my $sub (@{$index->{files}{$file}{subs}})
-                {
-                    next unless (ref $index->{subs}{$sub} eq 'ARRAY');
-                    @{$index->{subs}{$sub}} = grep { $_->{uri} eq URI::file->new($file)->as_string() } @{$index->{subs}{$sub}};
-                    delete $index->{subs}{$sub} unless (scalar @{$index->{subs}{$sub}});
-                } ## end foreach my $sub (@{$index->...})
-            } ## end if (ref $index->{subs}...)
-
-            if (ref $index->{packages} eq 'HASH')
-            {
-                foreach my $package (@{$index->{files}{$file}{packages}})
-                {
-                    next unless (ref $index->{packages}{$package} eq 'ARRAY');
-                    @{$index->{packages}{$package}} = grep { $_->{uri} eq URI::file->new($file)->as_string() } @{$index->{packages}{$package}};
-                    delete $index->{packages}{$package} unless (scalar @{$index->{packages}{$package}});
-                } ## end foreach my $package (@{$index...})
-            } ## end if (ref $index->{packages...})
-
-            delete $index->{files}{$file};
-        } ## end foreach my $file (keys %{$index...})
-    } ## end if (ref $index->{files...})
-
-    foreach my $type (keys %{$index})
-    {
-        my $refs_cleaned = 0;
-
-        foreach my $ref (keys %{$index->{$type}})
-        {
-            next unless (ref $index->{$type}{$ref} eq 'ARRAY');
-            my $count_before = scalar @{$index->{$type}{$ref}};
-            @{$index->{$type}{$ref}} = grep { -e URI->new($_->{uri})->file } @{$index->{$type}{$ref}};
-            my $count_after = scalar @{$index->{$type}{$ref}};
-            $refs_cleaned++ if ($count_after < $count_before);
-        } ## end foreach my $ref (keys %{$index...})
-    } ## end foreach my $type (keys %{$index...})
+        delete $self->files->{$file};
+    } ## end foreach my $file (keys %{$self...})
 
     return;
 } ## end sub cleanup_old_files
@@ -226,8 +222,7 @@ sub find_package_subroutine
 {
     my ($self, $package, $subroutine) = @_;
 
-    my $index     = $self->{cache};
-    my $locations = $index->{packages}{$package};
+    my $locations = $self->packages->{$package};
 
     if (ref $locations ne 'ARRAY')
     {
@@ -248,29 +243,20 @@ sub find_subroutine
 {
     my ($self, $subroutine, @uris) = @_;
 
-    my $index = $self->{cache};
-    my $found = $index->{subs}{$subroutine};
+    my $found = $self->subs->{$subroutine};
     return [] unless (ref $found eq 'ARRAY');
 
-    my @locations = @$found;
+    my %uris = map { $_ => 1 } @uris;
+    @{$found} = grep { $uris{$_} } @{$found} if (scalar @uris);
 
-    if (scalar @uris)
-    {
-        @locations = grep {
-            my $location = $_;
-            scalar grep { $location->{uri} eq $_ } @uris;
-        } @locations;
-    } ## end if (scalar @uris)
-
-    return Storable::dclone(\@locations);
+    return Storable::dclone($found);
 } ## end sub find_subroutine
 
 sub find_package
 {
     my ($self, $package) = @_;
 
-    my $index = $self->{cache};
-    my $found = $index->{packages}{$package};
+    my $found = $self->packages->{$package};
 
     if (ref $found ne 'ARRAY')
     {
@@ -288,7 +274,7 @@ sub get_ignored_files
 
     my @ignored_files;
 
-    foreach my $workspace_folder (@{$self->{workspace_folders}})
+    foreach my $workspace_folder (@{$self->workspace_folders})
     {
         my $plsignore = File::Spec->catfile($workspace_folder, '.plsignore');
         next if (not -f $plsignore or not -r $plsignore);
@@ -317,16 +303,16 @@ sub get_all_subroutines
 {
     my ($self) = @_;
 
-    return [] if (ref $self->{cache}{subs} ne 'HASH');
-    return [keys %{$self->{cache}{subs}}];
+    return [] if (ref $self->subs ne 'HASH');
+    return [keys %{$self->subs}];
 } ## end sub get_all_subroutines
 
 sub get_all_packages
 {
     my ($self) = @_;
 
-    return [] if (ref $self->{cache}{packages} ne 'HASH');
-    return [keys %{$self->{cache}{packages}}];
+    return [] if (ref $self->packages ne 'HASH');
+    return [keys %{$self->packages}];
 } ## end sub get_all_packages
 
 sub is_ignored
@@ -334,7 +320,7 @@ sub is_ignored
     my ($self, $file) = @_;
 
     my @ignore_files = @{$self->get_ignored_files()};
-    return if not scalar @ignore_files;
+    return unless (scalar @ignore_files);
 
     my $real_path = path($file)->realpath;
 
@@ -348,8 +334,8 @@ sub get_all_perl_files
 {
     my ($self, @folders) = @_;
 
-    @folders = @{$self->{workspace_folders}} unless (scalar @folders);
-    return []                                unless (scalar @folders);
+    @folders = @{$self->workspace_folders} unless (scalar @folders);
+    return []                              unless (scalar @folders);
 
     my @perl_files;
 
@@ -370,7 +356,7 @@ sub get_all_perl_files
          }
         },
         @folders
-                    );
+    );
 
     return \@perl_files;
 } ## end sub get_all_perl_files
