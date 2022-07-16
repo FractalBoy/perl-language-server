@@ -21,11 +21,6 @@
     "configuration": {
       "title": "Perl Language Server (PLS)",
       "properties": {
-        "perl.inc": {
-          "type": "array",
-          "default": [],
-          "description": "Paths to add to @INC."
-        },
         "perl.pls": {
           "type": "string",
           "default": "pls",
@@ -35,6 +30,16 @@
           "type": "array",
           "default": [],
           "description": "Arguments to pass to the pls command"
+        },
+        "perl.cwd": {
+          "type": "string",
+          "default": ".",
+          "description": "Current working directory to use"
+        },
+        "perl.inc": {
+          "type": "array",
+          "default": [],
+          "description": "Paths to add to @INC."
         },
         "perl.syntax.enabled": {
           "type": "boolean",
@@ -65,11 +70,6 @@
           "type": "boolean",
           "default": true,
           "description": "Enable perlcritic"
-        },
-        "perl.cwd": {
-          "type": "string",
-          "default": ".",
-          "description": "Current working directory to use"
         }
       }
     },
