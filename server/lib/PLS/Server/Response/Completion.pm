@@ -102,7 +102,6 @@ sub new
          kind             => 15,
          insertTextFormat => 2,
          insertText       => "sub \$1\n{\n\t\$0\n}",
-         preselect        => \1,
         },
         {
          label            => 'foreach',
@@ -110,7 +109,6 @@ sub new
          kind             => 15,
          insertTextFormat => 2,
          insertText       => "foreach my \$1 (\$2)\n{\n\t\$0\n}",
-         preselect        => \1,
         },
         {
          label            => 'for',
@@ -118,7 +116,6 @@ sub new
          kind             => 15,
          insertTextFormat => 2,
          insertText       => "for (\$1 ; \$2 ; \$3)\n{\n\t\$0\n}",
-         preselect        => \1
         },
         {
          label            => 'while',
@@ -126,7 +123,6 @@ sub new
          kind             => 15,
          insertTextFormat => 2,
          insertText       => "while (\$1)\n{\n\t\$0\n}",
-         preselect        => \1
         },
         {
          label            => 'if',
@@ -134,7 +130,6 @@ sub new
          kind             => 15,
          insertTextFormat => 2,
          insertText       => "if (\$1)\n{\n\t\$0\n}",
-         preselect        => \1,
         },
         {
          label            => 'elsif',
@@ -142,7 +137,6 @@ sub new
          kind             => 15,
          insertTextFormat => 2,
          insertText       => "elsif (\$1)\n{\n\t\$0\n}",
-         preselect        => \1,
         },
         {
          label            => 'else',
@@ -150,7 +144,6 @@ sub new
          kind             => 15,
          insertTextFormat => 2,
          insertText       => "else\n{\n\t\$0\n}",
-         preselect        => \1,
         },
         {
          label            => 'package',
@@ -158,7 +151,6 @@ sub new
          kind             => 15,
          insertTextFormat => 2,
          insertText       => "package \$1;\n\nuse strict;\nuse warnings;\n\n\$0\n\n1;",
-         preselect        => \1,
         },
         {
          label            => 'open my $fh, ...',
@@ -168,7 +160,6 @@ sub new
          kind             => 15,
          insertTextFormat => 2,
          insertText       => q[open $1, '${2|<,>,>>,+<,+>,\|-,-\|,>&,<&=,>>&=|}', $3],
-         preselect        => \1,
         },
         {
          label            => 'do { local $/; <$fh> }',
