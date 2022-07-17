@@ -18,8 +18,6 @@ use Storable;
 use Time::Piece;
 use URI::file;
 
-use PLS::Parser::Document;
-
 =head1 NAME
 
 PLS::Parser::Index
@@ -97,7 +95,8 @@ sub _index_file
 {
     my ($file) = @_;
 
-    my $text         = PLS::Parser::Document::text_from_uri(URI::file->new($file)->as_string());
+    require PLS::Parser::Document;
+    my $text         = PLS::Parser::Document->text_from_uri(URI::file->new($file)->as_string());
     my $line_offsets = PLS::Parser::Index->get_line_offsets($text);
     my $packages     = PLS::Parser::Index->get_packages($text, $file, $line_offsets);
     my $subroutines  = PLS::Parser::Index->get_subroutines($text, $file, $line_offsets);
@@ -227,6 +226,7 @@ sub find_package_subroutine
 
     if (ref $locations ne 'ARRAY')
     {
+        require PLS::Parser::Document;
         my $external = PLS::Parser::Document->find_external_subroutine($package, $subroutine);
         return [$external] if (ref $external eq 'HASH');
         return [];
@@ -249,10 +249,11 @@ sub find_subroutine
     my $found = $self->subs->{$subroutine};
     return [] unless (ref $found eq 'ARRAY');
 
+    $found = Storable::dclone($found);
     my %uris = map { $_ => 1 } @uris;
-    @{$found} = grep { $uris{$_} } @{$found} if (scalar @uris);
+    @{$found} = grep { $uris{$_->{uri}} } @{$found} if (scalar @uris);
 
-    return Storable::dclone($found);
+    return $found;
 } ## end sub find_subroutine
 
 sub find_package
@@ -263,6 +264,7 @@ sub find_package
 
     if (ref $found ne 'ARRAY')
     {
+        require PLS::Parser::Document;
         my $external = PLS::Parser::Document->find_external_package($package);
         return [$external] if (ref $external eq 'HASH');
         return [];
@@ -508,7 +510,7 @@ sub get_subroutines
         )
         $PPR::GRAMMAR/x;
 
-    state $var_rx = qr/((?&PerlVariable))$PPR::GRAMMAR/;
+    state $var_rx = qr/((?&PerlVariable)|undef)$PPR::GRAMMAR/;
 
     my %subroutines;
 
