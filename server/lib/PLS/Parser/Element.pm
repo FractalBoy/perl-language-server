@@ -252,6 +252,10 @@ sub subroutine_package_and_name
 
     my $content = '';
 
+    return if (    blessed($element->sprevious_sibling)
+               and $element->sprevious_sibling->isa('PPI::Token::Operator')
+               and $element->sprevious_sibling eq '->');
+
     if ($element->isa('PPI::Token::Symbol') and $element->content =~ /^&/)
     {
         $content = $element->content =~ s/^&//r;
