@@ -30,7 +30,11 @@ sub service
     my ($self, $server) = @_;
 
     return unless (ref $self->{params}{contentChanges} eq 'ARRAY');
-    PLS::Parser::Document->update_file(uri => $self->{params}{textDocument}{uri}, changes => $self->{params}{contentChanges});
+    PLS::Parser::Document->update_file(
+                                       uri     => $self->{params}{textDocument}{uri},
+                                       changes => $self->{params}{contentChanges},
+                                       version => $self->{params}{textDocument}{version}
+                                      );
 
     state %timers;
 
@@ -50,7 +54,7 @@ sub service
                 my $index = PLS::Parser::Index->new();
                 $index->index_files(URI->new($uri)->file);
 
-                $server->send_server_request(PLS::Server::Request::TextDocument::PublishDiagnostics->new(uri => $uri, unsaved => 1));
+                $server->send_server_request(PLS::Server::Request::TextDocument::PublishDiagnostics->new(uri => $uri));
                 delete $timers{$uri};
             },
             remove_on_expire => 1

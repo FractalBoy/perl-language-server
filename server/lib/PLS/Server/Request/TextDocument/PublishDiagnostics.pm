@@ -34,13 +34,7 @@ These diagnostics currently include compilation errors and linting (using L<perl
 
 =cut
 
-my $function = IO::Async::Function->new(
-                                        min_workers      => 0,
-                                        max_workers      => 1,
-                                        code             => \&run_perlcritic,
-                                        idle_timeout     => 30,
-                                        max_worker_calls => 5
-                                       );
+my $function = IO::Async::Function->new(code => \&run_perlcritic);
 
 my $loop = IO::Async::Loop->new();
 $loop->add($function);
@@ -52,54 +46,63 @@ sub new
     return if (ref $PLS::Server::State::CONFIG ne 'HASH');
 
     my $uri = URI->new($args{uri});
-
     return if (ref $uri ne 'URI::file');
+
+    my $self = bless {
+                      method => 'textDocument/publishDiagnostics',
+                      params => {
+                                 uri         => $uri->as_string,
+                                 diagnostics => []
+                                },
+                      notification => 1
+                     },
+      $class;
+
     my (undef, $dir) = File::Basename::fileparse($uri->file);
 
     my $source = $uri->file;
+    my $text   = PLS::Parser::Document::text_from_uri($uri->as_string);
+    $source = $text if (ref $text eq 'SCALAR');
+    my $version                    = PLS::Parser::Document::uri_version($uri->as_string);
+    my $client_has_version_support = $PLS::Server::State::CLIENT_CAPABILITIES->{textDocument}{publishDiagnostics}{versionSupport};
+    $self->{params}{version} = $version if (length $version and $client_has_version_support);
 
-    if ($args{unsaved})
-    {
-        my $text = PLS::Parser::Document::text_from_uri($uri->as_string);
-        $source = $text if (ref $text eq 'SCALAR');
-    }
+    # If closing, return empty list of diagnostics.
+    return Future->done($self) if $args{close};
 
     my @futures;
 
-    push @futures, get_compilation_errors($source, $dir, $args{close}) if (defined $PLS::Server::State::CONFIG->{syntax}{enabled} and $PLS::Server::State::CONFIG->{syntax}{enabled});
-    push @futures, get_perlcritic_errors($source, $uri->file, $args{close})
+    push @futures, get_compilation_errors($source, $dir) if (defined $PLS::Server::State::CONFIG->{syntax}{enabled} and $PLS::Server::State::CONFIG->{syntax}{enabled});
+    push @futures, get_perlcritic_errors($source, $uri->file)
       if (defined $PLS::Server::State::CONFIG->{perlcritic}{enabled} and $PLS::Server::State::CONFIG->{perlcritic}{enabled});
 
     return Future->wait_all(@futures)->then(
         sub {
-            my @diagnostics = map { $_->result } @_;
+            my $current_version = PLS::Parser::Document::uri_version($uri->as_string);
 
-            my $self = {
-                method => 'textDocument/publishDiagnostics',
-                params => {
-                           uri         => $uri->as_string,
-                           diagnostics => \@diagnostics
-                          },
-                notification => 1    # indicates to the server that this should not be assigned an id, and that there will be no response
-            };
+            # No version will be returned if the document has been closed.
+            # Since the only way we got here is if the document is open, we
+            # should return nothing, since any diagnostics we return will be from
+            # when the document was still open.
+            return Future->done(undef) unless (length $current_version);
 
-            return Future->done(bless $self, $class);
+            # If the document has been updated since the diagnostics were created,
+            # send nothing back. The next update will re-trigger the diagnostics.
+            return Future->done(undef) if (length $version and $current_version > $version);
+
+            @{$self->{params}{diagnostics}} = map { $_->result } @_;
+
+            return Future->done($self);
         }
     );
 } ## end sub new
 
 sub get_compilation_errors
 {
-    my ($source, $dir, $close) = @_;
+    my ($source, $dir) = @_;
 
     my $temp;
     my $future = $loop->new_future();
-
-    if ($close)
-    {
-        $future->done();
-        return $future;
-    }
 
     my $fh;
     my $path;
@@ -212,19 +215,17 @@ sub get_compilation_errors
 
 sub get_perlcritic_errors
 {
-    my ($source, $path, $close) = @_;
+    my ($source, $path) = @_;
 
     my ($profile) = glob $PLS::Server::State::CONFIG->{perlcritic}{perlcriticrc};
     undef $profile if (not length $profile or not -f $profile or not -r $profile);
 
-    return $function->call(args => [$profile, $source, $path, $close]);
+    return $function->call(args => [$profile, $source, $path]);
 } ## end sub get_perlcritic_errors
 
 sub run_perlcritic
 {
-    my ($profile, $source, $path, $close) = @_;
-
-    return if $close;
+    my ($profile, $source, $path) = @_;
 
     my $critic = Perl::Critic->new(-profile => $profile);
     my %args;

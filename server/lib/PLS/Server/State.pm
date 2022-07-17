@@ -7,6 +7,7 @@ our $INITIALIZED = 0;
 our $ROOT_PATH;
 our $CONFIG;
 our $SHUTDOWN = 0;
+our $CLIENT_CAPABILITIES;
 
 =head1 NAME
 

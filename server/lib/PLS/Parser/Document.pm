@@ -32,6 +32,7 @@ use PLS::Parser::Pod::Subroutine;
 use PLS::Parser::Pod::Variable;
 
 my %FILES;
+my %VERSIONS;
 
 =head1 NAME
 
@@ -674,7 +675,8 @@ sub open_file
 
     return unless $args{languageId} eq 'perl';
 
-    $FILES{$args{uri}} = \($args{text});
+    $FILES{$args{uri}}    = \($args{text});
+    $VERSIONS{$args{uri}} = $args{version};
 
     return;
 } ## end sub open_file
@@ -705,6 +707,8 @@ sub update_file
 
     my $file = $FILES{$args{uri}};
     return if (ref $file ne 'SCALAR');
+
+    $VERSIONS{$args{uri}} = $args{version};
 
     foreach my $change (@{$args{changes}})
     {
@@ -786,6 +790,9 @@ sub close_file
     my %args = @args;
 
     delete $FILES{$args{uri}};
+    delete $VERSIONS{$args{uri}};
+
+    return;
 } ## end sub close_file
 
 =head2 get_subroutines
@@ -1171,6 +1178,13 @@ sub text_from_uri
         return \$text;
     } ## end else [ if (ref $FILES{$uri} eq...)]
 } ## end sub text_from_uri
+
+sub uri_version
+{
+    my ($uri) = @_;
+
+    return $VERSIONS{$uri};
+}
 
 =head2 _get_ppi_document
 

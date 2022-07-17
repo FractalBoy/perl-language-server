@@ -26,7 +26,7 @@ sub service
     my $text_document = $self->{params}{textDocument};
     PLS::Parser::Document->open_file(%{$text_document});
 
-    $server->send_server_request(PLS::Server::Request::TextDocument::PublishDiagnostics->new(uri => $text_document->{uri}, unsaved => 1));
+    $server->send_server_request(PLS::Server::Request::TextDocument::PublishDiagnostics->new(uri => $text_document->{uri}));
 
     return;
 } ## end sub service

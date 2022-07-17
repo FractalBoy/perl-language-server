@@ -161,3 +161,5 @@ Revision history for perl module PLS
  - Added Perl code snippets for common patterns.
  - Instead of attempting to filter completion results on the server side first,
    everything relevant is returned and filtering is now all done by the client.
+ - Syntax checking and linting is now multi-threaded. Document versions are used to
+   ensure old diagnostics are not returned to the client.

@@ -45,6 +45,8 @@ sub service
         $server->monitor_client_process($self->{params}{processId});
     }
 
+    $PLS::Server::State::CLIENT_CAPABILITIES = $self->{params}{capabilities};
+
     return PLS::Server::Response::InitializeResult->new($self);
 } ## end sub service
 
