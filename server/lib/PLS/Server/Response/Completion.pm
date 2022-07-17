@@ -117,129 +117,132 @@ sub new
         push @{$self->{result}}, {%$result, textEdit => {newText => $new_text, range => $range}};
     } ## end foreach my $result (@results...)
 
-    # Text snippets
-    push @{$self->{result}},
-      (
-        {
-         label            => 'sub',
-         detail           => 'Insert subroutine',
-         kind             => 15,
-         insertTextFormat => 2,
-         insertText       => "sub \$1\n{\n\t\$0\n}",
-        },
-        {
-         label            => 'foreach',
-         detail           => 'Insert foreach loop',
-         kind             => 15,
-         insertTextFormat => 2,
-         insertText       => "foreach my \$1 (\$2)\n{\n\t\$0\n}",
-        },
-        {
-         label            => 'for',
-         detail           => 'Insert C-style for loop',
-         kind             => 15,
-         insertTextFormat => 2,
-         insertText       => "for (\$1 ; \$2 ; \$3)\n{\n\t\$0\n}",
-        },
-        {
-         label            => 'while',
-         detail           => 'Insert while statement',
-         kind             => 15,
-         insertTextFormat => 2,
-         insertText       => "while (\$1)\n{\n\t\$0\n}",
-        },
-        {
-         label            => 'if',
-         detail           => 'Insert if statement',
-         kind             => 15,
-         insertTextFormat => 2,
-         insertText       => "if (\$1)\n{\n\t\$0\n}",
-        },
-        {
-         label            => 'elsif',
-         detail           => 'Insert elsif statement',
-         kind             => 15,
-         insertTextFormat => 2,
-         insertText       => "elsif (\$1)\n{\n\t\$0\n}",
-        },
-        {
-         label            => 'else',
-         detail           => 'Insert else statement',
-         kind             => 15,
-         insertTextFormat => 2,
-         insertText       => "else\n{\n\t\$0\n}",
-        },
-        {
-         label            => 'package',
-         detail           => 'Create a new package',
-         kind             => 15,
-         insertTextFormat => 2,
-         insertText       => "package \$1;\n\nuse strict;\nuse warnings;\n\n\$0\n\n1;",
-        },
-        {
-         label            => 'open my $fh, ...',
-         filterText       => 'open',
-         sortText         => 'open',
-         detail           => 'Insert an open statement',
-         kind             => 15,
-         insertTextFormat => 2,
-         insertText       => q[open $1, '${2|<,>,>>,+<,+>,\|-,-\|,>&,<&=,>>&=|}', $3],
-        },
-        {
-         label            => 'do { local $/; <$fh> }',
-         filterText       => 'do',
-         sortText         => 'do1',
-         detail           => 'Slurp an entire filehandle',
-         kind             => 15,
-         insertTextFormat => 2,
-         insertText       => 'do { local $/; <$1> }'
-        },
-        {
-         label            => 'while (my $line = <$fh>) { ... }',
-         filterText       => 'while',
-         sortText         => 'while1',
-         detail           => 'Iterate through a filehandle line-by-line',
-         kind             => 15,
-         insertTextFormat => 2,
-         insertText       => "while (my \$1 = <\$2>)\n{\n\t\$0\n}"
-        },
-        {
-         label            => 'my ($param1, $param2, ...) = @_;',
-         filterText       => 'my',
-         sortText         => 'my1',
-         detail           => 'Get subroutine parameters',
-         kind             => 15,
-         insertTextFormat => 2,
-         insertText       => "my (\$1) = \@_;\n\n"
-        },
-        {
-         label            => '$? >> 8',
-         filterText       => '$?',
-         sortText         => '$?',
-         detail           => 'Get exit code',
-         kind             => 15,
-         insertTextFormat => 2,
-         insertText       => '? >> 8'
-        },
-        {
-         label            => 'sort { $a <=> $b } ...',
-         filterText       => 'sort',
-         sortText         => 'sort1',
-         detail           => 'Sort numerically ascending',
-         kind             => 15,
-         insertTextFormat => 2,
-         insertText       => 'sort { \$a <=> \$b } $1'
-        },
-        {
-         label            => 'reverse sort { $a <=> $b } ...',
-         filterText       => 'sort',
-         sortText         => 'sort2',
-         detail           => 'Sort numerically descending',
-         kind             => 15,
-         insertTextFormat => 2,
-         insertText       => 'reverse sort { \$a <=> \$b } $1'
-        }
-      );
+    if (not $arrow and not $package and $filter !~ /^\%\@/)
+    {
+        # Text snippets
+        push @{$self->{result}},
+          (
+            {
+             label            => 'sub',
+             detail           => 'Insert subroutine',
+             kind             => 15,
+             insertTextFormat => 2,
+             insertText       => "sub \$1\n{\n\t\$0\n}",
+            },
+            {
+             label            => 'foreach',
+             detail           => 'Insert foreach loop',
+             kind             => 15,
+             insertTextFormat => 2,
+             insertText       => "foreach my \$1 (\$2)\n{\n\t\$0\n}",
+            },
+            {
+             label            => 'for',
+             detail           => 'Insert C-style for loop',
+             kind             => 15,
+             insertTextFormat => 2,
+             insertText       => "for (\$1 ; \$2 ; \$3)\n{\n\t\$0\n}",
+            },
+            {
+             label            => 'while',
+             detail           => 'Insert while statement',
+             kind             => 15,
+             insertTextFormat => 2,
+             insertText       => "while (\$1)\n{\n\t\$0\n}",
+            },
+            {
+             label            => 'if',
+             detail           => 'Insert if statement',
+             kind             => 15,
+             insertTextFormat => 2,
+             insertText       => "if (\$1)\n{\n\t\$0\n}",
+            },
+            {
+             label            => 'elsif',
+             detail           => 'Insert elsif statement',
+             kind             => 15,
+             insertTextFormat => 2,
+             insertText       => "elsif (\$1)\n{\n\t\$0\n}",
+            },
+            {
+             label            => 'else',
+             detail           => 'Insert else statement',
+             kind             => 15,
+             insertTextFormat => 2,
+             insertText       => "else\n{\n\t\$0\n}",
+            },
+            {
+             label            => 'package',
+             detail           => 'Create a new package',
+             kind             => 15,
+             insertTextFormat => 2,
+             insertText       => "package \$1;\n\nuse strict;\nuse warnings;\n\n\$0\n\n1;",
+            },
+            {
+             label            => 'open my $fh, ...',
+             filterText       => 'open',
+             sortText         => 'open',
+             detail           => 'Insert an open statement',
+             kind             => 15,
+             insertTextFormat => 2,
+             insertText       => q[open $1, '${2|<,>,>>,+<,+>,\|-,-\|,>&,<&=,>>&=|}', $3],
+            },
+            {
+             label            => 'do { local $/; <$fh> }',
+             filterText       => 'do',
+             sortText         => 'do1',
+             detail           => 'Slurp an entire filehandle',
+             kind             => 15,
+             insertTextFormat => 2,
+             insertText       => 'do { local $/; <$1> }'
+            },
+            {
+             label            => 'while (my $line = <$fh>) { ... }',
+             filterText       => 'while',
+             sortText         => 'while1',
+             detail           => 'Iterate through a filehandle line-by-line',
+             kind             => 15,
+             insertTextFormat => 2,
+             insertText       => "while (my \$1 = <\$2>)\n{\n\t\$0\n}"
+            },
+            {
+             label            => 'my ($param1, $param2, ...) = @_;',
+             filterText       => 'my',
+             sortText         => 'my1',
+             detail           => 'Get subroutine parameters',
+             kind             => 15,
+             insertTextFormat => 2,
+             insertText       => "my (\$1) = \@_;\n\n"
+            },
+            {
+             label            => '$? >> 8',
+             filterText       => '$?',
+             sortText         => '$?',
+             detail           => 'Get exit code',
+             kind             => 15,
+             insertTextFormat => 2,
+             insertText       => '? >> 8'
+            },
+            {
+             label            => 'sort { $a <=> $b } ...',
+             filterText       => 'sort',
+             sortText         => 'sort1',
+             detail           => 'Sort numerically ascending',
+             kind             => 15,
+             insertTextFormat => 2,
+             insertText       => 'sort { \$a <=> \$b } $1'
+            },
+            {
+             label            => 'reverse sort { $a <=> $b } ...',
+             filterText       => 'sort',
+             sortText         => 'sort2',
+             detail           => 'Sort numerically descending',
+             kind             => 15,
+             insertTextFormat => 2,
+             insertText       => 'reverse sort { \$a <=> \$b } $1'
+            }
+          );
+    } ## end if (not $arrow and not...)
 
     return $self;
 } ## end sub new
