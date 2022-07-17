@@ -147,7 +147,9 @@ sub go_to_definition_of_closest_subroutine
     }
 
     return if (not blessed($word) or not $word->isa('PLS::Parser::Element') or not $word->element->isa('PPI::Token::Word'));
-    return $self->search_elements_for_definition($line_number, $column_number, $word);
+    my $definitions = $self->search_elements_for_definition($line_number, $column_number, $word);
+    return $definitions, $word if wantarray;
+    return $definitions;
 } ## end sub go_to_definition_of_closest_subroutine
 
 =head2 search_elements_for_definition

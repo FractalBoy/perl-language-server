@@ -163,3 +163,5 @@ Revision history for perl module PLS
    everything relevant is returned and filtering is now all done by the client.
  - Syntax checking and linting is now multi-threaded. Document versions are used to
    ensure old diagnostics are not returned to the client.
+ - The first parameter is now skipped in signature help if a subroutine is
+   being called as a class or instance method.
