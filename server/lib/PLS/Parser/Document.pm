@@ -936,16 +936,25 @@ sub get_variables_fast
     $text = $self->get_full_text() if (ref $text ne 'SCALAR');
     return []                      if (ref $text ne 'SCALAR');
 
-    my @variable_declarations = $$text =~ /((?&PerlVariableDeclaration))$PPR::GRAMMAR/gx;
-    @variable_declarations = grep { defined } @variable_declarations;
+    state $variable_decl_rx = qr/((?&PerlVariableDeclaration))$PPR::GRAMMAR/;
+    state $variable_rx      = qr/((?&PerlVariable))$PPR::GRAMMAR/;
+    my @variables;
 
-    # Precompile regex used multiple times
-    my $re = qr/((?&PerlVariable))$PPR::GRAMMAR/x;
+    while ($$text =~ /$variable_rx/g)
+    {
+        my $declaration = $1;
 
-    return [
-            map { s/^\s+|\s+$//r }
-            grep { defined } map { /$re/g } @variable_declarations
-           ];
+        while ($declaration =~ /$variable_rx/g)
+        {
+            my $variable = $1;
+            next unless (length $variable);
+            $variable =~ s/^\s+|\s+$//g;
+
+            push @variables, $variable;
+        } ## end while ($declaration =~ /$variable_rx/g...)
+    } ## end while ($$text =~ /$variable_rx/g...)
+
+    return \@variables;
 } ## end sub get_variables_fast
 
 =head2 get_packages_fast
@@ -962,16 +971,20 @@ sub get_packages_fast
     $text = $self->get_full_text() if (ref $text ne 'SCALAR');
     return []                      if (ref $text ne 'SCALAR');
 
-    my @package_declarations = $$text =~ /((?&PerlPackageDeclaration))$PPR::GRAMMAR/gx;
-    @package_declarations = grep { defined } @package_declarations;
+    state $package_rx      = qr/((?&PerlPackageDeclaration))$PPR::GRAMMAR/;
+    state $package_name_rx = qr/((?&PerlQualifiedIdentifier))$PPR::GRAMMAR/x;
+    my @packages;
 
-    # Precompile regex used multiple times
-    my $re = qr/((?&PerlQualifiedIdentifier))$PPR::GRAMMAR/x;
+    while ($$text =~ /$package_rx/g)
+    {
+        my ($package) = $1 =~ /$package_name_rx/;
+        next unless (length $package);
+        $package =~ s/^\s+|\s+$//g;
 
-    return [
-            map { s/^\s+|\s+$//r }
-            grep { defined } map { /$re/g } @package_declarations
-           ];
+        push @packages, $package;
+    } ## end while ($$text =~ /$package_rx/g...)
+
+    return \@packages;
 } ## end sub get_packages_fast
 
 =head2 get_subroutines_fast
@@ -988,7 +1001,13 @@ sub get_subroutines_fast
     $text = $self->get_full_text() if (ref $text ne 'SCALAR');
     return []                      if (ref $text ne 'SCALAR');
 
-    my @subroutine_declarations = $$text =~ /sub\b(?&PerlOWS)((?&PerlOldQualifiedIdentifier))$PPR::GRAMMAR/gx;
+    state $sub_rx = qr/sub\b(?&PerlOWS)((?&PerlOldQualifiedIdentifier))$PPR::GRAMMAR/;
+    my @subroutine_declarations;
+
+    while ($$text =~ /$sub_rx/g)
+    {
+        push @subroutine_declarations, $1;
+    }
 
     return [
             map  { s/^\s+|\s+$//r }
