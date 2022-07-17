@@ -45,18 +45,30 @@ The following settings may be configured using your text editor:
 
 =over
 
-=item perl.inc - a list of paths to include in @INC
-
-You can use $ROOT_PATH to stand in for your project's root directory,
-to allow for configuration to work the same for multiple directories
-of the same project. This is useful if you use SVN and check out each
-branch to a different directory.
-
 =item perl.pls - path to pls
 
-Configure this option if pls is not available in your path.
+Make sure that C<perl.pls> is set to the path to the C<pls> script on your system.
+If you rely on your C<$PATH>, ensure that your editor is configured with the correct
+path, which may not be the same one that your terminal uses.
+
+=item perl.plsargs - args to pass to the pls command
+
+Add any additional arguments needed to execute C<pls> to the C<perl.plsargs> setting.
+For example, if you run C<pls> in a docker container, C<perl.pls> would be C<docker>, and
+C<perl.plsargs> would be C<< ["run", "--rm", "-i", "<image name>", "pls"] >>.
+
+=item perl.inc - a list of paths to add to C<@INC>
+
+You can use the C<$ROOT_PATH> mnemonic to stand in for your project's root directory,
+for example C<$ROOT_PATH/lib>. If you are using multiple workspace folders and use
+C<$ROOT_PATH>, the path will be multiplied by the number of workspace folders,
+and will be replaced that many times. This is useful if you use SVN and check out
+each branch to a different directory.
 
 =item perl.cwd - the working directory to use for pls
+
+If you use C<$ROOT_PATH>, it will be replaced by your workspace's first
+or only folder.
 
 =item perl.perltidyrc - the location of your C<.perltidyrc> file.
 
@@ -68,22 +80,33 @@ Defaults to C<~/.perltidyrc> if not configured.
 
 Defaults to C<~/.perlcriticrc> if not configured.
 
+=item perl.syntax.enabled - whether to enable syntax checking.
+
+=item perl.syntax.perl - path to an alternate C<perl> to use for syntax checking.
+
+Defaults to the C<perl> used to run PLS.
+
+=item perl.syntax.args - additional arguments to pass when syntax checking.
+
+This is useful if there is a BEGIN block in your code that changes
+behavior depending on the contents of @ARGV.
+
 =back
 
 You may configure a .plsignore file in your project's root directory, with
 a list of Perl glob patterns which you do not want pls to index.
 
-By default, pls will index everything that looks like a Perl file, with the
-exception of C<.t> files.
+By default, PLS will index all files ending with `.pl`, `.pm`,
+or have `perl` in the shebang line that are not `.t` files.
 
 =head1 CAVEATS
 
-pls has not been tested with editors other than Visual Studio Code and Neovim.
+pls is known to be compatible with Visual Studio Code, Neovim, and BBEdit.
 
 =head1 NOTES
 
-Install the L<fractalboy.pls|https://marketplace.visualstudio.com/items?itemName=FractalBoy.pls>
-extension to Visual Studio Code in order to use this language server.
+Refer to this README for instructions on configuring your specific editor:
+L<https://marketplace.visualstudio.com/items?itemName=FractalBoy.pls>
 
 =head1 COPYRIGHT
 
