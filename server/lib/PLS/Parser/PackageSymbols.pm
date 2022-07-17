@@ -3,12 +3,11 @@ package PLS::Parser::PackageSymbols;
 use strict;
 use warnings;
 
-use Fcntl    ();
-use Storable ();
+use IO::Async::Loop;
+use IO::Async::Routine;
 
 use PLS::Parser::Index;
 use PLS::Parser::Pod;
-use PLS::Server::State;
 
 =head1 NAME
 
@@ -21,143 +20,54 @@ its symbol table to find all of the symbols in the package.
 
 =cut
 
-my $script = do { local $/; <DATA> };
-
-sub get_package_functions
+sub get_package_symbols
 {
-    my ($package, $config) = @_;
+    my ($config, @packages) = @_;
 
-    return unless (length $package);
+    return {} unless (scalar @packages);
+    return _execute_routine('get_package_functions', $config, \@packages);
+} ## end sub get_package_symbols
 
-    pipe my $read_fh, my $write_fh;
+sub get_imported_package_symbols
+{
+    my ($config, @imports) = @_;
+
+    return {} unless (scalar @imports);
+    return _execute_routine('get_imported_functions', $config, \@imports);
+} ## end sub get_imported_package_symbols
+
+sub _execute_routine
+{
+    my ($function_name, $config, $args) = @_;
+
+    my $loop = IO::Async::Loop->new();
 
     # Just use the first workspace folder as ROOT_PATH - we don't know
     # which folder the code will ultimately be in, and it doesn't really matter
     # for anyone except me.
     my ($workspace_folder) = @{PLS::Parser::Index->new->workspace_folders};
-    my $cwd = $PLS::Server::State::CONFIG->{cwd};
+    my $cwd = $config->{cwd};
     $cwd =~ s/\$ROOT_PATH/$workspace_folder/;
+    my @setup;
+    push @setup, (chdir => $cwd) if (length $cwd and -d $cwd);
 
-    my $pid = fork;
+    local @INC = @{PLS::Parser::Pod->get_clean_inc()};
 
-    if ($pid)
-    {
-        close $write_fh;
+    my $channel_in  = IO::Async::Channel->new();
+    my $channel_out = IO::Async::Channel->new();
 
-        my $timeout = 0;
-        local $SIG{ALRM} = sub { $timeout = 1 };
-        alarm 10;
-        my $result = eval { Storable::fd_retrieve($read_fh) };
-        alarm 0;
+    my $routine = IO::Async::Routine->new(
+                                          module       => 'PLS::Parser::PackageFunctions',
+                                          func         => $function_name,
+                                          model        => 'spawn',
+                                          setup        => \@setup,
+                                          channels_in  => [$channel_in],
+                                          channels_out => [$channel_out]
+                                         );
+    $loop->add($routine);
 
-        if ($timeout)
-        {
-            kill 'KILL', $pid;
-            waitpid $pid, 0;
-            return;
-        } ## end if ($timeout)
-
-        waitpid $pid, 0;
-        return if (ref $result ne 'HASH' or not $result->{ok});
-        return $result->{functions};
-    } ## end if ($pid)
-    else
-    {
-        close $read_fh;
-
-        my $flags = fcntl $write_fh, Fcntl::F_GETFD, 0;
-        fcntl $write_fh, Fcntl::F_SETFD, $flags & ~Fcntl::FD_CLOEXEC;
-
-        my @inc  = map { "-I$_" } @{$config->{inc} // []};
-        my $perl = PLS::Parser::Pod->get_perl_exe();
-
-        chdir $cwd;
-        exec $perl, @inc, '-e', $script, fileno($write_fh), $package;
-    } ## end else [ if ($pid) ]
-} ## end sub get_package_functions
+    $channel_in->send($args);
+    return $channel_out->recv->get();
+} ## end sub _execute_routine
 
 1;
-
-__DATA__
-use File::Spec;
-use Storable ();
-use Sub::Util ();
-
-open STDOUT, '>', File::Spec->devnull;
-open STDERR, '>', File::Spec->devnull;
-
-open my $write_fh, '>>&=', $ARGV[0];
-my $find_package = $ARGV[1];
-
-my @module_parts        = split /::/, $find_package;
-my @parent_module_parts = @module_parts;
-pop @parent_module_parts;
-
-my %functions;
-my @packages;
-
-foreach my $parts (\@parent_module_parts, \@module_parts)
-{
-    my $package = join '::', @{$parts};
-    next unless (length $package);
-
-    eval "require $package";
-    next if (length $@);
-
-    push @packages, $package;
-
-    my @isa = add_parent_classes($package);
-
-    foreach my $isa (@isa)
-    {
-        eval "require $isa";
-        next if (length $@);
-        push @packages, $isa;
-    }
-}
-
-foreach my $package (@packages)
-{
-    my @parts = split /::/, $package;
-    my $ref = \%::;
-
-    foreach my $part (@parts)
-    {
-        $ref = $ref->{"${part}::"};
-    }
-
-    foreach my $name (keys %{$ref})
-    {
-        next if $name =~ /^BEGIN|UNITCHECK|INIT|CHECK|END|VERSION|import|unimport$/;
-
-        my $code_ref = $package->can($name);
-        next if (ref $code_ref ne 'CODE');
-        next if Sub::Util::subname($code_ref) !~ /^\Q$package\E(?:::.+)*::\Q$name\E$/;
-
-        if ($find_package->isa($package))
-        {
-            push @{$functions{$find_package}}, $name;
-        }
-        else
-        {
-            push @{$functions{$package}}, $name;
-        }
-    } ## end foreach my $name (keys %{$ref...})
-} ## end foreach my $parts (\@parent_module_parts...)
-
-sub add_parent_classes
-{
-    my ($package) = @_;
-
-    my @isa = eval "\@${package}::ISA";
-    return unless (scalar @isa);
-
-    foreach my $isa (@isa)
-    {
-        push @isa, add_parent_classes($isa);
-    }
-
-    return @isa;
-}
-
-Storable::nstore_fd({ok => 1, functions => \%functions}, $write_fh);

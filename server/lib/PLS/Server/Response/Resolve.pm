@@ -61,6 +61,7 @@ sub new
         else
         {
             $subroutine = $request->{params}{label};
+            $package = $request->{params}{data} if (length $request->{params}{data});
         }
 
         my $pod = PLS::Parser::Pod::Subroutine->new(index => $index, package => $package, subroutine => $subroutine);

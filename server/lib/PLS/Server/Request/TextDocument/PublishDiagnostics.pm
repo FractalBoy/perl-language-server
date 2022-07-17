@@ -61,7 +61,7 @@ sub new
     my (undef, $dir) = File::Basename::fileparse($uri->file);
 
     my $source = $uri->file;
-    my $text   = PLS::Parser::Document::text_from_uri($uri->as_string);
+    my $text   = PLS::Parser::Document->text_from_uri($uri->as_string);
     $source = $text if (ref $text eq 'SCALAR');
     my $version                    = PLS::Parser::Document::uri_version($uri->as_string);
     my $client_has_version_support = $PLS::Server::State::CLIENT_CAPABILITIES->{textDocument}{publishDiagnostics}{versionSupport};

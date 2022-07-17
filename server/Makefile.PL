@@ -11,7 +11,7 @@ WriteMakefile(
               LICENSE          => 'perl_5',
               MIN_PERL_VERSION => 5.026000,
               PREREQ_PM        => {
-                            'IO::Async'     => 0.78,
+                            'IO::Async'     => 0.79,
                             'Future'        => 0.47,
                             'Future::Utils' => 0.47,
                             'Future::Queue' => 0.47,

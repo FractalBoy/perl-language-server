@@ -30,6 +30,9 @@ sub new
                 id     => $request->{id},
                 result => {
                            capabilities => {
+                                            completionItem => {
+                                                               labelDetailsSupport => JSON::PP::true
+                                                              },
                                             definitionProvider     => JSON::PP::true,
                                             documentSymbolProvider => JSON::PP::true,
                                             hoverProvider          => JSON::PP::true,

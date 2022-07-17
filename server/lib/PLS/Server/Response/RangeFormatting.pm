@@ -46,7 +46,7 @@ sub new
     } ## end if (ref $request->{params...})
 
     my $self = bless {id => $request->{id}}, $class;
-    my $text = PLS::Parser::Document::text_from_uri($request->{params}{textDocument}{uri});
+    my $text = PLS::Parser::Document->text_from_uri($request->{params}{textDocument}{uri});
 
     return $function->call(args => [$self, $request, $text, $PLS::Server::State::CONFIG->{perltidyrc}])->then(
         sub {

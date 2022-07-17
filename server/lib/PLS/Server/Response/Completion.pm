@@ -76,7 +76,28 @@ sub new
         {
             $full_text = $document->get_full_text() unless (ref $full_text eq 'SCALAR');
             push @results, @{get_packages($document, $filter, $full_text)};
-        }
+
+            my $imports            = $document->get_imports($full_text);
+            my $imported_functions = PLS::Parser::PackageSymbols::get_imported_package_symbols($PLS::Server::State::CONFIG, @{$imports});
+
+            foreach my $package_name (keys %{$imported_functions})
+            {
+                foreach my $subroutine (@{$imported_functions->{$package_name}})
+                {
+                    my $result = {
+                                  kind   => 3,
+                                  label  => $subroutine,
+                                  data   => $package_name,
+                                  detail => "${package_name}::${subroutine}"
+                                 };
+
+                    $result->{labelDetails} = {description => "${package_name}::${subroutine}"}
+                      if $PLS::Server::State::CLIENT_CAPABILITIES->{textDocument}{completion}{completionItem}{labelDetailsSupport};
+
+                    push @results, $result;
+                } ## end foreach my $subroutine (@{$imported_functions...})
+            } ## end foreach my $package_name (keys...)
+        } ## end unless ($arrow)
     } ## end else [ if ($filter =~ /^[\$\%\@]/...)]
 
     foreach my $result (@results)
@@ -85,12 +106,7 @@ sub new
         $new_text = $result->{insertText} if (length $result->{insertText});
         delete $result->{insertText};
 
-        push @{$self->{result}},
-          {
-            %$result,
-            textEdit => {newText => $new_text, range => $range},
-            data     => $request->{params}{textDocument}{uri}
-          };
+        push @{$self->{result}}, {%$result, textEdit => {newText => $new_text, range => $range}};
     } ## end foreach my $result (@results...)
 
     # Text snippets
@@ -279,7 +295,7 @@ sub get_package_functions
 {
     my ($package, $filter, $arrow) = @_;
 
-    my $functions = PLS::Parser::PackageSymbols::get_package_functions($package, $PLS::Server::State::CONFIG);
+    my $functions = PLS::Parser::PackageSymbols::get_package_symbols($PLS::Server::State::CONFIG, $package);
     return [] if (ref $functions ne 'HASH');
 
     my $separator = $arrow ? '->' : '::';

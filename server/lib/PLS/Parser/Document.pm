@@ -919,7 +919,7 @@ sub get_full_text
 {
     my ($self) = @_;
 
-    return text_from_uri($self->{uri});
+    return $self->text_from_uri($self->{uri});
 }
 
 =head2 get_variables_fast
@@ -937,21 +937,25 @@ sub get_variables_fast
     return []                      if (ref $text ne 'SCALAR');
 
     state $variable_decl_rx = qr/((?&PerlVariableDeclaration))$PPR::GRAMMAR/;
+    state $lvalue_rx        = qr/((?&PerlLvalue))$PPR::GRAMMAR/;
     state $variable_rx      = qr/((?&PerlVariable))$PPR::GRAMMAR/;
     my @variables;
 
     while ($$text =~ /$variable_rx/g)
     {
         my $declaration = $1;
+        my ($lvalue) = $declaration =~ /$lvalue_rx/;
 
-        while ($declaration =~ /$variable_rx/g)
+        next unless (length $lvalue);
+
+        while ($lvalue =~ /$variable_rx/g)
         {
             my $variable = $1;
             next unless (length $variable);
             $variable =~ s/^\s+|\s+$//g;
 
             push @variables, $variable;
-        } ## end while ($declaration =~ /$variable_rx/g...)
+        } ## end while ($lvalue =~ /$variable_rx/g...)
     } ## end while ($$text =~ /$variable_rx/g...)
 
     return \@variables;
@@ -1031,19 +1035,67 @@ sub get_constants_fast
     $text = $self->get_full_text() if (ref $text ne 'SCALAR');
     return []                      if (ref $text ne 'SCALAR');
 
-    my @use_statements = $$text =~ /((?&PerlUseStatement)) $PPR::GRAMMAR/gx;
-    @use_statements = grep { defined } @use_statements;
+    state $block_rx        = qr/use\h+constant(?&PerlOWS)((?&PerlBlock))$PPR::GRAMMAR/;
+    state $bareword_rx     = qr/((?&PerlBareword))(?&PerlOWS)(?&PerlComma)?$PPR::GRAMMAR/;
+    state $one_constant_rx = qr/use\h+constant\h+((?&PerlBareword))(?&PerlOWS)(?&PerlComma)$PPR::GRAMMAR/;
+    my @constants;
 
-    # Precompile regex used multiple times
-    my $block_re    = qr/constant (?&PerlOWS) ((?&PerlBlock)) $PPR::GRAMMAR/x;
-    my $bareword_re = qr/((?&PerlBareword)) (?&PerlOWS) (?&PerlComma) $PPR::GRAMMAR/x;
+    while ($$text =~ /$block_rx/g)
+    {
+        my $block = $1;
 
-    return [
-            map  { s/^\s+|\s+$//r }
-            grep { defined } map { /$bareword_re/g }
-            grep { defined } map { /$block_re/g } @use_statements
-           ];
+        while ($block =~ /$bareword_rx/g)
+        {
+            my $constant = $1;
+
+            next unless (length $constant);
+            $constant =~ s/^\s+|\s+$//g;
+
+            push @constants, $constant;
+        } ## end while ($block =~ /$bareword_rx/g...)
+    } ## end while ($$text =~ /$block_rx/g...)
+
+    while ($$text =~ /$one_constant_rx/g)
+    {
+        my $constant = $1;
+        next unless (length $constant);
+        $constant =~ s/^\s+|\s+$//g;
+
+        push @constants, $constant;
+    } ## end while ($$text =~ /$one_constant_rx/g...)
+
+    return \@constants;
 } ## end sub get_constants_fast
+
+sub get_imports
+{
+    my ($self, $text) = @_;
+
+    $text = $self->get_full_text() if (ref $text ne 'SCALAR');
+    return []                      if (ref $text ne 'SCALAR');
+
+    state $use_rx        = qr/((?&PerlUseStatement))$PPR::GRAMMAR/;
+    state $identifier_rx = qr/use\h+((?&PerlQualifiedIdentifier))(?&PerlOWS)(?&PerlList)?$PPR::GRAMMAR/;
+
+    my @imports;
+
+    while ($$text =~ /$use_rx/g)
+    {
+        my $use = $1;
+
+        if ($use =~ /$identifier_rx/)
+        {
+            my $module = $1;
+
+            # Assume lowercase modules are pragmas.
+            next if (lc $module eq $module);
+
+            push @imports, {use => $use, module => $module};
+        } ## end if ($use =~ /$identifier_rx/...)
+    } ## end while ($$text =~ /$use_rx/g...)
+
+    return \@imports;
+} ## end sub get_imports
 
 =head2 format_range
 
@@ -1185,7 +1237,7 @@ This returns a SCALAR reference to the text of a particular URI.
 
 sub text_from_uri
 {
-    my ($uri) = @_;
+    my (undef, $uri) = @_;
 
     if (ref $FILES{$uri} eq 'SCALAR')
     {

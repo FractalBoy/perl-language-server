@@ -291,9 +291,9 @@ sub get_clean_inc
         waitpid $pid, 0;
     } ## end if (my $pid = open my ...)
 
-    unshift @include, @{$PLS::Server::State::CONFIG->{inc}} if (ref $PLS::Server::State::CONFIG->{inc} eq 'ARRAY');
+    push @include, @{$PLS::Server::State::CONFIG->{inc}} if (ref $PLS::Server::State::CONFIG->{inc} eq 'ARRAY');
     my $index = PLS::Parser::Index->new();
-    unshift @include, @{PLS::Parser::Index->new->workspace_folders};
+    push @include, @{PLS::Parser::Index->new->workspace_folders};
 
     return \@include;
 } ## end sub get_clean_inc

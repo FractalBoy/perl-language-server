@@ -19,6 +19,7 @@ lib/PLS/Parser/Pod/ClassMethod.pm
 lib/PLS/Parser/Pod/Variable.pm
 lib/PLS/Parser/Pod/Package.pm
 lib/PLS/Parser/Index.pm
+lib/PLS/Parser/PackageFunctions.pm
 lib/PLS/Parser/PackageSymbols.pm
 lib/PLS/Parser/Element.pm
 lib/PLS/Parser/Pod.pm

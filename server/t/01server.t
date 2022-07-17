@@ -137,7 +137,7 @@ subtest 'initialize server' => sub {
 
     cmp_ok(scalar keys %{$response->{result}}, '==', 1, 'result has 1 key');
     is(ref $response->{result}{capabilities}, 'HASH', 'response capabilities is json object');
-    cmp_ok(scalar keys %{$response->{result}{capabilities}}, '==', 11, 'capabilities has 11 keys');
+    cmp_ok(scalar keys %{$response->{result}{capabilities}}, '==', 12, 'capabilities has 12 keys');
 
     my $capabilities = $response->{result}{capabilities};
 
