@@ -6,7 +6,7 @@ use Sub::Util ();
 
 ## no critic (ProhibitStringyEval, RequireCheckingReturnValueOfEval, RequireUseWarnings)
 
-$SIG{__WARN__} = sub { };
+$SIG{__WARN__} = sub { };    ## no critic (RequireLocalizedPunctuationVars)
 
 sub get_package_functions
 {
@@ -118,7 +118,7 @@ sub get_imported_functions
             foreach my $subroutine (keys %symbol_table_after)
             {
                 next if (ref eval { *{$symbol_table_after{$subroutine}}{CODE} } ne 'CODE');
-                push @{$functions{$import->{module}}}, $subroutine;
+                $functions{$import->{module}}{$subroutine} = 1;
             }
 
             # Reset symbol table and %INC
@@ -127,6 +127,11 @@ sub get_imported_functions
             $module_path .= '.pm';
             delete $INC{$module_path};
         } ## end foreach my $import (@{$imports...})
+
+        foreach my $module (keys %functions)
+        {
+            $functions{$module} = [keys %{$functions{$module}}];
+        }
 
         $channel_out->send(\%functions);
     } ## end while (my $imports = $channel_in...)
