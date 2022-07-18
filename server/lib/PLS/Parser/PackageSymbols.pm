@@ -2,6 +2,7 @@ package PLS::Parser::PackageSymbols;
 
 use strict;
 use warnings;
+use feature 'state';
 
 use IO::Async::Loop;
 use IO::Async::Routine;
@@ -25,7 +26,19 @@ sub get_package_symbols
     my ($config, @packages) = @_;
 
     return {} unless (scalar @packages);
-    return _execute_routine('get_package_functions', $config, \@packages);
+
+    state $routine;
+    state $channel_in;
+    state $channel_out;
+
+    if (ref $routine ne 'IO::Async::Routine')
+    {
+        ($routine, $channel_in, $channel_out) = _get_routine('get_package_functions', $config);
+        IO::Async::Loop->new->add($routine);
+    }
+
+    $channel_in->send(\@packages);
+    return $channel_out->recv->get;
 } ## end sub get_package_symbols
 
 sub get_imported_package_symbols
@@ -33,14 +46,24 @@ sub get_imported_package_symbols
     my ($config, @imports) = @_;
 
     return {} unless (scalar @imports);
-    return _execute_routine('get_imported_functions', $config, \@imports);
+
+    state $routine;
+    state $channel_in;
+    state $channel_out;
+
+    if (ref $routine ne 'IO::Async::Routine')
+    {
+        ($routine, $channel_in, $channel_out) = _get_routine('get_imported_functions', $config);
+        IO::Async::Loop->new->add($routine);
+    }
+
+    $channel_in->send(\@imports);
+    return $channel_out->recv->get;
 } ## end sub get_imported_package_symbols
 
-sub _execute_routine
+sub _get_setup
 {
-    my ($function_name, $config, $args) = @_;
-
-    my $loop = IO::Async::Loop->new();
+    my ($config) = @_;
 
     # Just use the first workspace folder as ROOT_PATH - we don't know
     # which folder the code will ultimately be in, and it doesn't really matter
@@ -51,7 +74,12 @@ sub _execute_routine
     my @setup;
     push @setup, (chdir => $cwd) if (length $cwd and -d $cwd);
 
-    local @INC = @{PLS::Parser::Pod->get_clean_inc()};
+    return \@setup;
+} ## end sub _get_setup
+
+sub _get_routine
+{
+    my ($function_name, $config) = @_;
 
     my $channel_in  = IO::Async::Channel->new();
     my $channel_out = IO::Async::Channel->new();
@@ -60,14 +88,12 @@ sub _execute_routine
                                           module       => 'PLS::Parser::PackageFunctions',
                                           func         => $function_name,
                                           model        => 'spawn',
-                                          setup        => \@setup,
+                                          setup        => _get_setup($config),
                                           channels_in  => [$channel_in],
                                           channels_out => [$channel_out]
                                          );
-    $loop->add($routine);
 
-    $channel_in->send($args);
-    return $channel_out->recv->get();
-} ## end sub _execute_routine
+    return $routine, $channel_in, $channel_out;
+} ## end sub _get_routine
 
 1;

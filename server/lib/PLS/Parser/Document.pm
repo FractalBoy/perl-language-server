@@ -389,7 +389,7 @@ This attempts to find POD for the symbol at the given location.
 
 sub find_pod
 {
-    my ($self, $line_number, $column_number) = @_;
+    my ($self, $uri, $line_number, $column_number) = @_;
 
     my @elements = $self->find_elements_at_location($line_number, $column_number);
 
@@ -447,6 +447,7 @@ sub find_pod
         {
             my $pod =
               PLS::Parser::Pod::Subroutine->new(
+                                                uri => $uri,
                                                 index            => $self->{index},
                                                 element          => $element,
                                                 package          => $package,

@@ -38,14 +38,7 @@ sub new
     return $self if (ref $document ne 'PLS::Parser::Document');
 
     my @word_under_cursor_info = $document->find_word_under_cursor(@{$request->{params}{position}}{qw(line character)});
-    @word_under_cursor_info = (
-                               {
-                                start => $request->{params}{position},
-                                end   => $request->{params}{position}
-                               },
-                               0, '', ''
-                              )
-      unless (scalar @word_under_cursor_info);
+    return $self unless (scalar @word_under_cursor_info);
 
     my ($range, $arrow, $package, $filter) = @word_under_cursor_info;
 
