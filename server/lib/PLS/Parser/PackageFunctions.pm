@@ -114,17 +114,17 @@ sub get_imported_functions
             my %symbol_table_after = %PLS::Parser::PackageFunctions::;
             delete @symbol_table_after{keys %symbol_table_before};
 
+            foreach my $subroutine (keys %symbol_table_after)
+            {
+                next if (ref eval { *{$symbol_table_after{$subroutine}}{CODE} } ne 'CODE');
+                push @{$functions{$import->{module}}}, $subroutine;
+            }
+
             # Reset symbol table and %INC
             %PLS::Parser::PackageFunctions:: = %symbol_table_before;
             my $module_path = $import->{module} =~ s/::/\//gr;
             $module_path .= '.pm';
             delete $INC{$module_path};
-
-            foreach my $subroutine (keys %symbol_table_after)
-            {
-                next if (not $symbol_table_after{$subroutine} or ref *{$symbol_table_after{$subroutine}}{CODE} ne 'CODE');
-                push @{$functions{$import->{module}}}, $subroutine;
-            }
         } ## end foreach my $import (@{$imports...})
 
         $channel_out->send(\%functions);
