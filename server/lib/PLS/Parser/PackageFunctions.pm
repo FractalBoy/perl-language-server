@@ -1,11 +1,12 @@
 package PLS::Parser::PackageFunctions;
 
 use strict;
-use warnings;
 
 use Sub::Util ();
 
-## no critic (ProhibitStringyEval, RequireCheckingReturnValueOfEval)
+## no critic (ProhibitStringyEval, RequireCheckingReturnValueOfEval, RequireUseWarnings)
+
+$SIG{__WARN__} = sub { };
 
 sub get_package_functions
 {
