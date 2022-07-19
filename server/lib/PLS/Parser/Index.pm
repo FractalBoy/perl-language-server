@@ -77,20 +77,6 @@ sub files
     return $self->{files};
 }
 
-sub _start_indexing_function
-{
-    my ($self) = @_;
-
-    return if (ref $self->{indexing_function} eq 'IO::Async::Function');
-
-    $self->{indexing_function} = IO::Async::Function->new(code => \&_index_file);
-
-    my $loop = IO::Async::Loop->new();
-    $loop->add($self->{indexing_function});
-
-    return;
-} ## end sub _start_indexing_function
-
 sub _index_file
 {
     my ($file) = @_;
@@ -108,43 +94,83 @@ sub index_files
 {
     my ($self, @files) = @_;
 
-    $self->_start_indexing_function();
+    state $function;
 
-    @files = @{$self->get_all_perl_files()} unless (scalar @files);
-
-    foreach my $file (@files)
+    if (ref $function ne 'IO::Async::Function')
     {
-        $self->{indexing_function}->call(
-            args      => [$file],
-            on_result => sub {
-                my ($result, $packages, $subs) = @_;
+        $function = IO::Async::Function->new(code => \&_index_file);
+        IO::Async::Loop->new->add($function);
+    }
 
-                return if ($result ne 'return');
+    my $get_files_future;
 
-                foreach my $type (qw(subs packages))
-                {
-                    $self->_cleanup_index($type, $file);
-                }
+    if (scalar @files)
+    {
+        $get_files_future = Future->done(\@files);
+    }
+    else
+    {
+        $get_files_future = $self->get_all_perl_files_async();
+    }
 
-                foreach my $ref (keys %{$packages})
-                {
-                    push @{$self->packages->{$ref}},         @{$packages->{$ref}};
-                    push @{$self->files->{$file}{packages}}, $ref;
-                }
+    $get_files_future->on_done(
+        sub {
+            my ($files) = @_;
 
-                foreach my $ref (keys %{$subs})
-                {
-                    push @{$self->subs->{$ref}},         @{$subs->{$ref}};
-                    push @{$self->files->{$file}{subs}}, $ref;
-                }
+            foreach my $file (@{$files})
+            {
+                $function->call(
+                    args      => [$file],
+                    on_result => sub {
+                        my ($result, $packages, $subs) = @_;
 
-                return;
-            }
-        );
-    } ## end foreach my $file (@files)
+                        return if ($result ne 'return');
+
+                        foreach my $type (qw(subs packages))
+                        {
+                            $self->_cleanup_index($type, $file);
+                        }
+
+                        foreach my $ref (keys %{$packages})
+                        {
+                            push @{$self->packages->{$ref}},         @{$packages->{$ref}};
+                            push @{$self->files->{$file}{packages}}, $ref;
+                        }
+
+                        foreach my $ref (keys %{$subs})
+                        {
+                            push @{$self->subs->{$ref}},         @{$subs->{$ref}};
+                            push @{$self->files->{$file}{subs}}, $ref;
+                        }
+
+                        return;
+                    }
+                );
+            } ## end foreach my $file (@{$files}...)
+        }
+    )->retain();
 
     return;
 } ## end sub index_files
+
+sub get_all_perl_files_async
+{
+    my ($self, @folders) = @_;
+
+    @folders = @{$self->workspace_folders} unless (scalar @folders);
+    return Future->done([])                unless (scalar @folders);
+
+    state $function;
+
+    if (ref $function ne 'IO::Async::Function')
+    {
+        $function = IO::Async::Function->new(code => \&get_all_perl_files);
+
+        IO::Async::Loop->new->add($function);
+    } ## end if (ref $function ne 'IO::Async::Function'...)
+
+    return $function->call(args => [$self, @folders]);
+} ## end sub get_all_perl_files_async
 
 sub deindex_workspace
 {
@@ -171,8 +197,13 @@ sub index_workspace
 
     push @{$self->workspace_folders}, $path;
 
-    my @workspace_files = @{$self->get_all_perl_files($path)};
-    $self->index_files(@workspace_files);
+    $self->get_all_perl_files_async($path)->on_done(
+        sub {
+            my ($workspace_files) = @_;
+
+            $self->index_files(@{$workspace_files});
+        }
+    )->retain();
 
     return;
 } ## end sub index_workspace
@@ -276,8 +307,6 @@ sub find_package
 sub get_ignored_files
 {
     my ($self) = @_;
-
-    my @ignored_files;
 
     foreach my $workspace_folder (@{$self->workspace_folders})
     {
