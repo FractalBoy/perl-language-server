@@ -24,8 +24,8 @@ sub service
 {
     my ($self) = @_;
 
-    my $added   = $self->{params}{added};
-    my $removed = $self->{params}{removed};
+    my $added   = $self->{params}{event}{added};
+    my $removed = $self->{params}{event}{removed};
 
     my $index = PLS::Parser::Index->new();
 
