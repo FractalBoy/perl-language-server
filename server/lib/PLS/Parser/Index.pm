@@ -126,10 +126,7 @@ sub index_files
 
                         return if ($result ne 'return');
 
-                        foreach my $type (qw(subs packages))
-                        {
-                            $self->_cleanup_index($type, $file);
-                        }
+                        $self->cleanup_file($file);
 
                         foreach my $ref (keys %{$packages})
                         {
@@ -182,10 +179,7 @@ sub deindex_workspace
     {
         next unless path($path)->subsumes($file);
 
-        foreach my $type (qw(subs packages))
-        {
-            $self->_cleanup_index($type, $file);
-        }
+        $self->cleanup_file($file);
     } ## end foreach my $file (keys %{$self...})
 
     return;
@@ -230,24 +224,19 @@ sub _cleanup_index
     return;
 } ## end sub _cleanup_index
 
-sub cleanup_old_files
+sub cleanup_file
 {
-    my ($self) = @_;
+    my ($self, $file) = @_;
 
-    foreach my $file (keys %{$self->files})
+    foreach my $type (qw(subs packages))
     {
-        next if (-e $file);
+        $self->_cleanup_index($type, $file);
+    }
 
-        foreach my $type (qw(subs packages))
-        {
-            $self->_cleanup_index($type, $file);
-        }
-
-        delete $self->files->{$file};
-    } ## end foreach my $file (keys %{$self...})
+    delete $self->files->{$file};
 
     return;
-} ## end sub cleanup_old_files
+} ## end sub cleanup_file
 
 sub find_package_subroutine
 {

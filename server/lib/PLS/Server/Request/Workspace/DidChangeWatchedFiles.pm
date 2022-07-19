@@ -33,28 +33,25 @@ sub service
     my $index = PLS::Parser::Index->new();
 
     my @changed_files;
-    my $any_deletes;
 
     foreach my $change (@{$self->{params}{changes}})
     {
         my $file = URI->new($change->{uri});
-
-        next unless (ref $file eq 'URI::file');
-        next if ($file->file =~ /\/\.pls-tmp-[^\/]*$/);
+        next if (ref $file ne 'URI::file');
 
         if ($change->{type} == 3)
         {
-            $any_deletes = 1;
+            $index->cleanup_file($file->file);
             next;
         }
+
+        next if ($file->file =~ /\/\.pls-tmp-[^\/]*$/);
 
         next unless $index->is_perl_file($file->file);
         next if $index->is_ignored($file->file);
 
         push @changed_files, $file->file;
     } ## end foreach my $change (@{$self...})
-
-    $index->cleanup_old_files() if $any_deletes;
 
     @changed_files = uniq @changed_files;
     $index->index_files(@changed_files) if (scalar @changed_files);
