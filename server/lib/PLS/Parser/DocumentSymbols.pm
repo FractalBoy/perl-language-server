@@ -3,6 +3,10 @@ package PLS::Parser::DocumentSymbols;
 use strict;
 use warnings;
 
+use feature 'state';
+
+use IO::Async::Function;
+use IO::Async::Loop;
 use Scalar::Util qw(blessed);
 
 use PLS::Parser::Document;
@@ -25,25 +29,34 @@ It returns a hierachy of the symbols, so that a tree structure can be displayed.
 
 =cut
 
-sub new
+sub get_all_document_symbols_async
+{
+    my ($class, $uri) = @_;
+
+    state $function;
+
+    if (ref $function ne 'IO::Async::Function')
+    {
+        $function = IO::Async::Function->new(code => \&get_all_document_symbols);
+        IO::Async::Loop->new->add($function);
+    }
+
+    return $function->call(args => [$class, $uri]);
+} ## end sub get_all_document_symbols_async
+
+sub get_all_document_symbols
 {
     my ($class, $uri) = @_;
 
     my $document = PLS::Parser::Document->new(uri => $uri);
-    return if (ref $document ne 'PLS::Parser::Document');
-    return bless {document => $document}, $class;
-} ## end sub new
-
-sub get_all_document_symbols
-{
-    my ($self) = @_;
+    return [] if (ref $document ne 'PLS::Parser::Document');
 
     my @roots;
-    $self->_get_all_document_symbols($self->document->{document}, \@roots);
+    $class->_get_all_document_symbols($document, $document->{document}, \@roots);
 
     my @package_roots;
 
-    my $packages = $self->document->get_packages();
+    my $packages = $document->get_packages();
 
     foreach my $index (0 .. $#{$packages})
     {
@@ -63,7 +76,7 @@ sub get_all_document_symbols
 
     unless (scalar @package_roots)
     {
-        my $range = PLS::Parser::Element->new(element => $self->document->{document})->range();
+        my $range = PLS::Parser::Element->new(element => $document->{document})->range();
 
         push @package_roots,
           {
@@ -80,7 +93,7 @@ sub get_all_document_symbols
 
 sub _get_all_document_symbols
 {
-    my ($self, $scope, $roots, $current) = @_;
+    my ($class, $document, $scope, $roots, $current) = @_;
 
     my $array = ref $current eq 'HASH' ? $current->{children} : $roots;
     return unless blessed($scope);
@@ -89,7 +102,7 @@ sub _get_all_document_symbols
     {
         foreach my $child ($scope->children)
         {
-            $self->_get_all_document_symbols($child, $roots, $current);
+            $class->_get_all_document_symbols($document, $child, $roots, $current);
         }
     } ## end if ($scope->isa('PPI::Document'...))
     elsif ($scope->isa('PPI::Statement::Sub') or $scope->isa('PPI::Statement::Scheduled'))
@@ -109,7 +122,7 @@ sub _get_all_document_symbols
 
         push @{$array}, $current;
 
-        $self->_get_all_document_symbols($scope->block, $roots, $current);
+        $class->_get_all_document_symbols($document, $scope->block, $roots, $current);
     } ## end elsif ($scope->isa('PPI::Statement::Sub'...))
     elsif ($scope->isa('PPI::Statement::Variable'))
     {
@@ -122,7 +135,7 @@ sub _get_all_document_symbols
              range          => $range,
              selectionRange => $range
             }
-        } map { @{$_->symbols} } @{$self->document->get_variable_statements($scope)};
+        } map { @{$_->symbols} } @{$document->get_variable_statements($scope)};
     } ## end elsif ($scope->isa('PPI::Statement::Variable'...))
     elsif ($scope->isa('PPI::Statement::Include') and $scope->type eq 'use' and $scope->pragma eq 'constant')
     {
@@ -135,15 +148,8 @@ sub _get_all_document_symbols
              range          => $range,
              selectionRange => $range
             }
-        } @{$self->document->get_constants($scope)};
+        } @{$document->get_constants($scope)};
     } ## end elsif ($scope->isa('PPI::Statement::Include'...))
 } ## end sub _get_all_document_symbols
-
-sub document
-{
-    my ($self) = @_;
-
-    return $self->{document};
-}
 
 1;
