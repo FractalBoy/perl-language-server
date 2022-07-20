@@ -109,10 +109,8 @@ sub run
     } ## end Future::Utils::repeat
     while => sub { 1 };
 
-    STDOUT->blocking(0);
-
     $self->{stream} = IO::Async::Stream->new_for_stdio(
-        autoflush => 1,
+        autoflush => 0,
         on_read   => sub {
             my $size = 0;
 
@@ -219,7 +217,7 @@ sub send_message
     return if (not blessed($message) or not $message->isa('PLS::Server::Message'));
     my $json   = $message->serialize();
     my $length = length $json;
-    $self->{stream}->write("Content-Length: $length\r\n\r\n$json")->await;
+    $self->{stream}->write("Content-Length: $length\r\n\r\n$json")->retain();
 
     return;
 } ## end sub send_message
