@@ -50,7 +50,7 @@ sub service
         next unless $index->is_perl_file($file->file);
         next if $index->is_ignored($file->file);
 
-        push @changed_files, $file->file;
+        push @changed_files, $change->{uri};
     } ## end foreach my $change (@{$self...})
 
     @changed_files = uniq @changed_files;

@@ -79,20 +79,20 @@ sub files
 
 sub _index_file
 {
-    my ($file) = @_;
+    my ($uri) = @_;
 
     require PLS::Parser::Document;
-    my $text         = PLS::Parser::Document->text_from_uri(URI::file->new($file)->as_string());
+    my $text         = PLS::Parser::Document->text_from_uri($uri);
     my $line_offsets = PLS::Parser::Index->get_line_offsets($text);
-    my $packages     = PLS::Parser::Index->get_packages($text, $file, $line_offsets);
-    my $subroutines  = PLS::Parser::Index->get_subroutines($text, $file, $line_offsets);
+    my $packages     = PLS::Parser::Index->get_packages($text, $uri, $line_offsets);
+    my $subroutines  = PLS::Parser::Index->get_subroutines($text, $uri, $line_offsets);
 
     return $packages, $subroutines;
 } ## end sub _index_file
 
 sub index_files
 {
-    my ($self, @files) = @_;
+    my ($self, @uris) = @_;
 
     state $function;
 
@@ -104,9 +104,9 @@ sub index_files
 
     my $get_files_future;
 
-    if (scalar @files)
+    if (scalar @uris)
     {
-        $get_files_future = Future->done(\@files);
+        $get_files_future = Future->done(\@uris);
     }
     else
     {
@@ -115,16 +115,22 @@ sub index_files
 
     $get_files_future->on_done(
         sub {
-            my ($files) = @_;
+            my ($uris) = @_;
 
-            foreach my $file (@{$files})
+            foreach my $uri (@{$uris})
             {
                 $function->call(
-                    args      => [$file],
+                    args      => [$uri],
                     on_result => sub {
                         my ($result, $packages, $subs) = @_;
 
                         return if ($result ne 'return');
+
+                        my $file = URI->new($uri)->file;
+                        return if $self->is_ignored($file);
+
+                        $file = readlink $file if (-l $file);
+                        return                 if $self->is_ignored($file);
 
                         $self->cleanup_file($file);
 
@@ -143,7 +149,7 @@ sub index_files
                         return;
                     }
                 );
-            } ## end foreach my $file (@{$files}...)
+            } ## end foreach my $uri (@{$uris})
         }
     )->retain();
 
@@ -193,9 +199,9 @@ sub index_workspace
 
     $self->get_all_perl_files_async($path)->on_done(
         sub {
-            my ($workspace_files) = @_;
+            my ($workspace_uris) = @_;
 
-            $self->index_files(@{$workspace_files});
+            $self->index_files(@{$workspace_uris});
         }
     )->retain();
 
@@ -381,7 +387,7 @@ sub get_all_perl_files
         @folders
     );
 
-    return \@perl_files;
+    return [map { URI::file->new($_)->as_string } @perl_files];
 } ## end sub get_all_perl_files
 
 sub is_perl_file
@@ -446,12 +452,10 @@ sub get_line_by_offset
 
 sub get_packages
 {
-    my ($class, $text, $file, $line_offsets) = @_;
+    my ($class, $text, $uri, $line_offsets) = @_;
 
     state $rx = qr/((?&PerlPackageDeclaration))$PPR::GRAMMAR/x;
     my %packages;
-
-    my $uri = URI::file->new($file)->as_string();
 
     while ($$text =~ /$rx/g)
     {
@@ -489,7 +493,7 @@ sub get_packages
 
 sub get_subroutines
 {
-    my ($class, $text, $file, $line_offsets) = @_;
+    my ($class, $text, $uri, $line_offsets) = @_;
 
     # Stolen mostly from PPR definition for PerlSubroutineDeclaration
     state $sub_rx = qr/
@@ -531,8 +535,6 @@ sub get_subroutines
     state $var_rx = qr/((?&PerlVariable)|undef)$PPR::GRAMMAR/;
 
     my %subroutines;
-
-    my $uri = URI::file->new($file)->as_string();
 
     while ($$text =~ /$sub_rx/g)
     {
