@@ -231,7 +231,7 @@ sub run_perlcritic
     my %args;
     $args{filename} = $path if (ref $source eq 'SCALAR');
     my $doc        = PPI::Document->new($source, %args);
-    my @violations = $critic->critique($doc);
+    my @violations = eval { $critic->critique($doc) };
 
     my @diagnostics;
 
