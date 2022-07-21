@@ -1570,7 +1570,12 @@ sub find_word_under_cursor
 
     # This handles the case for when there is an arrow after a variable name
     # but the user has not yet started typing the method name.
-    if (blessed($closest_operator) and $closest_operator->isa('PLS::Parser::Element') and $closest_operator->name eq '->' and $closest_operator->previous_sibling->element == $element->element)
+    if (    blessed($closest_operator)
+        and $closest_operator->isa('PLS::Parser::Element')
+        and $closest_operator->name eq '->'
+        and blessed($closest_operator->previous_sibling)
+        and $closest_operator->previous_sibling->isa('PLS::Parser::Element')
+        and $closest_operator->previous_sibling->element == $element->element)
     {
         my $arrow_range = $closest_operator->range;
         my $range = {
