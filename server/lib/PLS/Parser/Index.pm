@@ -113,18 +113,17 @@ sub index_files
         $get_files_future = $self->get_all_perl_files_async();
     }
 
-    $get_files_future->on_done(
+    return $get_files_future->then(
         sub {
             my ($uris) = @_;
 
+            my @futures;
+
             foreach my $uri (@{$uris})
             {
-                $function->call(
-                    args      => [$uri],
-                    on_result => sub {
-                        my ($result, $packages, $subs) = @_;
-
-                        return if ($result ne 'return');
+                push @futures, $function->call(args => [$uri])->then(
+                    sub {
+                        my ($packages, $subs) = @_;
 
                         my $file = URI->new($uri)->file;
                         return if $self->is_ignored($file);
@@ -146,14 +145,14 @@ sub index_files
                             push @{$self->files->{$file}{subs}}, $ref;
                         }
 
-                        return;
+                        return Future->done($file);
                     }
                 );
             } ## end foreach my $uri (@{$uris})
+
+            return Future->done(@futures);
         }
     )->retain();
-
-    return;
 } ## end sub index_files
 
 sub get_all_perl_files_async
@@ -197,13 +196,13 @@ sub index_workspace
 
     push @{$self->workspace_folders}, $path;
 
-    $self->get_all_perl_files_async($path)->on_done(
+    $self->get_all_perl_files_async($path)->then(
         sub {
             my ($workspace_uris) = @_;
 
-            $self->index_files(@{$workspace_uris});
+            return $self->index_files(@{$workspace_uris});
         }
-    )->retain();
+    )->then(sub { Future->wait_all(@_) })->retain();
 
     return;
 } ## end sub index_workspace

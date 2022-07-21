@@ -5,9 +5,14 @@ use warnings;
 
 use parent 'PLS::Server::Request';
 
+use File::Basename ();
+use JSON::PP;
+
 use PLS::Server::State;
 use PLS::Server::Request::Workspace::Configuration;
 use PLS::Server::Request::Client::RegisterCapability;
+use PLS::Server::Request::WorkDoneProgress;
+use PLS::Server::Request::Window::WorkDoneProgress::Create;
 use PLS::Parser::Document;
 
 =head1 NAME
@@ -54,9 +59,61 @@ sub service
     } ## end if (scalar @{$index->workspace_folders...})
 
     $server->send_server_request(PLS::Server::Request::Client::RegisterCapability->new(\@capabilities));
+    my $work_done_progress_create = PLS::Server::Request::Window::WorkDoneProgress::Create->new();
+    $server->send_server_request($work_done_progress_create);
+
+    $server->send_server_request(
+                                 PLS::Server::Request::WorkDoneProgress->new(
+                                                                             token       => $work_done_progress_create->{params}{token},
+                                                                             kind        => 'begin',
+                                                                             title       => 'Indexing',
+                                                                             cancellable => JSON::PP::false,
+                                                                             percentage  => 0
+                                                                            )
+                                );
 
     # Now is a good time to start indexing files.
-    $index->index_files();
+    $index->index_files()->then(
+        sub {
+            my @futures = @_;
+
+            my $done  = 0;
+            my $total = scalar @futures;
+
+            foreach my $future (@futures)
+            {
+                $future->then(
+                    sub {
+                        my ($file) = @_;
+
+                        $file = File::Basename::basename($file);
+                        $done++;
+                        $server->send_server_request(
+                                                     PLS::Server::Request::WorkDoneProgress->new(
+                                                                                                 token      => $work_done_progress_create->{params}{token},
+                                                                                                 kind       => 'report',
+                                                                                                 message    => "Indexed $file ($done/$total)",
+                                                                                                 percentage => int($done / $total)
+                                                                                                )
+                                                    );
+                    }
+                )->retain();
+            } ## end foreach my $future (@futures...)
+
+            return Future->wait_all(@futures)->on_done(
+                sub {
+                    $server->send_server_request(
+                                                 PLS::Server::Request::WorkDoneProgress->new(
+                                                                                             token   => $work_done_progress_create->{params}{token},
+                                                                                             kind    => 'end',
+                                                                                             message => 'Finished indexing all files'
+                                                                                            )
+                                                );
+
+                }
+            );
+        }
+    )->retain();
 
     return;
 } ## end sub service
