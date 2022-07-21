@@ -5,8 +5,9 @@ use warnings;
 
 use parent 'PLS::Server::Request';
 
-use File::Basename ();
 use JSON::PP;
+use List::Util;
+use Path::Tiny;
 
 use PLS::Server::State;
 use PLS::Server::Request::Workspace::Configuration;
@@ -86,7 +87,8 @@ sub service
                     sub {
                         my ($file) = @_;
 
-                        $file = File::Basename::basename($file);
+                        my $workspace_folder = List::Util::first { path($_)->subsumes($file) } @{$index->workspace_folders};
+                        $file = path($file)->relative($workspace_folder);
                         $done++;
                         $server->send_server_request(
                                                      PLS::Server::Request::WorkDoneProgress->new(
