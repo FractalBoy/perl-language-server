@@ -60,19 +60,9 @@ sub new
     }
     else
     {
-        my $functions = get_package_functions($package, $filter, $arrow);
-        push @results, @{$functions};
-
         my $full_text;
 
-        unless (scalar @{$functions})
-        {
-            $full_text = $document->get_full_text();
-            push @results, @{get_subroutines($document, $filter, $full_text)};
-            push @results, @{get_constants($document, $filter, $full_text)};
-            push @results, @{get_keywords()} unless $arrow;
-        } ## end unless (scalar @{$functions...})
-
+        my %imported_functions;
         unless ($arrow)
         {
             $full_text = $document->get_full_text() unless (ref $full_text eq 'SCALAR');
@@ -85,20 +75,30 @@ sub new
             {
                 foreach my $subroutine (@{$imported_functions->{$package_name}})
                 {
+                    $imported_functions{$package_name}{$subroutine} = 1;
                     my $result = {
                                   kind   => 3,
                                   label  => $subroutine,
                                   data   => $package_name,
-                                  detail => "${package_name}::${subroutine}"
+                                  detail => "${package_name}::${subroutine}",
                                  };
 
                     $result->{labelDetails} = {description => "${package_name}::${subroutine}"}
                       if $PLS::Server::State::CLIENT_CAPABILITIES->{textDocument}{completion}{completionItem}{labelDetailsSupport};
-
-                    push @results, $result;
                 } ## end foreach my $subroutine (@{$imported_functions...})
             } ## end foreach my $package_name (keys...)
         } ## end unless ($arrow)
+
+        my $functions = get_package_functions($package, $filter, $arrow);
+        push @results, @{$functions};
+
+        unless (scalar @{$functions})
+        {
+            $full_text = $document->get_full_text();
+            push @results, @{get_subroutines($document, $filter, $full_text)};
+            push @results, @{get_constants($document, $filter, $full_text)};
+            push @results, @{get_keywords()} unless $arrow;
+        } ## end unless (scalar @{$functions...})
     } ## end else [ if ($filter =~ /^[\$\%\@]/...)]
 
     foreach my $result (@results)
