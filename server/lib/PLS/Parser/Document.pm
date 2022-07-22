@@ -121,9 +121,9 @@ sub find_current_list
 
     # Find the nearest list structure that completely surrounds the column.
     return first { $_->lsp_column_number < $column_number and $column_number < $_->lsp_column_number + length($_->content) }
-      sort { abs($column_number - $a->lsp_column_number) - abs($column_number - $b->lsp_column_number) }
-      map  { PLS::Parser::Element->new(element => $_, document => $self->{document}, file => $self->{path}) }
-      map  { $find->in($_->element) } @elements;
+    sort  { abs($column_number - $a->lsp_column_number) - abs($column_number - $b->lsp_column_number) }
+      map { PLS::Parser::Element->new(element => $_, document => $self->{document}, file => $self->{path}) }
+      map { $find->in($_->element) } @elements;
 } ## end sub find_current_list
 
 =head2 go_to_definition_of_closest_subroutine
@@ -361,7 +361,7 @@ sub pod_link
                 )?
                 > # final closing >
             }gx
-          )
+              )
         {
             my $start = $-[1];
             my $end   = $+[1];
