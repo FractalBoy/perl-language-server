@@ -47,7 +47,7 @@ sub new
                                             documentFormattingProvider      => JSON::PP::true,
                                             documentRangeFormattingProvider => JSON::PP::true,
                                             completionProvider              => {
-                                                                   triggerCharacters => ['>', ':', '$', '@', '%', ' '],
+                                                                   triggerCharacters => ['>', ':', '$', '@', '%', ' ', '-'],
                                                                    resolveProvider   => JSON::PP::true,
                                                                   },
                                             executeCommandProvider => {

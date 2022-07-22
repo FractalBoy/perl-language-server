@@ -468,6 +468,17 @@ sub find_pod
             my $ok = $pod->find();
             return (1, $pod) if $ok;
         } ## end if ($variable = $element...)
+        if ($element->type eq 'PPI::Token::Operator' and $element->content =~ /^-[rwxoRWXOezsfdlpSbctugkTBMAC]$/)
+        {
+            my $pod = PLS::Parser::Pod::Subroutine->new(
+                            index => $self->{index},
+                            element => $element,
+                            subroutine => '-X',
+                            include_builtins => 1
+                    );
+            my $ok = $pod->find();
+            return (1, $pod) if $ok;
+        }
     } ## end foreach my $element (@elements...)
 
     return 0;
@@ -1398,8 +1409,14 @@ sub find_word_under_cursor
     @elements =
       sort { (abs $character - $a->lsp_column_number) <=> (abs $character - $b->lsp_column_number) } @elements;
     my @in_range         = grep { $_->lsp_column_number <= $character and $_->lsp_column_number + length($_->content) >= $character } @elements;
-    my $element          = first { $_->type eq 'PPI::Token::Word' or $_->type eq 'PPI::Token::Label' or $_->type eq 'PPI::Token::Symbol' or $_->type eq 'PPI::Token::Magic' } @in_range;
+    my $element          = first { $_->type eq 'PPI::Token::Word' or $_->type eq 'PPI::Token::Label' or $_->type eq 'PPI::Token::Symbol' or $_->type eq 'PPI::Token::Magic' or $_->type eq 'PPI::Token::Operator' } @in_range;
     my $closest_operator = first { $_->type eq 'PPI::Token::Operator' } @elements;
+
+    if (blessed($element) and $element->isa('PLS::Parser::Element') and $element->type eq 'PPI::Token::Operator')
+    {
+        return $element->range(), 0, '', '-'  if ((not blessed($element->element->previous_sibling) or $element->element->previous_sibling->isa('PPI::Token::Whitespace')) and $element->content eq '-');
+        undef $element;
+    }
 
     if (not blessed($element) or not $element->isa('PLS::Parser::Element'))
     {
