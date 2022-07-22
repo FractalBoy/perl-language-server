@@ -104,13 +104,8 @@ sub new
         )->get();
         push @results, @{$functions};
 
-        unless (scalar @{$functions})
-        {
-            $full_text = $document->get_full_text();
-            push @results, @{get_subroutines($document, $filter, $full_text)};
-            push @results, @{get_constants($document, $filter, $full_text)};
-        } ## end unless (scalar @{$functions...})
-
+        push @results, @{get_subroutines($document, $filter, $full_text)};
+        push @results, @{get_constants($document, $filter, $full_text)};
         push @results, @{get_keywords()} unless $arrow;
     } ## end else [ if ($filter =~ /^[\$\%\@]/...)]
 
@@ -271,7 +266,7 @@ sub get_keywords
         } ## end foreach my $sub (@{$Pod::Functions::Kinds...})
     } ## end foreach my $family (keys %Pod::Functions::Kinds...)
 
-    foreach my $keyword (qw(cmp continue default do else elsif eq for foreach ge given gt if le lock lt ne not or package sub unless until when while x xor))
+    foreach my $keyword (qw(cmp continue default do else elsif eq for foreach ge given gt if le lock lt ne not or package sub unless until when while x xor -r -w -x -o -R -W -X -O -e -z -s -f -d -l -p -S -b -c -t -u -g -k -T -B -M -A -C))
     {
         next if $seen_keywords{$keyword}++;
         push @keywords, {label => $keyword, kind => 14};
