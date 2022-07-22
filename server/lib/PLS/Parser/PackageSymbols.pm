@@ -4,6 +4,7 @@ use strict;
 use warnings;
 use feature 'state';
 
+use Future;
 use IO::Async::Loop;
 use IO::Async::Process;
 use JSON::PP;
@@ -29,7 +30,7 @@ sub get_package_symbols
 {
     my ($config, @packages) = @_;
 
-    return {} unless (scalar @packages);
+    return Future->done({}) unless (scalar @packages);
 
     start_package_symbols_process($config) if (ref $package_symbols_process ne 'IO::Async::Process');
 
@@ -47,7 +48,7 @@ sub get_imported_package_symbols
 {
     my ($config, @imports) = @_;
 
-    return {} unless (scalar @imports);
+    return Future->done({}) unless (scalar @imports);
 
     start_imported_package_symbols_process($config) if (ref $imported_symbols_process ne 'IO::Async::Process');
 
@@ -86,12 +87,16 @@ sub _start_process
 sub start_package_symbols_process
 {
     my ($config) = @_;
+
+    eval { $package_symbols_process->kill('TERM') } if (ref $package_symbols_process eq 'IO::Async::Process');
     $package_symbols_process = _start_process($config, get_package_symbols_code());
 }
 
 sub start_imported_package_symbols_process
 {
     my ($config) = @_;
+
+    eval { $imported_symbols_process->kill('TERM') } if (ref $package_symbols_process eq 'IO::Async::Process');
     $imported_symbols_process = _start_process($config, get_imported_package_symbols_code());
 }
 
@@ -114,7 +119,7 @@ sub _get_setup
 sub get_package_symbols_code
 {
     my $code = <<'EOF';
-#close STDERR;
+close STDERR;
 
 use IO::Handle;
 use JSON::PP;
