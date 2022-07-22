@@ -148,7 +148,7 @@ subtest 'initialize server' => sub {
     is_deeply($capabilities->{textDocumentSync},      {openClose         => JSON::PP::true, change => 2, save => JSON::PP::true}, 'server does text document sync');
     ok($capabilities->{documentFormattingProvider},      'server is document formatting provider');
     ok($capabilities->{documentRangeFormattingProvider}, 'server is document formatting provider');
-    is_deeply($capabilities->{completionProvider},     {triggerCharacters => ['>', ':', '$', '@', '%',' '], resolveProvider => JSON::PP::true}, 'server is completion provider');
+    is_deeply($capabilities->{completionProvider},     {triggerCharacters => ['>', ':', '$', '@', '%', ' ', '-'], resolveProvider => JSON::PP::true}, 'server is completion provider');
     is_deeply($capabilities->{executeCommandProvider}, {commands          => ['perl.sortImports']},                                         'server can execute commands');
     ok($capabilities->{workspaceSymbolProvider}, 'server is workspace symbol provider');
 };
