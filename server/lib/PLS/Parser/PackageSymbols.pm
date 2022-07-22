@@ -39,7 +39,8 @@ sub get_package_symbols
 
             return Future->done(eval { JSON::PP->new->utf8->decode($json) } // {});
         },
-        sub { Future->done({}) });
+        sub { Future->done({}) }
+                                                                                                                                                                         );
 } ## end sub get_package_symbols
 
 sub get_imported_package_symbols
@@ -57,7 +58,7 @@ sub get_imported_package_symbols
             return Future->done(eval { JSON::PP->new->utf8->decode($json) } // {});
         },
         sub { Future->done({}) }
-                                                                                                                                                                    );
+                                                                                                                                                                          );
 } ## end sub get_imported_package_symbols
 
 sub _start_process
@@ -68,19 +69,19 @@ sub _start_process
     my @inc  = map { "-I$_" } @{PLS::Parser::Pod->get_clean_inc()};
     my $args = PLS::Parser::Pod->get_perl_args();
     my $process = IO::Async::Process->new(
-        command => [$perl, @inc, '-e', $code,@{$args}],
+        command => [$perl, @inc, '-e', $code, @{$args}],
         setup   => _get_setup($config),
         stdin   => {via => 'pipe_write'},
         stdout  => {
                    on_read => sub { 0 }
                   },
         on_finish => sub { }
-                                      );
+                                         );
 
     IO::Async::Loop->new->add($process);
 
     return $process;
-}
+} ## end sub _start_process
 
 sub start_package_symbols_process
 {
