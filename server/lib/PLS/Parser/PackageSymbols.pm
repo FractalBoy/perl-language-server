@@ -22,40 +22,24 @@ its symbol table to find all of the symbols in the package.
 
 =cut
 
+my $package_symbols_process;
+my $imported_symbols_process;
+
 sub get_package_symbols
 {
     my ($config, @packages) = @_;
 
     return {} unless (scalar @packages);
 
-    state $process;
+    start_package_symbols_process($config) if (ref $package_symbols_process ne 'IO::Async::Process');
 
-    if (ref $process ne 'IO::Async::Process')
-    {
-        my $perl = PLS::Parser::Pod->get_perl_exe();
-        my @inc  = map { "-I$_" } @{PLS::Parser::Pod->get_clean_inc()};
-        my $args = PLS::Parser::Pod->get_perl_args();
-        $process = IO::Async::Process->new(
-            command => [$perl, @inc, '-e', get_package_symbols_code(), @{$args}],
-            setup   => _get_setup($config),
-            stdin   => {via => 'pipe_write'},
-            stdout  => {
-                       on_read => sub { 0 }
-                      },
-            on_finish => sub { }
-                                          );
-
-        IO::Async::Loop->new->add($process);
-    } ## end if (ref $process ne 'IO::Async::Process'...)
-
-    return $process->stdin->write(JSON::PP->new->utf8->encode(\@packages) . "\n")->then(sub { $process->stdout->read_until("\n") }, sub { Future->done('{}') })->then(
+    return $package_symbols_process->stdin->write(JSON::PP->new->utf8->encode(\@packages) . "\n")->then(sub { $package_symbols_process->stdout->read_until("\n") })->then(
         sub {
             my ($json) = @_;
 
             return Future->done(eval { JSON::PP->new->utf8->decode($json) } // {});
         },
-        sub { Future->done({}) }
-                                                                                                                                                                     );
+        sub { Future->done({}) });
 } ## end sub get_package_symbols
 
 sub get_imported_package_symbols
@@ -64,27 +48,9 @@ sub get_imported_package_symbols
 
     return {} unless (scalar @imports);
 
-    state $process;
+    start_imported_package_symbols_process($config) if (ref $imported_symbols_process ne 'IO::Async::Process');
 
-    if (ref $process ne 'IO::Async::Process')
-    {
-        my $perl = PLS::Parser::Pod->get_perl_exe();
-        my @inc  = map { "-I$_" } @{PLS::Parser::Pod->get_clean_inc()};
-        my $args = PLS::Parser::Pod->get_perl_args();
-        $process = IO::Async::Process->new(
-            command => [$perl, @inc, '-e', get_imported_package_symbols_code(), @{$args}],
-            setup   => _get_setup($config),
-            stdin   => {via => 'pipe_write'},
-            stdout  => {
-                       on_read => sub { 0 }
-                      },
-            on_finish => sub { }
-                                          );
-
-        IO::Async::Loop->new->add($process);
-    } ## end if (ref $process ne 'IO::Async::Process'...)
-
-    return $process->stdin->write(JSON::PP->new->utf8->encode(\@imports) . "\n")->then(sub { $process->stdout->read_until("\n") }, sub { Future->done('{}') })->then(
+    return $imported_symbols_process->stdin->write(JSON::PP->new->utf8->encode(\@imports) . "\n")->then(sub { $imported_symbols_process->stdout->read_until("\n") })->then(
         sub {
             my ($json) = @_;
 
@@ -93,6 +59,40 @@ sub get_imported_package_symbols
         sub { Future->done({}) }
                                                                                                                                                                     );
 } ## end sub get_imported_package_symbols
+
+sub _start_process
+{
+    my ($config, $code) = @_;
+
+    my $perl = PLS::Parser::Pod->get_perl_exe();
+    my @inc  = map { "-I$_" } @{PLS::Parser::Pod->get_clean_inc()};
+    my $args = PLS::Parser::Pod->get_perl_args();
+    my $process = IO::Async::Process->new(
+        command => [$perl, @inc, '-e', $code,@{$args}],
+        setup   => _get_setup($config),
+        stdin   => {via => 'pipe_write'},
+        stdout  => {
+                   on_read => sub { 0 }
+                  },
+        on_finish => sub { }
+                                      );
+
+    IO::Async::Loop->new->add($process);
+
+    return $process;
+}
+
+sub start_package_symbols_process
+{
+    my ($config) = @_;
+    $package_symbols_process = _start_process($config, get_package_symbols_code());
+}
+
+sub start_imported_package_symbols_process
+{
+    my ($config) = @_;
+    $imported_symbols_process = _start_process($config, get_imported_package_symbols_code());
+}
 
 sub _get_setup
 {
@@ -113,11 +113,11 @@ sub _get_setup
 sub get_package_symbols_code
 {
     my $code = <<'EOF';
-close STDERR;
+#close STDERR;
 
 use IO::Handle;
 use JSON::PP;
-use Sub::Util;
+use B;
 
 STDOUT->autoflush();
 
@@ -129,8 +129,6 @@ while (my $line = <STDIN>)
 {
     my $packages_to_find = $json->decode($line);
     my %functions;
-
-    my %symbol_table = %PackageSymbols::;
 
     foreach my $find_package (@{$packages_to_find})
     {
@@ -163,12 +161,7 @@ while (my $line = <STDIN>)
         foreach my $package (@packages)
         {
             my @parts = split /::/, $package;
-            my $ref   = \%::;
-
-            foreach my $part (@parts)
-            {
-                $ref = $ref->{"${part}::"};
-            }
+            my $ref   = \%{"${package}::"};
 
             foreach my $name (keys %{$ref})
             {
@@ -176,7 +169,8 @@ while (my $line = <STDIN>)
 
                 my $code_ref = $package->can($name);
                 next if (ref $code_ref ne 'CODE');
-                next if Sub::Util::subname($code_ref) !~ /^\Q$package\E(?:::.+)*::(?:\Q$name\E|__ANON__)$/;
+                my $defined_in = eval { B::svref_2object($code_ref)->GV->STASH->NAME };
+                next if ($defined_in ne $package and not $package->isa($defined_in));
 
                 if ($find_package->isa($package))
                 {
@@ -194,8 +188,6 @@ while (my $line = <STDIN>)
             delete $INC{$package_path};
         } ## end foreach my $package (@packages...)
     } ## end foreach my $find_package (@...)
-
-    %PackageSymbols:: = %symbol_table;
 
     print $json->encode(\%functions);
     print "\n";

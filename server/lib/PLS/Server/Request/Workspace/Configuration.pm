@@ -10,6 +10,7 @@ use Scalar::Util;
 
 use PLS::Parser::Document;
 use PLS::Parser::Index;
+use PLS::Parser::PackageSymbols;
 use PLS::Parser::Pod;
 use PLS::Server::State;
 use PLS::Server::Request::TextDocument::PublishDiagnostics;
@@ -86,6 +87,9 @@ sub handle_response
     {
         $server->send_server_request(PLS::Server::Request::TextDocument::PublishDiagnostics->new(uri => $uri));
     }
+
+    PLS::Parser::PackageSymbols::start_package_symbols_process($config);
+    PLS::Parser::PackageSymbols::start_imported_package_symbols_process($config);
 
     return;
 } ## end sub handle_response
