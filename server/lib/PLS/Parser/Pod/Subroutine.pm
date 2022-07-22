@@ -53,14 +53,14 @@ sub find
     my ($self) = @_;
 
     my $definitions;
-    my $imported_functions;
+    my $fully_qualified = length $self->{package} ? 1 : 0;
 
     # If there is no package name in the subroutine call, check to see if
     if (length $self->{uri} and not length $self->{package})
     {
         my $full_text = PLS::Parser::Document->text_from_uri($self->{uri});
         my $imports   = PLS::Parser::Document->get_imports($full_text);
-        $imported_functions = PLS::Parser::PackageSymbols::get_imported_package_symbols($PLS::Server::State::CONFIG, @{$imports})->get();
+        my $imported_functions = PLS::Parser::PackageSymbols::get_imported_package_symbols($PLS::Server::State::CONFIG, @{$imports})->get();
 
       PACKAGE: foreach my $package (keys %{$imported_functions})
         {
@@ -88,6 +88,11 @@ sub find
         {
             my ($ok, $markdown) = $self->find_pod_in_file($path);
             push @markdown, $$markdown if $ok;
+            if ($ok and $fully_qualified)
+            {
+                $self->{markdown} = $markdown;
+                return 1;
+            }
         }
 
         $definitions = $self->{index}->find_package_subroutine($self->{package}, $self->{subroutine}) if (ref $self->{index} eq 'PLS::Parser::Index');
