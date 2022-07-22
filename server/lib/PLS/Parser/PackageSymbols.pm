@@ -55,7 +55,7 @@ sub get_package_symbols
             return Future->done(eval { JSON::PP->new->utf8->decode($json) } // {});
         },
         sub { Future->done({}) }
-                                                                                                                                                                     )->get();
+                                                                                                                                                                     );
 } ## end sub get_package_symbols
 
 sub get_imported_package_symbols
@@ -91,7 +91,7 @@ sub get_imported_package_symbols
             return Future->done(eval { JSON::PP->new->utf8->decode($json) } // {});
         },
         sub { Future->done({}) }
-                                                                                                                                                                    )->get();
+                                                                                                                                                                    );
 } ## end sub get_imported_package_symbols
 
 sub _get_setup
