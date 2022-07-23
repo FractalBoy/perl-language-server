@@ -38,7 +38,7 @@ sub new
     {
         foreach my $result (@$results)
         {
-            delete $result->{signature};
+            delete @{$result}{qw(package signature)};
         }
     } ## end if (ref $results eq 'ARRAY'...)
 

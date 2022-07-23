@@ -121,9 +121,9 @@ sub find_current_list
 
     # Find the nearest list structure that completely surrounds the column.
     return first { $_->lsp_column_number < $column_number and $column_number < $_->lsp_column_number + length($_->content) }
-    sort  { abs($column_number - $a->lsp_column_number) - abs($column_number - $b->lsp_column_number) }
-      map { PLS::Parser::Element->new(element => $_, document => $self->{document}, file => $self->{path}) }
-      map { $find->in($_->element) } @elements;
+      sort { abs($column_number - $a->lsp_column_number) - abs($column_number - $b->lsp_column_number) }
+      map  { PLS::Parser::Element->new(element => $_, document => $self->{document}, file => $self->{path}) }
+      map  { $find->in($_->element) } @elements;
 } ## end sub find_current_list
 
 =head2 go_to_definition_of_closest_subroutine
@@ -361,7 +361,7 @@ sub pod_link
                 )?
                 > # final closing >
             }gx
-              )
+          )
         {
             my $start = $-[1];
             my $end   = $+[1];
@@ -471,14 +471,14 @@ sub find_pod
         if ($element->type eq 'PPI::Token::Operator' and $element->content =~ /^-[rwxoRWXOezsfdlpSbctugkTBMAC]$/)
         {
             my $pod = PLS::Parser::Pod::Subroutine->new(
-                            index => $self->{index},
-                            element => $element,
-                            subroutine => '-X',
-                            include_builtins => 1
-                    );
+                                                        index            => $self->{index},
+                                                        element          => $element,
+                                                        subroutine       => '-X',
+                                                        include_builtins => 1
+                                                       );
             my $ok = $pod->find();
             return (1, $pod) if $ok;
-        }
+        } ## end if ($element->type eq ...)
     } ## end foreach my $element (@elements...)
 
     return 0;
@@ -987,15 +987,13 @@ sub get_packages_fast
     $text = $self->get_full_text() if (ref $text ne 'SCALAR');
     return []                      if (ref $text ne 'SCALAR');
 
-    state $package_rx      = qr/((?&PerlPackageDeclaration))$PPR::GRAMMAR/;
-    state $package_name_rx = qr/((?&PerlQualifiedIdentifier))$PPR::GRAMMAR/x;
+    state $package_rx = qr/((?&PerlPackageDeclaration))$PPR::GRAMMAR/;
     my @packages;
 
     while ($$text =~ /$package_rx/g)
     {
-        my ($package) = $1 =~ /$package_name_rx/;
+        my ($package) = $1 =~ /^package\s+(\S+)\s*;\s*$/;
         next unless (length $package);
-        $package =~ s/^\s+|\s+$//g;
 
         push @packages, $package;
     } ## end while ($$text =~ /$package_rx/g...)
@@ -1408,13 +1406,15 @@ sub find_word_under_cursor
     @elements = map { $_->tokens } @elements;
     @elements =
       sort { (abs $character - $a->lsp_column_number) <=> (abs $character - $b->lsp_column_number) } @elements;
-    my @in_range         = grep { $_->lsp_column_number <= $character and $_->lsp_column_number + length($_->content) >= $character } @elements;
-    my $element          = first { $_->type eq 'PPI::Token::Word' or $_->type eq 'PPI::Token::Label' or $_->type eq 'PPI::Token::Symbol' or $_->type eq 'PPI::Token::Magic' or $_->type eq 'PPI::Token::Operator' } @in_range;
+    my @in_range = grep { $_->lsp_column_number <= $character and $_->lsp_column_number + length($_->content) >= $character } @elements;
+    my $element =
+      first { $_->type eq 'PPI::Token::Word' or $_->type eq 'PPI::Token::Label' or $_->type eq 'PPI::Token::Symbol' or $_->type eq 'PPI::Token::Magic' or $_->type eq 'PPI::Token::Operator' }
+      @in_range;
     my $closest_operator = first { $_->type eq 'PPI::Token::Operator' } @elements;
 
     if (blessed($element) and $element->isa('PLS::Parser::Element') and $element->type eq 'PPI::Token::Operator')
     {
-        return $element->range(), 0, '', '-'  if ((not blessed($element->element->previous_sibling) or $element->element->previous_sibling->isa('PPI::Token::Whitespace')) and $element->content eq '-');
+        return $element->range(), 0, '', '-' if ((not blessed($element->element->previous_sibling) or $element->element->previous_sibling->isa('PPI::Token::Whitespace')) and $element->content eq '-');
         undef $element;
     }
 

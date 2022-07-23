@@ -136,7 +136,7 @@ sub index_files_with_progress
                 )->retain();
             } ## end foreach my $future (@futures...)
 
-            return Future->wait_all(@futures)->on_done(
+            return Future->wait_all(@futures)->then(
                 sub {
                     $server->send_server_request(
                                                  PLS::Server::Request::Progress->new(

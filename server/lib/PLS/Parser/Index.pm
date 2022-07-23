@@ -41,6 +41,7 @@ sub new
                    workspace_folders   => $args{workspace_folders},
                    subs                => {},
                    packages            => {},
+                   subs_by_package     => {},
                    files               => {},
                    ignored_files       => {},
                    ignore_files_mtimes => {}
@@ -68,6 +69,13 @@ sub packages
     my ($self) = @_;
 
     return $self->{packages};
+}
+
+sub subs_by_package
+{
+    my ($self) = @_;
+
+    return $self->{subs_by_package};
 }
 
 sub files
@@ -143,7 +151,13 @@ sub index_files
                         {
                             push @{$self->subs->{$ref}},         @{$subs->{$ref}};
                             push @{$self->files->{$file}{subs}}, $ref;
-                        }
+
+                            foreach my $sub (@{$subs->{$ref}})
+                            {
+                                push @{$self->subs_by_package->{$sub->{package}}}, $ref if (length $sub->{package});
+                            }
+
+                        } ## end foreach my $ref (keys %{$subs...})
 
                         return Future->done($file);
                     }
@@ -207,36 +221,38 @@ sub index_workspace
     return;
 } ## end sub index_workspace
 
-sub _cleanup_index
-{
-    my ($self, $type, $file) = @_;
-
-    if (ref $self->files->{$file}{$type} eq 'ARRAY')
-    {
-        foreach my $ref (@{$self->files->{$file}{$type}})
-        {
-            @{$self->$type->{$ref}} = grep { $_->{uri} ne URI::file->new($file)->as_string() } @{$self->$type->{$ref}};
-            delete $self->$type->{$ref} unless (scalar @{$self->$type->{$ref}});
-        }
-
-        @{$self->files->{$file}{$type}} = ();
-    } ## end if (ref $self->files->...)
-    else
-    {
-        $self->files->{$file}{$type} = [];
-    }
-
-    return;
-} ## end sub _cleanup_index
-
 sub cleanup_file
 {
     my ($self, $file) = @_;
 
-    foreach my $type (qw(subs packages))
+    $self->files->{$file}{subs}     = [] if (ref $self->files->{$file}{subs} ne 'ARRAY');
+    $self->files->{$file}{packages} = [] if (ref $self->files->{$file}{packages} ne 'ARRAY');
+
+    foreach my $ref (@{$self->files->{$file}{subs}})
     {
-        $self->_cleanup_index($type, $file);
+        @{$self->subs->{$ref}} = grep { $_->{uri} ne URI::file->new($file)->as_string() } @{$self->subs->{$ref}};
+        delete $self->subs->{$ref} unless (scalar @{$self->subs->{$ref}});
     }
+
+    foreach my $ref (@{$self->files->{$file}{packages}})
+    {
+        my @old_packages = @{$self->packages->{$ref}};
+        @{$self->packages->{$ref}} = ();
+
+        foreach my $package (@old_packages)
+        {
+            if ($package->{uri} eq URI::file->new($file)->as_string())
+            {
+                delete $self->subs_by_package->{$ref};
+            }
+            else
+            {
+                push @{$self->packages->{$ref}}, $package;
+            }
+        } ## end foreach my $package (@old_packages...)
+
+        delete $self->packages->{$ref} unless (scalar @{$self->packages->{$ref}});
+    } ## end foreach my $ref (@{$self->files...})
 
     delete $self->files->{$file};
 
@@ -327,14 +343,6 @@ sub get_ignored_files
     return [map { @{$self->{ignored_files}{$_}} } keys %{$self->{ignored_files}}];
 } ## end sub get_ignored_files
 
-sub get_all_subroutines
-{
-    my ($self) = @_;
-
-    return [] if (ref $self->subs ne 'HASH');
-    return [keys %{$self->subs}];
-} ## end sub get_all_subroutines
-
 sub get_all_packages
 {
     my ($self) = @_;
@@ -342,6 +350,25 @@ sub get_all_packages
     return [] if (ref $self->packages ne 'HASH');
     return [keys %{$self->packages}];
 } ## end sub get_all_packages
+
+sub get_all_fully_qualified_subroutines
+{
+    my ($self) = @_;
+
+    return [] if (ref $self->subs_by_package ne 'HASH');
+
+    my @subroutines;
+
+    foreach my $package (keys %{$self->subs_by_package})
+    {
+        foreach my $subroutine (@{$self->subs_by_package->{$package}})
+        {
+            push @subroutines, "${package}::${subroutine}";
+        }
+    } ## end foreach my $package (keys %...)
+
+    return \@subroutines;
+} ## end sub get_all_fully_qualified_subroutines
 
 sub is_ignored
 {
@@ -531,7 +558,8 @@ sub get_subroutines
         )
         $PPR::GRAMMAR/x;
 
-    state $var_rx = qr/((?&PerlVariable)|undef)$PPR::GRAMMAR/;
+    state $var_rx     = qr/((?&PerlVariable)|undef)$PPR::GRAMMAR/;
+    state $package_rx = qr/((?&PerlPackageDeclaration))$PPR::GRAMMAR/;
 
     my %subroutines;
 
@@ -560,6 +588,15 @@ sub get_subroutines
 
         my $name = $+{name};
 
+        # Look for package declaration anywhere from the start of the document
+        # to the subroutine declaration.
+        my $package;
+
+        if (substr($$text, 0, pos($$text)) =~ /$package_rx/)
+        {
+            ($package) = $1 =~ /^package\s+(.+)\s*;\s*$/;
+        }
+
         push @{$subroutines{$name}},
           {
             uri   => $uri,
@@ -573,7 +610,8 @@ sub get_subroutines
                               character => $end
                              }
                      },
-            signature => {label => $signature, parameters => \@parameters}
+            signature => {label => $signature, parameters => \@parameters},
+            'package' => $package
           };
     } ## end while ($$text =~ /$sub_rx/g...)
 
