@@ -95,7 +95,7 @@ sub service
                                                                                                  token      => $work_done_progress_create->{params}{token},
                                                                                                  kind       => 'report',
                                                                                                  message    => "Indexed $file ($done/$total)",
-                                                                                                 percentage => int($done / $total)
+                                                                                                 percentage => int($done * 100 / $total)
                                                                                                 )
                                                     );
                     }
