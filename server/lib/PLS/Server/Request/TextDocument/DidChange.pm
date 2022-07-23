@@ -52,13 +52,13 @@ sub service
             delay     => 2,
             on_expire => sub {
                 my $index = PLS::Parser::Index->new();
-                $index->index_files($uri);
+                $index->index_files($uri)->then(sub { Future->wait_all(@_) })->retain();
 
                 $server->send_server_request(PLS::Server::Request::TextDocument::PublishDiagnostics->new(uri => $uri));
                 delete $timers{$uri};
             },
             remove_on_expire => 1
-                                                        );
+        );
 
         my $loop = IO::Async::Loop->new();
         $loop->add($timers{$uri});

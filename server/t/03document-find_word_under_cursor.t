@@ -291,12 +291,6 @@ subtest 'only sigil before comma' => sub {
     is($filter, '$', 'filter correct');
 };
 
-END
-{
-    # Clean up index created by server
-    eval { File::Path::rmtree("$FindBin::RealBin/.pls_cache") };
-}
-
 __END__
 $
 $o

@@ -1,7 +1,7 @@
 use strict;
 use warnings;
 
-use Test::More tests => 68;
+use Test::More tests => 70;
 
 use_ok('PLS');
 use_ok('PLS::Server');
@@ -37,12 +37,15 @@ use_ok('PLS::Server::Request::Workspace::DidChangeWorkspaceFolders');
 use_ok('PLS::Server::Request::Workspace::ExecuteCommand');
 use_ok('PLS::Server::Request::Workspace::Symbol');
 
+use_ok('PLS::Server::Request::Window::WorkDoneProgress::Create');
+
 use_ok('PLS::Server::Request::CancelRequest');
 use_ok('PLS::Server::Request::Factory');
 use_ok('PLS::Server::Request::Initialize');
 use_ok('PLS::Server::Request::Initialized');
 use_ok('PLS::Server::Request::Shutdown');
 use_ok('PLS::Server::Request::Exit');
+use_ok('PLS::Server::Request::Progress');
 
 use_ok('PLS::Server::Response::Cancelled');
 use_ok('PLS::Server::Response::Completion');
