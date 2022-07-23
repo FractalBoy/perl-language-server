@@ -9,12 +9,10 @@ use JSON::PP;
 use List::Util;
 use Path::Tiny;
 
-use PLS::Server::State;
 use PLS::Server::Request::Workspace::Configuration;
 use PLS::Server::Request::Client::RegisterCapability;
 use PLS::Server::Request::WorkDoneProgress;
 use PLS::Server::Request::Window::WorkDoneProgress::Create;
-use PLS::Parser::Document;
 
 =head1 NAME
 
@@ -60,6 +58,17 @@ sub service
     } ## end if (scalar @{$index->workspace_folders...})
 
     $server->send_server_request(PLS::Server::Request::Client::RegisterCapability->new(\@capabilities));
+
+    # Now is a good time to start indexing files.
+    $self->index_files($index, $server);
+
+    return;
+} ## end sub service
+
+sub index_files
+{
+    my (undef, $index, $server) = @_;
+
     my $work_done_progress_create = PLS::Server::Request::Window::WorkDoneProgress::Create->new();
     $server->send_server_request($work_done_progress_create);
 
@@ -73,7 +82,6 @@ sub service
                                                                             )
                                 );
 
-    # Now is a good time to start indexing files.
     $index->index_files()->then(
         sub {
             my @futures = @_;
@@ -118,6 +126,6 @@ sub service
     )->retain();
 
     return;
-} ## end sub service
+} ## end sub index_files
 
 1;
