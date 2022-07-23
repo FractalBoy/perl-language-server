@@ -11,8 +11,9 @@ use Path::Tiny;
 
 use PLS::Server::Request::Workspace::Configuration;
 use PLS::Server::Request::Client::RegisterCapability;
-use PLS::Server::Request::WorkDoneProgress;
+use PLS::Server::Request::Progress;
 use PLS::Server::Request::Window::WorkDoneProgress::Create;
+use PLS::Server::State;
 
 =head1 NAME
 
@@ -67,19 +68,44 @@ sub service
 
 sub index_files
 {
+    my ($self, $index, $server) = @_;
+
+    if ($PLS::Server::State::CLIENT_CAPABILITIES->{window}{workDoneProgress})
+    {
+        $self->index_files_with_progress($index, $server);
+    }
+    else
+    {
+        $self->index_files_without_progress($index);
+    }
+
+    return;
+} ## end sub index_files
+
+sub index_files_without_progress
+{
+    my (undef, $index) = @_;
+
+    $index->index_files()->then(sub { Future->wait_all(@_) })->retain();
+
+    return;
+} ## end sub index_files_without_progress
+
+sub index_files_with_progress
+{
     my (undef, $index, $server) = @_;
 
     my $work_done_progress_create = PLS::Server::Request::Window::WorkDoneProgress::Create->new();
     $server->send_server_request($work_done_progress_create);
 
     $server->send_server_request(
-                                 PLS::Server::Request::WorkDoneProgress->new(
-                                                                             token       => $work_done_progress_create->{params}{token},
-                                                                             kind        => 'begin',
-                                                                             title       => 'Indexing',
-                                                                             cancellable => JSON::PP::false,
-                                                                             percentage  => 0
-                                                                            )
+                                 PLS::Server::Request::Progress->new(
+                                                                     token       => $work_done_progress_create->{params}{token},
+                                                                     kind        => 'begin',
+                                                                     title       => 'Indexing',
+                                                                     cancellable => JSON::PP::false,
+                                                                     percentage  => 0
+                                                                    )
                                 );
 
     $index->index_files()->then(
@@ -99,12 +125,12 @@ sub index_files
                         $file = path($file)->relative($workspace_folder);
                         $done++;
                         $server->send_server_request(
-                                                     PLS::Server::Request::WorkDoneProgress->new(
-                                                                                                 token      => $work_done_progress_create->{params}{token},
-                                                                                                 kind       => 'report',
-                                                                                                 message    => "Indexed $file ($done/$total)",
-                                                                                                 percentage => int($done * 100 / $total)
-                                                                                                )
+                                                     PLS::Server::Request::Progress->new(
+                                                                                         token      => $work_done_progress_create->{params}{token},
+                                                                                         kind       => 'report',
+                                                                                         message    => "Indexed $file ($done/$total)",
+                                                                                         percentage => int($done * 100 / $total)
+                                                                                        )
                                                     );
                     }
                 )->retain();
@@ -113,11 +139,11 @@ sub index_files
             return Future->wait_all(@futures)->on_done(
                 sub {
                     $server->send_server_request(
-                                                 PLS::Server::Request::WorkDoneProgress->new(
-                                                                                             token   => $work_done_progress_create->{params}{token},
-                                                                                             kind    => 'end',
-                                                                                             message => 'Finished indexing all files'
-                                                                                            )
+                                                 PLS::Server::Request::Progress->new(
+                                                                                     token   => $work_done_progress_create->{params}{token},
+                                                                                     kind    => 'end',
+                                                                                     message => 'Finished indexing all files'
+                                                                                    )
                                                 );
 
                 }
@@ -126,6 +152,6 @@ sub index_files
     )->retain();
 
     return;
-} ## end sub index_files
+} ## end sub index_files_with_progress
 
 1;

@@ -5,6 +5,17 @@ use warnings;
 
 use parent 'PLS::Server::Request';
 
+=head1 NAME
+
+PLS::Server::Request::Window::WorkDoneProgress::Create
+
+=head1 DESCRIPTION
+
+This is a request from the server to the client to ask the client
+to create a work done progress.
+
+=cut
+
 sub new
 {
     my ($class) = @_;
