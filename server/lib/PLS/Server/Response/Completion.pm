@@ -345,6 +345,7 @@ sub get_variables
             {
                 if ($line =~ /=item\s*(C<)?([\$\@\%]\S+)\s*/)
                 {
+                    # If variable started with pod sequence "C<" remove ">" from the end
                     my $variable = $2;
                     $variable = substr $variable, 0, -1 if (length $1);
 
