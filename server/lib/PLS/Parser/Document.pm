@@ -1451,7 +1451,7 @@ sub find_word_under_cursor
         }
         elsif ($string =~ /^(q[qrx]|[ysm]|tr)(\S)/ or $string =~ m{^()(/)})
         {
-            my $operator      = $1;
+            my $operator      = $1 // '';
             my $delimiter     = $2;
             my $end_delimiter = $delimiter;
             $end_delimiter = '}' if ($delimiter eq '{');
@@ -1461,11 +1461,11 @@ sub find_word_under_cursor
 
             if ($string =~ /\Q$end_delimiter\E$/)
             {
-                $string = substr $string, length $operator + 1, -1;
+                $string = substr $string, length($operator) + 1, -1;
             }
             else
             {
-                $string = substr $string, length $operator + 1;
+                $string = substr $string, length($operator) + 1;
             }
         } ## end elsif ($string =~ /^(q[qrx]|[ysm]|tr)(\S)/...)
 
