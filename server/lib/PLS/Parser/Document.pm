@@ -1418,6 +1418,7 @@ sub find_word_under_cursor
           or $_->type eq 'PPI::Token::Quote::Interpolate'
           or $_->type eq 'PPI::Token::QuoteLike::Regexp'
           or $_->type eq 'PPI::Token::QuoteLike::Command'
+          or $_->element->isa('PPI::Token::Regexp')
     } @in_range;
     my $closest_operator = first { $_->type eq 'PPI::Token::Operator' } @elements;
 
@@ -1428,11 +1429,13 @@ sub find_word_under_cursor
     }
 
     if (
-        blessed($element)
-        and (   $element->isa('PLS::Parser::Element') and $element->type eq 'PPI::Token::Quote::Double'
+            blessed($element)
+        and $element->isa('PLS::Parser::Element')
+        and (   $element->type eq 'PPI::Token::Quote::Double'
              or $element->type eq 'PPI::Token::Quote::Interpolate'
              or $element->type eq 'PPI::Token::QuoteLike::Regexp'
-             or $element->type eq 'PPI::Token::QuoteLike::Command')
+             or $element->type eq 'PPI::Token::QuoteLike::Command'
+             or $element->element->isa('PPI::Token::Regexp'))
        )
     {
         my $string_start = $character - $element->range->{start}{character};
@@ -1446,9 +1449,10 @@ sub find_word_under_cursor
         {
             $string = substr $string, 1, -1;
         }
-        elsif ($string =~ /^q[qrx](\S)/)
+        elsif ($string =~ /^(q[qrx]|[ysm]|tr)(\S)/ or $string =~ m{^()(/)})
         {
-            my $delimiter     = $1;
+            my $operator      = $1;
+            my $delimiter     = $2;
             my $end_delimiter = $delimiter;
             $end_delimiter = '}' if ($delimiter eq '{');
             $end_delimiter = ')' if ($delimiter eq '(');
@@ -1457,13 +1461,13 @@ sub find_word_under_cursor
 
             if ($string =~ /\Q$end_delimiter\E$/)
             {
-                $string = substr $string, 3, -1;
+                $string = substr $string, length $operator + 1, -1;
             }
             else
             {
-                $string = substr $string, 3;
+                $string = substr $string, length $operator + 1;
             }
-        } ## end elsif ($string =~ /^q[qrx](\S)/...)
+        } ## end elsif ($string =~ /^(q[qrx]|[ysm]|tr)(\S)/...)
 
         state $var_rx = qr/((?&PerlVariable)|[\$\@\%])$PPR::GRAMMAR$/;
 
