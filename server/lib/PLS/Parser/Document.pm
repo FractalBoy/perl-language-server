@@ -1407,9 +1407,18 @@ sub find_word_under_cursor
     @elements =
       sort { (abs $character - $a->lsp_column_number) <=> (abs $character - $b->lsp_column_number) } @elements;
     my @in_range = grep { $_->lsp_column_number <= $character and $_->lsp_column_number + length($_->content) >= $character } @elements;
-    my $element =
-      first { $_->type eq 'PPI::Token::Word' or $_->type eq 'PPI::Token::Label' or $_->type eq 'PPI::Token::Symbol' or $_->type eq 'PPI::Token::Magic' or $_->type eq 'PPI::Token::Operator' }
-      @in_range;
+    my $element  = first
+    {
+             $_->type eq 'PPI::Token::Word'
+          or $_->type eq 'PPI::Token::Label'
+          or $_->type eq 'PPI::Token::Symbol'
+          or $_->type eq 'PPI::Token::Magic'
+          or $_->type eq 'PPI::Token::Operator'
+          or $_->type eq 'PPI::Token::Quote::Double'
+          or $_->type eq 'PPI::Token::Quote::Interpolate'
+          or $_->type eq 'PPI::Token::QuoteLike::Regexp'
+          or $_->type eq 'PPI::Token::QuoteLike::Command'
+    } @in_range;
     my $closest_operator = first { $_->type eq 'PPI::Token::Operator' } @elements;
 
     if (blessed($element) and $element->isa('PLS::Parser::Element') and $element->type eq 'PPI::Token::Operator')
@@ -1417,6 +1426,64 @@ sub find_word_under_cursor
         return $element->range(), 0, '', '-' if ((not blessed($element->element->previous_sibling) or $element->element->previous_sibling->isa('PPI::Token::Whitespace')) and $element->content eq '-');
         undef $element;
     }
+
+    if (
+        blessed($element)
+        and (   $element->isa('PLS::Parser::Element') and $element->type eq 'PPI::Token::Quote::Double'
+             or $element->type eq 'PPI::Token::Quote::Interpolate'
+             or $element->type eq 'PPI::Token::QuoteLike::Regexp'
+             or $element->type eq 'PPI::Token::QuoteLike::Command')
+       )
+    {
+        my $string_start = $character - $element->range->{start}{character};
+        my $string_end   = $character - $element->range->{end}{character};
+
+        return if ($string_start <= 0);
+
+        my $string = $element->name;
+
+        if ($string =~ /^"/)
+        {
+            $string = substr $string, 1, -1;
+        }
+        elsif ($string =~ /^q[qrx](\S)/)
+        {
+            my $delimiter     = $1;
+            my $end_delimiter = $delimiter;
+            $end_delimiter = '}' if ($delimiter eq '{');
+            $end_delimiter = ')' if ($delimiter eq '(');
+            $end_delimiter = '>' if ($delimiter eq '>');
+            $end_delimiter = ']' if ($delimiter eq ']');
+
+            if ($string =~ /\Q$end_delimiter\E$/)
+            {
+                $string = substr $string, 3, -1;
+            }
+            else
+            {
+                $string = substr $string, 3;
+            }
+        } ## end elsif ($string =~ /^q[qrx](\S)/...)
+
+        state $var_rx = qr/((?&PerlVariable)|[\$\@\%])$PPR::GRAMMAR$/;
+
+        if ($string =~ /$var_rx/)
+        {
+            return {
+                    start => {
+                              line      => $line,
+                              character => $character - length $1
+                             },
+                    end => {
+                            line      => $line,
+                            character => $character
+                           }
+                   },
+              0, '', $1;
+        } ## end if ($string =~ /$var_rx/...)
+
+        undef $element;
+    } ## end if (blessed($element) ...)
 
     if (not blessed($element) or not $element->isa('PLS::Parser::Element'))
     {
