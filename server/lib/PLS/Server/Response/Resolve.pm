@@ -31,7 +31,18 @@ sub new
     my $index = PLS::Parser::Index->new();
     my $kind  = $request->{params}{kind};
 
-    if ($kind == 7)
+    if ($kind == 6)
+    {
+        my $pod = PLS::Parser::Pod::Variable->new(variable => $request->{params}{label});
+        my $ok  = $pod->find();
+
+        if ($ok)
+        {
+            $self->{result} = $request->{params};
+            $self->{result}{documentation} = {kind => 'markdown', value => ${$pod->{markdown}}};
+        }
+    } ## end if ($kind == 6)
+    elsif ($kind == 7)
     {
         my $pod = PLS::Parser::Pod::Package->new(index => $index, package => $request->{params}{label});
         my $ok  = $pod->find();
@@ -41,7 +52,7 @@ sub new
             $self->{result} = $request->{params};
             $self->{result}{documentation} = {kind => 'markdown', value => ${$pod->{markdown}}};
         }
-    } ## end if ($kind == 7)
+    } ## end elsif ($kind == 7)
     elsif ($kind == 3 or $kind == 21)
     {
         my ($package, $subroutine);
@@ -61,7 +72,7 @@ sub new
         else
         {
             $subroutine = $request->{params}{label};
-            $package = $request->{params}{data} if (length $request->{params}{data});
+            $package    = $request->{params}{data} if (length $request->{params}{data});
         }
 
         my $pod = PLS::Parser::Pod::Subroutine->new(index => $index, package => $package, subroutine => $subroutine);

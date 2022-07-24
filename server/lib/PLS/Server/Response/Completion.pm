@@ -37,18 +37,14 @@ sub new
     my $document = PLS::Parser::Document->new(uri => $request->{params}{textDocument}{uri}, line => $request->{params}{position}{line});
     return $self if (ref $document ne 'PLS::Parser::Document');
 
-    my @word_under_cursor_info = $document->find_word_under_cursor(@{$request->{params}{position}}{qw(line character)});
-    return $self unless (scalar @word_under_cursor_info);
+    my ($range, $arrow, $package, $filter) = $document->find_word_under_cursor(@{$request->{params}{position}}{qw(line character)});
 
-    my ($range, $arrow, $package, $filter) = @word_under_cursor_info;
+    return $self if (ref $range ne 'HASH');
 
-    if (ref $range eq 'HASH')
-    {
-        $range->{start}{line} = $request->{params}{position}{line};
-        $range->{end}{line}   = $request->{params}{position}{line};
-    }
+    $range->{start}{line}    = $request->{params}{position}{line};
+    $range->{end}{line}      = $request->{params}{position}{line};
+    $range->{end}{character} = $request->{params}{position}{character};
 
-    return $self unless (ref $range eq 'HASH');
     $package =~ s/::$// if (length $package);
 
     my @results;
@@ -337,7 +333,32 @@ sub get_variables
     my @variables;
     my %seen_variables;
 
-    foreach my $variable (@{$document->get_variables_fast($full_text)})
+    state @builtin_variables;
+
+    unless (scalar @builtin_variables)
+    {
+        my $perldoc = PLS::Parser::Pod->get_perldoc_location();
+
+        if (open my $fh, '-|', $perldoc, '-Tu', 'perlvar')
+        {
+            while (my $line = <$fh>)
+            {
+                if ($line =~ /=item\s*(C<)?([\$\@\%]\S+)\s*/)
+                {
+                    my $variable = $2;
+                    $variable = substr $variable, 0, -1 if (length $1);
+
+                    # Remove variables indicated by pod sequences
+                    next if ($variable =~ /^\$</ and $variable ne '$<');
+                    push @builtin_variables, $variable;
+                } ## end if ($line =~ /=item\s*(C<)?([\$\@\%]\S+)\s*/...)
+            } ## end while (my $line = <$fh>)
+
+            close $fh;
+        } ## end if (open my $fh, '-|',...)
+    } ## end unless (scalar @builtin_variables...)
+
+    foreach my $variable (@builtin_variables, @{$document->get_variables_fast($full_text)})
     {
         next if $seen_variables{$variable}++;
         next if ($variable =~ /\n/);
@@ -360,7 +381,7 @@ sub get_variables
                 kind       => 6
               };
         } ## end if ($variable =~ /^[\@\%]/...)
-    } ## end foreach my $variable (@{$document...})
+    } ## end foreach my $variable (@builtin_variables...)
 
     return \@variables;
 } ## end sub get_variables
