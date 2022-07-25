@@ -143,13 +143,13 @@ sub index_files
 
                         foreach my $ref (keys %{$packages})
                         {
-                            push @{$self->packages->{$ref}}, @{$packages->{$ref}};
+                            push @{$self->packages->{$ref}},         @{$packages->{$ref}};
                             push @{$self->files->{$file}{packages}}, $ref;
                         }
 
                         foreach my $ref (keys %{$subs})
                         {
-                            push @{$self->subs->{$ref}}, @{$subs->{$ref}};
+                            push @{$self->subs->{$ref}},         @{$subs->{$ref}};
                             push @{$self->files->{$file}{subs}}, $ref;
 
                             foreach my $sub (@{$subs->{$ref}})
@@ -411,7 +411,7 @@ sub get_all_perl_files
          }
         },
         @folders
-                    );
+    );
 
     return [map { URI::file->new($_)->as_string } @perl_files];
 } ## end sub get_all_perl_files
@@ -616,7 +616,7 @@ sub get_subroutines
     } ## end while ($$text =~ /$sub_rx/g...)
 
     state $block_rx        = qr/use\h+constant(?&PerlOWS)((?&PerlBlock))$PPR::GRAMMAR/;
-    state $bareword_rx     = qr/((?&PerlBareword))(?&PerlOWS)(?&PerlComma)?$PPR::GRAMMAR/;
+    state $bareword_rx     = qr/((?&PerlBareword))(?&PerlOWS)(?&PerlComma)$PPR::GRAMMAR/;
     state $one_constant_rx = qr/use\h+constant\h+((?&PerlBareword))(?&PerlOWS)(?&PerlComma)$PPR::GRAMMAR/;
 
     while ($$text =~ /$block_rx/g)
@@ -633,8 +633,6 @@ sub get_subroutines
         {
             ($package) = $1 =~ /^package\s+(.+)\s*;\s*$/;
         }
-
-        my @barewords;
 
         while ($block =~ /$bareword_rx/g)
         {
