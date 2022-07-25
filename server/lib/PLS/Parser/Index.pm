@@ -143,13 +143,13 @@ sub index_files
 
                         foreach my $ref (keys %{$packages})
                         {
-                            push @{$self->packages->{$ref}},         @{$packages->{$ref}};
+                            push @{$self->packages->{$ref}}, @{$packages->{$ref}};
                             push @{$self->files->{$file}{packages}}, $ref;
                         }
 
                         foreach my $ref (keys %{$subs})
                         {
-                            push @{$self->subs->{$ref}},         @{$subs->{$ref}};
+                            push @{$self->subs->{$ref}}, @{$subs->{$ref}};
                             push @{$self->files->{$file}{subs}}, $ref;
 
                             foreach my $sub (@{$subs->{$ref}})
@@ -411,7 +411,7 @@ sub get_all_perl_files
          }
         },
         @folders
-    );
+                    );
 
     return [map { URI::file->new($_)->as_string } @perl_files];
 } ## end sub get_all_perl_files
@@ -614,6 +614,96 @@ sub get_subroutines
             'package' => $package
           };
     } ## end while ($$text =~ /$sub_rx/g...)
+
+    state $block_rx        = qr/use\h+constant(?&PerlOWS)((?&PerlBlock))$PPR::GRAMMAR/;
+    state $bareword_rx     = qr/((?&PerlBareword))(?&PerlOWS)(?&PerlComma)?$PPR::GRAMMAR/;
+    state $one_constant_rx = qr/use\h+constant\h+((?&PerlBareword))(?&PerlOWS)(?&PerlComma)$PPR::GRAMMAR/;
+
+    while ($$text =~ /$block_rx/g)
+    {
+        my $block       = $1;
+        my $block_end   = $+[1];
+        my $block_start = $-[1];
+
+        # Look for package declaration anywhere from the start of the document
+        # to the constant declaration
+        my $package;
+
+        if (substr($$text, 0, pos($$text)) =~ /$package_rx/)
+        {
+            ($package) = $1 =~ /^package\s+(.+)\s*;\s*$/;
+        }
+
+        my @barewords;
+
+        while ($block =~ /$bareword_rx/g)
+        {
+            my $bareword       = $1;
+            my $bareword_end   = $+[1];
+            my $bareword_start = $-[1];
+
+            $bareword_start += $block_start;
+            $bareword_end   += $block_start;
+
+            my $start_line = $class->get_line_by_offset($line_offsets, $bareword_start);
+            $bareword_start -= $line_offsets->[$start_line];
+            my $end_line = $class->get_line_by_offset($line_offsets, $bareword_end);
+            $bareword_end -= $line_offsets->[$end_line];
+
+            push @{$subroutines{$bareword}},
+              {
+                uri   => $uri,
+                range => {
+                          start => {
+                                    line      => $start_line,
+                                    character => $bareword_start
+                                   },
+                          end => {
+                                  line      => $end_line,
+                                  character => $bareword_end
+                                 }
+                         },
+                'package' => $package
+              };
+        } ## end while ($block =~ /$bareword_rx/g...)
+    } ## end while ($$text =~ /$block_rx/g...)
+
+    while ($$text =~ /$one_constant_rx/g)
+    {
+        my $bareword = $1;
+        my $end      = $+[1];
+        my $start    = $-[1];
+
+        my $start_line = $class->get_line_by_offset($line_offsets, $start);
+        $start -= $line_offsets->[$start_line];
+        my $end_line = $class->get_line_by_offset($line_offsets, $end);
+        $end -= $line_offsets->[$end_line];
+
+        # Look for package declaration anywhere from the start of the document
+        # to the constant declaration
+        my $package;
+
+        if (substr($$text, 0, pos($$text)) =~ /$package_rx/)
+        {
+            ($package) = $1 =~ /^package\s+(.+)\s*;\s*$/;
+        }
+
+        push @{$subroutines{$bareword}},
+          {
+            uri   => $uri,
+            range => {
+                      start => {
+                                line      => $start_line,
+                                character => $start
+                               },
+                      end => {
+                              line      => $end_line,
+                              character => $end
+                             }
+                     },
+            'package' => $package
+          };
+    } ## end while ($$text =~ /$one_constant_rx/g...)
 
     return \%subroutines;
 } ## end sub get_subroutines
