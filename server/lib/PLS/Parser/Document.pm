@@ -653,7 +653,7 @@ sub go_to_variable_definition
                     last CHILDREN if $child == $prev_cursor;
                     next unless blessed($child);
 
-                    if ($child->isa('PPI::Statement::Variable'))
+                    if ($child->isa('PPI::Statement::Variable') and any { $_ eq $variable } $child->variables)
                     {
                         $declaration = $child;
                         last OUTER;
