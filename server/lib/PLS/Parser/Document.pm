@@ -592,6 +592,7 @@ sub go_to_variable_definition
     my $document = $cursor->top;
 
     my $declaration;
+    state $var_rx = qr/((?&PerlVariable))$PPR::GRAMMAR/;
 
   OUTER: while (1)
     {
@@ -614,13 +615,12 @@ sub go_to_variable_definition
                 }
                 if ($child->isa('PPI::Statement::Include') and $child->type eq 'use' and $child->pragma eq 'vars')
                 {
-                    my @variables = grep { defined } $child =~ /((?&PerlVariable))$PPR::GRAMMAR/gx;
-
-                    if (any { $_ eq $variable } @variables)
+                    while ($child =~ /$var_rx/g)
                     {
+                        next if ($1 ne $variable);
                         $declaration = $child;
                         last OUTER;
-                    }
+                    } ## end while ($child =~ /$var_rx/g...)
                 } ## end if ($child->isa('PPI::Statement::Include'...))
             } ## end foreach my $child ($cursor->...)
         } ## end if ($cursor->isa('PPI::Structure::Block'...))
@@ -637,9 +637,10 @@ sub go_to_variable_definition
                     {
                         if (blessed($child->snext_sibling) and $child->snext_sibling->isa('PPI::Token::Symbol') and $child->snext_sibling->symbol eq $variable)
                         {
+                            #$declaration = $child->snext_sibling;
                             $declaration = $cursor;
                             last OUTER;
-                        }
+                        } ## end if (blessed($child->snext_sibling...))
                     } ## end if ($child->isa('PPI::Token::Word'...))
                 } ## end foreach my $child ($cursor->...)
             } ## end if ($cursor->type eq 'foreach'...)
