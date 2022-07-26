@@ -247,7 +247,9 @@ while (my $line = <STDIN>)
 
         foreach my $subroutine (keys %symbol_table_after)
         {
-            next if (ref eval { *{$symbol_table_after{$subroutine}}{CODE} } ne 'CODE');
+            # Constants are created as scalar refs in the symbol table
+            next if (ref $symbol_table_after{$subroutine} ne 'SCALAR' and ref $symbol_table_after{$subroutine} ne 'GLOB' and ref \($symbol_table_after{$subroutine}) ne 'GLOB');
+            next if ((ref $symbol_table_after{$subroutine} eq 'GLOB' or ref \($symbol_table_after{$subroutine}) eq 'GLOB') and ref *{$symbol_table_after{$subroutine}}{CODE} ne 'CODE');
             $functions{$import->{module}}{$subroutine} = 1;
         }
 
