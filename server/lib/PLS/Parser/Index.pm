@@ -87,10 +87,9 @@ sub files
 
 sub _index_file
 {
-    my ($uri) = @_;
+    my ($uri, $text) = @_;
 
-    require PLS::Parser::Document;
-    my $text         = PLS::Parser::Document->text_from_uri($uri);
+    $text = PLS::Parser::Document->text_from_uri($uri) if (ref $text ne 'SCALAR');
     my $line_offsets = PLS::Parser::Index->get_line_offsets($text);
     my $packages     = PLS::Parser::Index->get_packages($text, $uri, $line_offsets);
     my $subroutines  = PLS::Parser::Index->get_subroutines($text, $uri, $line_offsets);
@@ -127,11 +126,23 @@ sub index_files
 
             my @futures;
 
+            my %open_files = map { $_ => 1 } PLS::Parser::Document->open_files();
+            require PLS::Parser::Document;
+
             foreach my $uri (@{$uris})
             {
-                push @futures, $function->call(args => [$uri])->then(
+                # If the file is open, pass the current text to the function, since the other
+                # process will not have the most up-to-date document text.
+                # If the file is not open, allow the function to open the file and get the text.
+                my $version = PLS::Parser::Document::uri_version($uri);
+                my $text = length $version ? PLS::Parser::Document->text_from_uri($uri) : undef;
+
+                push @futures, $function->call(args => [$uri, $text])->then(
                     sub {
                         my ($packages, $subs) = @_;
+
+                        my $current_version = PLS::Parser::Document::uri_version($uri);
+                        return if (length $version and length $current_version and $current_version < $version);
 
                         my $file = URI->new($uri)->file;
                         return if $self->is_ignored($file);

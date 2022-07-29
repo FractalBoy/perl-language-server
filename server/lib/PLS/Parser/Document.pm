@@ -1284,7 +1284,11 @@ sub _get_ppi_document
     my $file;
     my $sha = Digest::SHA->new(256);
 
-    if (length $args{uri})
+    if ($args{text})
+    {
+        $file = $args{text};
+    }
+    elsif (length $args{uri})
     {
         if (ref $FILES{$args{uri}} eq 'SCALAR')
         {
@@ -1295,10 +1299,6 @@ sub _get_ppi_document
             $file = URI->new($args{uri})->file;
         }
     } ## end if (length $args{uri})
-    elsif ($args{text})
-    {
-        $file = $args{text};
-    }
 
     if (length $args{line})
     {

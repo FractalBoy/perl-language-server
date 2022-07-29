@@ -41,14 +41,15 @@ sub get_all_document_symbols_async
         IO::Async::Loop->new->add($function);
     }
 
-    return $function->call(args => [$class, $uri]);
+    my $text = PLS::Parser::Document->text_from_uri($uri);
+    return $function->call(args => [$class, $uri, $text]);
 } ## end sub get_all_document_symbols_async
 
 sub get_all_document_symbols
 {
-    my ($class, $uri) = @_;
+    my ($class, $uri, $text) = @_;
 
-    my $document = PLS::Parser::Document->new(uri => $uri);
+    my $document = PLS::Parser::Document->new(uri => $uri, text => $text);
     return [] if (ref $document ne 'PLS::Parser::Document');
 
     my @roots;
