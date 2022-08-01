@@ -11,9 +11,9 @@ use IO::Async::Signal;
 use IO::Async::Stream;
 use IO::Async::Timer::Periodic;
 use IO::Handle;
-use JSON::PP;
 use Scalar::Util qw(blessed);
 
+use PLS::JSON;
 use PLS::Server::Request::Factory;
 use PLS::Server::Response;
 use PLS::Server::Response::Cancelled;
@@ -134,7 +134,7 @@ sub run
                 my $json = substr $$buffref, 0, $size, '';
                 $size = 0;
 
-                my $content = JSON::PP->new->utf8->decode($json);
+                my $content = PLS::JSON->new->utf8->decode($json);
 
                 $self->handle_client_message($content);
                 return 1;

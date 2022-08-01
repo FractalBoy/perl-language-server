@@ -5,10 +5,10 @@ use warnings;
 
 use parent 'PLS::Server::Request';
 
-use JSON::PP;
 use List::Util;
 use Path::Tiny;
 
+use PLS::JSON;
 use PLS::Server::Request::Workspace::Configuration;
 use PLS::Server::Request::Client::RegisterCapability;
 use PLS::Server::Request::Progress;
@@ -103,7 +103,7 @@ sub index_files_with_progress
                                                                      token       => $work_done_progress_create->{params}{token},
                                                                      kind        => 'begin',
                                                                      title       => 'Indexing',
-                                                                     cancellable => JSON::PP::false,
+                                                                     cancellable => PLS::JSON::false,
                                                                      percentage  => 0
                                                                     )
                                 );

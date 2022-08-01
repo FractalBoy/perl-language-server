@@ -1,9 +1,10 @@
 use strict;
 use warnings;
 
-use Test::More tests => 70;
+use Test::More tests => 71;
 
 use_ok('PLS');
+use_ok('PLS::JSON');
 use_ok('PLS::Server');
 
 use_ok('PLS::Server::Method::CompletionItem');

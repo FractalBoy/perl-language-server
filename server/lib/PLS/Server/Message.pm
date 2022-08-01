@@ -3,7 +3,7 @@ package PLS::Server::Message;
 use strict;
 use warnings;
 
-use JSON::PP;
+use PLS::JSON;
 
 =head1 NAME
 
@@ -27,7 +27,7 @@ sub serialize {
         %{$self}
     );
 
-    my $json = encode_json \%content;
+    my $json = PLS::JSON->new->utf8->encode(\%content);
     return $json;
 }
 

@@ -5,8 +5,7 @@ use warnings;
 
 use parent q(PLS::Server::Response);
 
-use JSON::PP;
-
+use PLS::JSON;
 use PLS::Server::State;
 
 =head1 NAME
@@ -31,33 +30,33 @@ sub new
                 result => {
                            capabilities => {
                                             completionItem => {
-                                                               labelDetailsSupport => JSON::PP::true
+                                                               labelDetailsSupport => PLS::JSON::true
                                                               },
-                                            definitionProvider     => JSON::PP::true,
-                                            documentSymbolProvider => JSON::PP::true,
-                                            hoverProvider          => JSON::PP::true,
+                                            definitionProvider     => PLS::JSON::true,
+                                            documentSymbolProvider => PLS::JSON::true,
+                                            hoverProvider          => PLS::JSON::true,
                                             signatureHelpProvider  => {
                                                                       triggerCharacters => ['(', ',']
                                                                      },
                                             textDocumentSync => {
-                                                                 openClose => JSON::PP::true,
+                                                                 openClose => PLS::JSON::true,
                                                                  change    => 2,
-                                                                 save      => JSON::PP::true,
+                                                                 save      => PLS::JSON::true,
                                                                 },
-                                            documentFormattingProvider      => JSON::PP::true,
-                                            documentRangeFormattingProvider => JSON::PP::true,
+                                            documentFormattingProvider      => PLS::JSON::true,
+                                            documentRangeFormattingProvider => PLS::JSON::true,
                                             completionProvider              => {
                                                                    triggerCharacters => ['>', ':', '$', '@', '%', ' ', '-'],
-                                                                   resolveProvider   => JSON::PP::true,
+                                                                   resolveProvider   => PLS::JSON::true,
                                                                   },
                                             executeCommandProvider => {
                                                                        commands => ['perl.sortImports']
                                                                       },
-                                            workspaceSymbolProvider => JSON::PP::true,
+                                            workspaceSymbolProvider => PLS::JSON::true,
                                             workspace               => {
                                                           workspaceFolders => {
-                                                                               supported           => JSON::PP::true,
-                                                                               changeNotifications => JSON::PP::true
+                                                                               supported           => PLS::JSON::true,
+                                                                               changeNotifications => PLS::JSON::true
                                                                               }
                                                          }
                                            }

@@ -97,6 +97,10 @@ or have `perl` in the shebang line that are not `.t` files.
 
 pls is known to be compatible with Visual Studio Code, Neovim, and BBEdit.
 
+pls will perform much better if you have an XS JSON module installed.
+If you install L<Cpanel::JSON::XS> or L<JSON::XS>, it will use one of those
+before falling back to L<JSON::PP>, similar to L<JSON::MaybeXS>.
+
 =head1 NOTES
 
 Refer to this README for instructions on configuring your specific editor:

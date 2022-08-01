@@ -7,8 +7,8 @@ use feature 'state';
 use Future;
 use IO::Async::Loop;
 use IO::Async::Process;
-use JSON::PP;
 
+use PLS::JSON;
 use PLS::Parser::Index;
 use PLS::Parser::Pod;
 
@@ -34,11 +34,11 @@ sub get_package_symbols
 
     start_package_symbols_process($config) if (ref $package_symbols_process ne 'IO::Async::Process');
 
-    return $package_symbols_process->stdin->write(JSON::PP->new->utf8->encode(\@packages) . "\n")->then(sub { $package_symbols_process->stdout->read_until("\n") })->then(
+    return $package_symbols_process->stdin->write(PLS::JSON->new->utf8->encode(\@packages) . "\n")->then(sub { $package_symbols_process->stdout->read_until("\n") })->then(
         sub {
             my ($json) = @_;
 
-            return Future->done(eval { JSON::PP->new->utf8->decode($json) } // {});
+            return Future->done(eval { PLS::JSON->new->utf8->decode($json) } // {});
         },
         sub { Future->done({}) }
                                                                                                                                                                          );
@@ -52,11 +52,11 @@ sub get_imported_package_symbols
 
     start_imported_package_symbols_process($config) if (ref $imported_symbols_process ne 'IO::Async::Process');
 
-    return $imported_symbols_process->stdin->write(JSON::PP->new->utf8->encode(\@imports) . "\n")->then(sub { $imported_symbols_process->stdout->read_until("\n") })->then(
+    return $imported_symbols_process->stdin->write(PLS::JSON->new->utf8->encode(\@imports) . "\n")->then(sub { $imported_symbols_process->stdout->read_until("\n") })->then(
         sub {
             my ($json) = @_;
 
-            return Future->done(eval { JSON::PP->new->utf8->decode($json) } // {});
+            return Future->done(eval { PLS::JSON->new->utf8->decode($json) } // {});
         },
         sub { Future->done({}) }
                                                                                                                                                                           );
