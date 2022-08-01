@@ -15,6 +15,7 @@ BEGIN {
     }
     else
     {
+        require JSON::PP;
         $package = 'JSON::PP';
     }
 
