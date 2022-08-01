@@ -61,21 +61,22 @@ sub new
         {
             my $label = $request->{params}{label} =~ /->/ ? $request->{params}{label} : $request->{params}{sortText};
             ($package, $subroutine) = split /->/, $label;
+            $package = [$package];
         }
         elsif ($request->{params}{label} =~ /::/ or ($request->{params}{filterText} // '') =~ /::/)
         {
             my $label = $request->{params}{label} =~ /::/ ? $request->{params}{label} : $request->{params}{filterText};
             my @parts = split /::/, $label;
             $subroutine = pop @parts;
-            $package    = join '::', @parts;
+            $package    = [join '::', @parts];
         } ## end elsif ($request->{params}...)
         else
         {
             $subroutine = $request->{params}{label};
-            $package    = $request->{params}{data} if (length $request->{params}{data});
+            $package    = $request->{params}{data} if (ref $request->{params}{data} eq 'ARRAY');
         }
 
-        my $pod = PLS::Parser::Pod::Subroutine->new(index => $index, package => $package, subroutine => $subroutine);
+        my $pod = PLS::Parser::Pod::Subroutine->new(index => $index, packages => $package, subroutine => $subroutine);
         my $ok  = $pod->find();
 
         if ($ok)

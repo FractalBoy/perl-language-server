@@ -622,7 +622,8 @@ sub get_subroutines
                              }
                      },
             signature => {label => $signature, parameters => \@parameters},
-            'package' => $package
+            'package' => $package,
+            kind => 3
           };
     } ## end while ($$text =~ /$sub_rx/g...)
 
@@ -672,7 +673,8 @@ sub get_subroutines
                                   character => $bareword_end
                                  }
                          },
-                'package' => $package
+                'package' => $package,
+                kind => 21 # constant kind
               };
         } ## end while ($block =~ /$bareword_rx/g...)
     } ## end while ($$text =~ /$block_rx/g...)
@@ -710,7 +712,8 @@ sub get_subroutines
                               character => $end
                              }
                      },
-            'package' => $package
+            'package' => $package,
+            kind => 21 # constant kind
           };
     } ## end while ($$text =~ /$one_constant_rx/g...)
 

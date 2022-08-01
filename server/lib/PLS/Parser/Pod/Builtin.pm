@@ -26,13 +26,6 @@ sub new
     return $self;
 } ## end sub new
 
-sub name
-{
-    my ($self) = @_;
-
-    return $self->{function};
-} ## end sub name
-
 sub find
 {
     my ($self) = @_;

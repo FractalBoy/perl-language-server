@@ -241,8 +241,6 @@ sub search_elements_for_definition
         } ## end if (my ($class, $method...))
         if (my $method = $match->method_name())
         {
-            $method =~ s/SUPER:://;
-
             if (ref $self->{index} eq 'PLS::Parser::Index')
             {
                 return $self->{index}->find_subroutine($method);
@@ -426,7 +424,7 @@ sub find_pod
               PLS::Parser::Pod::ClassMethod->new(
                                                  index      => $self->{index},
                                                  element    => $element,
-                                                 package    => $package,
+                                                 packages   => [$package],
                                                  subroutine => $subroutine
                                                 );
             my $ok = $pod->find();
@@ -450,7 +448,7 @@ sub find_pod
                                                 uri              => $uri,
                                                 index            => $self->{index},
                                                 element          => $element,
-                                                package          => $package,
+                                                packages         => [$package],
                                                 subroutine       => $subroutine,
                                                 include_builtins => 1
                                                );

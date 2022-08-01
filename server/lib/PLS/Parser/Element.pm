@@ -208,7 +208,7 @@ sub method_name
           or not $element->sprevious_sibling->isa('PPI::Token::Operator')
           or $element->sprevious_sibling ne '->');
 
-    return $element->content;
+    return $element->content =~ s/^SUPER:://r;
 } ## end sub method_name
 
 =head2 class_method_package_and_name

@@ -7,7 +7,7 @@ use parent 'PLS::Parser::Pod::Subroutine';
 
 =head1 NAME
 
-PLS::Parser::Pod::Builtin
+PLS::Parser::Pod::ClassMethod
 
 =head1 DESCRIPTION
 
@@ -15,12 +15,5 @@ This is a subclass of L<PLS::Parser::Pod::Subroutine>, meant to distinguish regu
 class methods.
 
 =cut
-
-sub name
-{
-    my ($self) = @_;
-
-    my $name = $self->{package} . '->' . $self->{subroutine};
-}
 
 1;

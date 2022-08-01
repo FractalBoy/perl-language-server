@@ -58,10 +58,12 @@ sub new
     }
     else
     {
+        my @packages = @{get_packages($document, $full_text)};
+
         unless ($arrow)
         {
-            push @results, @{get_packages($document, $full_text)} unless $arrow;
-            push @results, @{get_keywords()}                      unless $arrow;
+            push @results, @packages;
+            push @results, @{get_keywords()};
         }
 
         if ($package)
@@ -73,7 +75,7 @@ sub new
         {
             push @results, @{get_constants($document, $filter, $full_text)};
             push @futures, get_imported_package_functions($document, $full_text);
-            push @results, @{get_subroutines($document, $arrow, $full_text)};
+            push @results, @{get_subroutines($document, $arrow, $full_text, $packages[0]{label})};
         } ## end if ($filter)
     } ## end else [ if ($filter =~ /^[\$\@\%]/...)]
 
@@ -84,11 +86,14 @@ sub new
           )->get()
     };
 
+    my %unique_by_detail;
+
     foreach my $result (@results)
     {
         my $new_text = $result->{label};
         $new_text = $result->{insertText} if (length $result->{insertText});
         delete $result->{insertText};
+        next if (exists $result->{detail} and length $result->{detail} and $unique_by_detail{$result->{detail}}++);
 
         push @{$self->{result}}, {%$result, textEdit => {newText => $new_text, range => $range}};
     } ## end foreach my $result (@results...)
@@ -238,7 +243,7 @@ sub get_imported_package_functions
                     my $result = {
                                   kind   => 3,
                                   label  => $subroutine,
-                                  data   => $package_name,
+                                  data   => [$package_name],
                                   detail => "${package_name}::${subroutine}",
                                  };
 
@@ -254,33 +259,44 @@ sub get_imported_package_functions
 
 sub get_subroutines
 {
-    my ($document, $arrow, $full_text) = @_;
+    my ($document, $arrow, $full_text, $this_document_package) = @_;
 
-    my @subroutines;
+    my %subroutines;
 
     foreach my $sub (@{$document->get_subroutines_fast($full_text)})
     {
         next if ($sub =~ /\n/);
-        push @subroutines, {label => $sub, kind => 3};
+        $subroutines{$sub} = {label => $sub, kind => 3};
+        $subroutines{$sub}{data} = ["${this_document_package}::${sub}"] if (length $this_document_package);
     }
 
+    # Add subroutines to the list, uniquifying and keeping track of the packages in which
+    # it is defined so that resolve can find the documentation.
     foreach my $sub (keys %{$document->{index}->subs})
     {
         foreach my $data (@{$document->{index}->subs->{$sub}})
         {
-            my $result = {label => $sub, kind => 3};
+            my $result = $subroutines{$sub} // {label => $sub, kind => $data->{kind}, data => []};
 
             if (length $data->{package})
             {
-                $result->{detail} = $data->{package} . '::' . $sub;
-                $result->{data}   = $data->{package};
+                push @{$result->{data}}, $data->{package};
             }
 
-            push @subroutines, $result;
+            $subroutines{$sub} = $result;
         } ## end foreach my $data (@{$document...})
     } ## end foreach my $sub (keys %{$document...})
 
-    return \@subroutines;
+    # If the subroutine is only defined in one place, include the package name as the detail.
+    foreach my $sub (keys %subroutines)
+    {
+        if (exists $subroutines{$sub}{data} and ref $subroutines{$sub}{data} eq 'ARRAY' and scalar @{$subroutines{$sub}{data}} == 1)
+        {
+            $subroutines{$sub}{detail} = $subroutines{$sub}{data}[0] . "::${sub}";
+        }
+    }
+
+    return [values %subroutines];
 } ## end sub get_subroutines
 
 sub get_packages

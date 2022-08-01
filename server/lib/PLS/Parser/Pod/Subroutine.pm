@@ -32,31 +32,21 @@ sub new
     my %args = @args;
     my $self = $class->SUPER::new(%args);
     $self->{subroutine}       = $args{subroutine};
-    $self->{package}          = $args{package};
+    $self->{packages}         = $args{packages};
     $self->{include_builtins} = $args{include_builtins};
     $self->{uri}              = $args{uri};
 
     return $self;
 } ## end sub new
 
-sub name
-{
-    my ($self) = @_;
-
-    my $name = '';
-    $name = $self->{package} . '::' if (length $self->{package});
-    return $name . $self->{subroutine};
-} ## end sub name
-
 sub find
 {
     my ($self) = @_;
 
     my $definitions;
-    my $fully_qualified = length $self->{package} ? 1 : 0;
 
     # If there is no package name in the subroutine call, check to see if
-    if (length $self->{uri} and not length $self->{package})
+    if (length $self->{uri} and (ref $self->{packages} ne 'ARRAY' or not scalar @{$self->{packages}}))
     {
         my $full_text = PLS::Parser::Document->text_from_uri($self->{uri});
         my $imports   = PLS::Parser::Document->get_imports($full_text);
@@ -68,7 +58,7 @@ sub find
             {
                 if ($self->{subroutine} eq $subroutine)
                 {
-                    $self->{package} = $package;
+                    $self->{packages} = [$package];
                     last PACKAGE;
                 }
             } ## end foreach my $subroutine (@{$imported_functions...})
@@ -76,41 +66,46 @@ sub find
     } ## end if (length $self->{uri...})
 
     my @markdown;
+    my @definitions;
 
-    if (length $self->{package})
+    if (ref $self->{packages} eq 'ARRAY' and scalar @{$self->{packages}})
     {
-        my $include = $self->get_clean_inc();
-        my $search  = Pod::Simple::Search->new();
-        $search->inc(0);
-        my $path = $search->find($self->{package}, @{$include});
-
-        if (length $path)
+        foreach my $package (@{$self->{packages}})
         {
-            my ($ok, $markdown) = $self->find_pod_in_file($path);
-            push @markdown, $$markdown if $ok;
-            if ($ok and $fully_qualified)
+            my $include = $self->get_clean_inc();
+            my $search  = Pod::Simple::Search->new();
+            $search->inc(0);
+            my $path = $search->find($package, @{$include});
+            my $ok;
+
+            if (length $path)
             {
-                $self->{markdown} = $markdown;
-                return 1;
+                my $markdown;
+                ($ok, $markdown) = $self->find_pod_in_file($path);
+                push @markdown, $$markdown if $ok;
+            }
+
+            unless ($ok)
+            {
+                push @definitions, @{$self->{index}->find_package_subroutine($package, $self->{subroutine})} if (ref $self->{index} eq 'PLS::Parser::Index');
             }
         }
-
-        $definitions = $self->{index}->find_package_subroutine($self->{package}, $self->{subroutine}) if (ref $self->{index} eq 'PLS::Parser::Index');
-    } ## end if (length $self->{package...})
-
-    if (ref $self->{index} eq 'PLS::Parser::Index')
+    } 
+    elsif (ref $self->{index} eq 'PLS::Parser::Index')
     {
-        $definitions = [] if (ref $definitions ne 'ARRAY');
-        push @{$definitions}, @{$self->{index}->find_subroutine($self->{subroutine})};
+        push @definitions, @{$self->{index}->find_subroutine($self->{subroutine})};
     }
 
-    my ($ok, $markdown) = $self->find_pod_in_definitions($definitions);
-    push @markdown, $$markdown if $ok;
+    if (scalar @definitions)
+    {
+        my ($ok, $markdown) = $self->find_pod_in_definitions(\@definitions);
+        push @markdown, $$markdown if $ok;
+    }
 
     if ($self->{include_builtins})
     {
         my $builtin = PLS::Parser::Pod::Builtin->new(function => $self->{subroutine});
-        $ok = $builtin->find();
+        my $ok = $builtin->find();
         unshift @markdown, ${$builtin->{markdown}} if $ok;
     } ## end if ($self->{include_builtins...})
 
@@ -121,19 +116,29 @@ sub find
     }
 
     # if all else fails, show documentation for the entire package
-    if (length $self->{package})
+    if (ref $self->{packages} and scalar @{$self->{packages}})
     {
-        ($ok, $markdown) = $self->get_markdown_for_package($self->{package}) if (length $self->{package});
-
-        unless ($ok)
+        foreach my $package (@{$self->{packages}})
         {
-            my $package = join '::', $self->{package}, $self->{subroutine};
-            ($ok, $markdown) = $self->get_markdown_for_package($package);
+            my ($ok, $markdown) = $self->get_markdown_for_package($package);
+
+            unless ($ok)
+            {
+                $package = join '::', $package, $self->{subroutine};
+                ($ok, $markdown) = $self->get_markdown_for_package($package);
+            }
+
+            push @markdown, $$markdown if $ok;
         }
     } ## end if (length $self->{package...})
 
-    $self->{markdown} = $markdown if $ok;
-    return $ok;
+    if (scalar @markdown)
+    { 
+        $self->{markdown} = \($self->combine_markdown(@markdown));
+        return 1;
+    }
+
+    return 0;
 } ## end sub find
 
 sub find_pod_in_definitions
@@ -145,7 +150,7 @@ sub find_pod_in_definitions
     my $ok;
     my @markdown_parts;
 
-    foreach my $definition (@$definitions)
+    foreach my $definition (@{$definitions})
     {
         my $path = URI->new($definition->{uri})->file;
         my ($found, $markdown_part) = $self->find_pod_in_file($path);
