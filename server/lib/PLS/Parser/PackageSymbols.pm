@@ -232,6 +232,10 @@ my $json = JSON::PP->new->utf8;
 
 package ImportedPackageSymbols;
 
+my %mtimes;
+my %inc;
+my %symbol_cache;
+
 while (my $line = <STDIN>)
 {
     my $imports = $json->decode($line);
@@ -240,10 +244,21 @@ while (my $line = <STDIN>)
 
     foreach my $import (@{$imports})
     {
+        if (-f $inc{$import->{module}} and $mtimes{$import->{use}} and (stat $inc{$import->{module}})[9] == $mtimes{$import->{use}} and ref $symbol_cache{$import->{use}} eq 'HASH')
+        {
+            foreach my $subroutine (keys %{$symbol_cache{$import->{use}}})
+            {
+                $functions{$import->{module}}{$subroutine} = 1;
+            }
+            next;
+        }
+
         my %symbol_table_before = %ImportedPackageSymbols::;
         eval $import->{use};
         my %symbol_table_after = %ImportedPackageSymbols::;
         delete @symbol_table_after{keys %symbol_table_before};
+
+        $functions{$import->{module}} = {};
 
         foreach my $subroutine (keys %symbol_table_after)
         {
@@ -257,6 +272,11 @@ while (my $line = <STDIN>)
         %ImportedPackageSymbols:: = %symbol_table_before;
         my $module_path = $import->{module} =~ s/::/\//gr;
         $module_path .= '.pm';
+
+        $mtimes{$import->{use}} = (stat $INC{$module_path})[9];
+        $inc{$import->{module}} = $INC{$module_path};
+        $symbol_cache{$import->{use}} = $functions{$import->{module}};
+
         delete $INC{$module_path};
     } ## end foreach my $import (@{$imports...})
 

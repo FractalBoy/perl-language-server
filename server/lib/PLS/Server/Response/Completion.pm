@@ -389,7 +389,7 @@ sub get_variables
 
 sub get_snippets
 {
-    return (
+    state @snippets = (
             {
              label            => 'sub',
              detail           => 'Insert subroutine',
@@ -510,6 +510,8 @@ sub get_snippets
              insertText       => 'reverse sort { \$a <=> \$b } $1'
             }
            );
+
+    return @snippets;
 } ## end sub get_snippets
 
 1;
