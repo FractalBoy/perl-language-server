@@ -405,7 +405,11 @@ sub get_variables
 
 sub get_snippets
 {
-    state @snippets = (
+    state @snippets;
+
+    return @snippets if (scalar @snippets);
+
+    @snippets = (
             {
              label            => 'sub',
              detail           => 'Insert subroutine',
