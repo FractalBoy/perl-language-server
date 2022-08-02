@@ -30,7 +30,7 @@ sub find
 {
     my ($self) = @_;
 
-    my ($ok, $markdown) = $self->run_perldoc_command('-Tuf', $self->name);
+    my ($ok, $markdown) = $self->run_perldoc_command('-Tuf', $self->{function});
 
     $self->{markdown} = $markdown if $ok;
     return $ok;

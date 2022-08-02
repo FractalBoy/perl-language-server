@@ -397,7 +397,7 @@ sub find_pod
 
         if (($package, $import) = $element->package_name($column_number))
         {
-            my %args       = (index => $self->{index}, element => $element, package => $package);
+            my %args       = (index => $self->{index}, element => $element, packages => [$package]);
             my $class_name = 'PLS::Parser::Pod::Package';
 
             if (length $import)
@@ -443,12 +443,14 @@ sub find_pod
         } ## end if ($subroutine = $element...)
         if (($package, $subroutine) = $element->subroutine_package_and_name())
         {
+            my @packages = length $package ? ($package) : ();
+
             my $pod =
               PLS::Parser::Pod::Subroutine->new(
                                                 uri              => $uri,
                                                 index            => $self->{index},
                                                 element          => $element,
-                                                packages         => [$package],
+                                                packages         => \@packages,
                                                 subroutine       => $subroutine,
                                                 include_builtins => 1
                                                );
@@ -1296,7 +1298,7 @@ sub _get_ppi_document
         {
             $file = URI->new($args{uri})->file;
         }
-    } ## end if (length $args{uri})
+    } ## end elsif (length $args{uri})
 
     if (length $args{line})
     {

@@ -45,11 +45,12 @@ sub find
 
     my $definitions;
 
-    # If there is no package name in the subroutine call, check to see if
+    # If there is no package name in the subroutine call, check to see if the
+    # function is imported.
     if (length $self->{uri} and (ref $self->{packages} ne 'ARRAY' or not scalar @{$self->{packages}}))
     {
-        my $full_text = PLS::Parser::Document->text_from_uri($self->{uri});
-        my $imports   = PLS::Parser::Document->get_imports($full_text);
+        my $full_text          = PLS::Parser::Document->text_from_uri($self->{uri});
+        my $imports            = PLS::Parser::Document->get_imports($full_text);
         my $imported_functions = PLS::Parser::PackageSymbols::get_imported_package_symbols($PLS::Server::State::CONFIG, @{$imports})->get();
 
       PACKAGE: foreach my $package (keys %{$imported_functions})
@@ -70,10 +71,10 @@ sub find
 
     if (ref $self->{packages} eq 'ARRAY' and scalar @{$self->{packages}})
     {
+        my $include = $self->get_clean_inc();
         foreach my $package (@{$self->{packages}})
         {
-            my $include = $self->get_clean_inc();
-            my $search  = Pod::Simple::Search->new();
+            my $search = Pod::Simple::Search->new();
             $search->inc(0);
             my $path = $search->find($package, @{$include});
             my $ok;
@@ -83,14 +84,14 @@ sub find
                 my $markdown;
                 ($ok, $markdown) = $self->find_pod_in_file($path);
                 push @markdown, $$markdown if $ok;
-            }
+            } ## end if (length $path)
 
             unless ($ok)
             {
                 push @definitions, @{$self->{index}->find_package_subroutine($package, $self->{subroutine})} if (ref $self->{index} eq 'PLS::Parser::Index');
             }
-        }
-    } 
+        } ## end foreach my $package (@{$self...})
+    } ## end if (ref $self->{packages...})
     elsif (ref $self->{index} eq 'PLS::Parser::Index')
     {
         push @definitions, @{$self->{index}->find_subroutine($self->{subroutine})};
@@ -105,7 +106,7 @@ sub find
     if ($self->{include_builtins})
     {
         my $builtin = PLS::Parser::Pod::Builtin->new(function => $self->{subroutine});
-        my $ok = $builtin->find();
+        my $ok      = $builtin->find();
         unshift @markdown, ${$builtin->{markdown}} if $ok;
     } ## end if ($self->{include_builtins...})
 
@@ -129,11 +130,11 @@ sub find
             }
 
             push @markdown, $$markdown if $ok;
-        }
-    } ## end if (length $self->{package...})
+        } ## end foreach my $package (@{$self...})
+    } ## end if (ref $self->{packages...})
 
     if (scalar @markdown)
-    { 
+    {
         $self->{markdown} = \($self->combine_markdown(@markdown));
         return 1;
     }
@@ -163,7 +164,7 @@ sub find_pod_in_definitions
         }
 
         $ok = 1;
-    } ## end foreach my $definition (@$definitions...)
+    } ## end foreach my $definition (@{$definitions...})
 
     return 0 unless $ok;
     my $markdown = $self->combine_markdown(@markdown_parts);
