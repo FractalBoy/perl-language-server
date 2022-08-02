@@ -34,14 +34,14 @@ sub get_package_symbols
 
     start_package_symbols_process($config) if (ref $package_symbols_process ne 'IO::Async::Process');
 
-    return $package_symbols_process->stdin->write(PLS::JSON->new->utf8->encode(\@packages) . "\n")->then(sub { $package_symbols_process->stdout->read_until("\n") })->then(
+    return $package_symbols_process->stdin->write(encode_json(\@packages) . "\n")->then(sub { $package_symbols_process->stdout->read_until("\n") })->then(
         sub {
             my ($json) = @_;
 
-            return Future->done(eval { PLS::JSON->new->utf8->decode($json) } // {});
+            return Future->done(eval { decode_json $json } // {});
         },
         sub { Future->done({}) }
-                                                                                                                                                                         );
+    );
 } ## end sub get_package_symbols
 
 sub get_imported_package_symbols
@@ -52,14 +52,14 @@ sub get_imported_package_symbols
 
     start_imported_package_symbols_process($config) if (ref $imported_symbols_process ne 'IO::Async::Process');
 
-    return $imported_symbols_process->stdin->write(PLS::JSON->new->utf8->encode(\@imports) . "\n")->then(sub { $imported_symbols_process->stdout->read_until("\n") })->then(
+    return $imported_symbols_process->stdin->write(encode_json(\@imports) . "\n")->then(sub { $imported_symbols_process->stdout->read_until("\n") })->then(
         sub {
             my ($json) = @_;
 
-            return Future->done(eval { PLS::JSON->new->utf8->decode($json) } // {});
+            return Future->done(eval { decode_json $json } // {});
         },
         sub { Future->done({}) }
-                                                                                                                                                                          );
+    );
 } ## end sub get_imported_package_symbols
 
 sub _start_process
@@ -70,13 +70,13 @@ sub _start_process
     my @inc  = map { "-I$_" } @{$config->{inc}};
     my $args = PLS::Parser::Pod->get_perl_args();
     my $process = IO::Async::Process->new(
-        command => [$perl, @inc, '-e', $code, @{$args}],
-        setup   => _get_setup($config),
-        stdin   => {via => 'pipe_write'},
-        stdout  => {
-                   on_read => sub { 0 }
-                  },
-        on_finish => sub { }
+                                          command => [$perl, @inc, '-e', $code, @{$args}],
+                                          setup   => _get_setup($config),
+                                          stdin   => {via => 'pipe_write'},
+                                          stdout  => {
+                                                     on_read => sub { 0 }
+                                                    },
+                                          on_finish => sub { }
                                          );
 
     IO::Async::Loop->new->add($process);
@@ -90,7 +90,7 @@ sub start_package_symbols_process
 
     eval { $package_symbols_process->kill('TERM') } if (ref $package_symbols_process eq 'IO::Async::Process');
     $package_symbols_process = _start_process($config, get_package_symbols_code());
-}
+} ## end sub start_package_symbols_process
 
 sub start_imported_package_symbols_process
 {
@@ -98,7 +98,7 @@ sub start_imported_package_symbols_process
 
     eval { $imported_symbols_process->kill('TERM') } if (ref $package_symbols_process eq 'IO::Async::Process');
     $imported_symbols_process = _start_process($config, get_imported_package_symbols_code());
-}
+} ## end sub start_imported_package_symbols_process
 
 sub _get_setup
 {

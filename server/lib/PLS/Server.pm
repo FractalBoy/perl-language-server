@@ -134,7 +134,7 @@ sub run
                 my $json = substr $$buffref, 0, $size, '';
                 $size = 0;
 
-                my $content = PLS::JSON->new->utf8->decode($json);
+                my $content = decode_json $json;
 
                 $self->handle_client_message($content);
                 return 1;

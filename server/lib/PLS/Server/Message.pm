@@ -19,16 +19,17 @@ inherit from this class.
 
 =cut
 
-sub serialize {
+sub serialize
+{
     my ($self) = @_;
 
     my %content = (
-        jsonrpc => '2.0',
-        %{$self}
-    );
+                   jsonrpc => '2.0',
+                   %{$self}
+                  );
 
-    my $json = PLS::JSON->new->utf8->encode(\%content);
+    my $json = encode_json \%content;
     return $json;
-}
+} ## end sub serialize
 
 1;
