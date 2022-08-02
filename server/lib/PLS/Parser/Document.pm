@@ -397,7 +397,7 @@ sub find_pod
 
         if (($package, $import) = $element->package_name($column_number))
         {
-            my %args       = (index => $self->{index}, element => $element, packages => [$package]);
+            my %args       = (index => $self->{index}, element => $element, package => $package);
             my $class_name = 'PLS::Parser::Pod::Package';
 
             if (length $import)
@@ -410,8 +410,10 @@ sub find_pod
                 else
                 {
                     $args{subroutine} = $import;
+                    $args{packages}   = [$package];
+                    delete $args{package};
                     $class_name = 'PLS::Parser::Pod::Subroutine';
-                }
+                } ## end else [ if ($import =~ /^[\$\@\%]/...)]
             } ## end if (length $import)
 
             my $pod = $class_name->new(%args);

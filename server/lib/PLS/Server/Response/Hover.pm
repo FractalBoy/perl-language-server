@@ -34,16 +34,7 @@ sub new
 
     $self->{result} = {
                        contents => {kind => 'markdown', value => ${$pod->{markdown}}},
-                       range    => {
-                                 start => {
-                                           line      => $pod->line_number,
-                                           character => $pod->column_number,
-                                          },
-                                 end => {
-                                         line      => $pod->line_number,
-                                         character => $pod->column_number + length $pod->{element}->content,
-                                        }
-                                }
+                       range    => $pod->{element}->range()
                       };
 
     return $self;

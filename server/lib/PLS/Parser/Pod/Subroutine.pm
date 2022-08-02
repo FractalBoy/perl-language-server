@@ -82,7 +82,7 @@ sub find
             if (length $path)
             {
                 my $markdown;
-                ($ok, $markdown) = $self->find_pod_in_file($path);
+                ($ok, $markdown) = $self->find_pod_in_file($path, $self->{subroutine});
                 push @markdown, $$markdown if $ok;
             } ## end if (length $path)
 
@@ -154,7 +154,7 @@ sub find_pod_in_definitions
     foreach my $definition (@{$definitions})
     {
         my $path = URI->new($definition->{uri})->file;
-        my ($found, $markdown_part) = $self->find_pod_in_file($path);
+        my ($found, $markdown_part) = $self->find_pod_in_file($path, $self->{subroutine});
         next unless $found;
 
         if (length $$markdown_part)
@@ -170,61 +170,5 @@ sub find_pod_in_definitions
     my $markdown = $self->combine_markdown(@markdown_parts);
     return 1, \$markdown;
 } ## end sub find_pod_in_definitions
-
-sub find_pod_in_file
-{
-    my ($self, $path) = @_;
-
-    open my $fh, '<', $path or return 0;
-
-    my @lines;
-    my $start = '';
-
-    while (my $line = <$fh>)
-    {
-        if ($line =~ /^=(head\d|item).*\b\Q$self->{subroutine}\E\b.*$/)
-        {
-            $start = $1;
-            push @lines, $line;
-            next;
-        } ## end if ($line =~ /^=(head\d|item).*\b\Q$self->{subroutine}\E\b.*$/...)
-
-        if (length $start)
-        {
-            push @lines, $line;
-
-            if (   $start eq 'item' and $line =~ /^=item/
-                or $start =~ /head/ and $line =~ /^=$start/
-                or $line =~ /^=cut/)
-            {
-                last;
-            } ## end if ($start eq 'item' and...)
-        } ## end if (length $start)
-    } ## end while (my $line = <$fh>)
-
-    close $fh;
-
-    # we don't want the last line - it's a start of a new section.
-    pop @lines;
-
-    my $markdown = '';
-
-    if (scalar @lines)
-    {
-        my $parser = Pod::Markdown->new();
-
-        $parser->output_string(\$markdown);
-        $parser->no_whining(1);
-        $parser->parse_lines(@lines, undef);
-
-        # remove first extra space to avoid markdown from being displayed inappropriately as code
-        $markdown =~ s/\n\n/\n/;
-        my $ok = $parser->content_seen;
-        return 0 unless $ok;
-        return $ok, \$markdown;
-    } ## end if (scalar @lines)
-
-    return 0;
-} ## end sub find_pod_in_file
 
 1;

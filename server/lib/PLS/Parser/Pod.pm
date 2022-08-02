@@ -41,32 +41,6 @@ sub new
     return bless \%self, $class;
 } ## end sub new
 
-=head2 line_number
-
-The line number of the element
-
-=cut
-
-sub line_number
-{
-    my ($self) = @_;
-
-    return $self->{element}->lsp_line_number;
-}
-
-=head2 column_number
-
-The column number of the element
-
-=cut
-
-sub column_number
-{
-    my ($self) = @_;
-
-    return $self->{element}->lsp_column_number;
-}
-
 =head2 set_perl_exe
 
 Store the perl executable path.
@@ -223,6 +197,62 @@ sub get_markdown_from_text
     return 0 unless $ok;
     return $ok, \$markdown;
 } ## end sub get_markdown_from_text
+
+sub find_pod_in_file
+{
+    my ($self, $path, $name) = @_;
+
+    open my $fh, '<', $path or return 0;
+
+    my @lines;
+    my $start = '';
+
+    while (my $line = <$fh>)
+    {
+        if ($line =~ /^=(head\d|item).*\b\Q$name\E\b.*$/)
+        {
+            $start = $1;
+            push @lines, $line;
+            next;
+        } ## end if ($line =~ /^=(head\d|item).*\b\Q$name\E\b.*$/...)
+
+        if (length $start)
+        {
+            push @lines, $line;
+
+            if (   $start eq 'item' and $line =~ /^=item/
+                or $start =~ /head/ and $line =~ /^=$start/
+                or $line =~ /^=cut/)
+            {
+                last;
+            } ## end if ($start eq 'item' and...)
+        } ## end if (length $start)
+    } ## end while (my $line = <$fh>)
+
+    close $fh;
+
+    # we don't want the last line - it's a start of a new section.
+    pop @lines;
+
+    my $markdown = '';
+
+    if (scalar @lines)
+    {
+        my $parser = Pod::Markdown->new();
+
+        $parser->output_string(\$markdown);
+        $parser->no_whining(1);
+        $parser->parse_lines(@lines, undef);
+
+        # remove first extra space to avoid markdown from being displayed inappropriately as code
+        $markdown =~ s/\n\n/\n/;
+        my $ok = $parser->content_seen;
+        return 0 unless $ok;
+        return $ok, \$markdown;
+    } ## end if (scalar @lines)
+
+    return 0;
+} ## end sub find_pod_in_file
 
 =head2 clean_markdown
 
