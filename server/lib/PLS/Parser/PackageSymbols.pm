@@ -251,7 +251,7 @@ while (my $line = <STDIN>)
                 $functions{$import->{module}}{$subroutine} = 1;
             }
             next;
-        }
+        } ## end if (-f $inc{$import->{...}})
 
         my %symbol_table_before = %ImportedPackageSymbols::;
         eval $import->{use};
@@ -266,15 +266,15 @@ while (my $line = <STDIN>)
             next if (ref $symbol_table_after{$subroutine} ne 'SCALAR' and ref $symbol_table_after{$subroutine} ne 'GLOB' and ref \($symbol_table_after{$subroutine}) ne 'GLOB');
             next if ((ref $symbol_table_after{$subroutine} eq 'GLOB' or ref \($symbol_table_after{$subroutine}) eq 'GLOB') and ref *{$symbol_table_after{$subroutine}}{CODE} ne 'CODE');
             $functions{$import->{module}}{$subroutine} = 1;
-        }
+        } ## end foreach my $subroutine (keys...)
 
         # Reset symbol table and %INC
         %ImportedPackageSymbols:: = %symbol_table_before;
         my $module_path = $import->{module} =~ s/::/\//gr;
         $module_path .= '.pm';
 
-        $mtimes{$import->{use}} = (stat $INC{$module_path})[9];
-        $inc{$import->{module}} = $INC{$module_path};
+        $mtimes{$import->{use}}       = (stat $INC{$module_path})[9];
+        $inc{$import->{module}}       = $INC{$module_path};
         $symbol_cache{$import->{use}} = $functions{$import->{module}};
 
         delete $INC{$module_path};
@@ -287,7 +287,7 @@ while (my $line = <STDIN>)
 
     print $json->encode(\%functions);
     print "\n";
-} ## end while (my $imports = $channel_in...)
+} ## end while (my $line = <STDIN>...)
 EOF
 
     return $code;
