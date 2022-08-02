@@ -29,7 +29,7 @@ sub serialize
                   );
 
     my $json = encode_json \%content;
-    return $json;
+    return \$json;
 } ## end sub serialize
 
 1;

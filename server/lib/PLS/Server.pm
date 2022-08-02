@@ -216,8 +216,8 @@ sub send_message
 
     return if (not blessed($message) or not $message->isa('PLS::Server::Message'));
     my $json   = $message->serialize();
-    my $length = length $json;
-    $self->{stream}->write("Content-Length: $length\r\n\r\n$json")->retain();
+    my $length = length $$json;
+    $self->{stream}->write("Content-Length: $length\r\n\r\n$$json")->retain();
 
     return;
 } ## end sub send_message
