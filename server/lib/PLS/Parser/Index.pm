@@ -135,7 +135,7 @@ sub index_files
                 # process will not have the most up-to-date document text.
                 # If the file is not open, allow the function to open the file and get the text.
                 my $version = PLS::Parser::Document::uri_version($uri);
-                my $text = length $version ? PLS::Parser::Document->text_from_uri($uri) : undef;
+                my $text    = length $version ? PLS::Parser::Document->text_from_uri($uri) : undef;
 
                 push @futures, $function->call(args => [$uri, $text])->then(
                     sub {
@@ -623,7 +623,7 @@ sub get_subroutines
                      },
             signature => {label => $signature, parameters => \@parameters},
             'package' => $package,
-            kind => 3
+            kind      => 3
           };
     } ## end while ($$text =~ /$sub_rx/g...)
 
@@ -660,8 +660,7 @@ sub get_subroutines
             my $end_line = $class->get_line_by_offset($line_offsets, $bareword_end);
             $bareword_end -= $line_offsets->[$end_line];
 
-            push @{$subroutines{$bareword}},
-              {
+            push @{$subroutines{$bareword}}, {
                 uri   => $uri,
                 range => {
                           start => {
@@ -674,8 +673,8 @@ sub get_subroutines
                                  }
                          },
                 'package' => $package,
-                kind => 21 # constant kind
-              };
+                kind      => 21          # constant kind
+            };
         } ## end while ($block =~ /$bareword_rx/g...)
     } ## end while ($$text =~ /$block_rx/g...)
 
@@ -699,8 +698,7 @@ sub get_subroutines
             ($package) = $1 =~ /^package\s+(.+)\s*;\s*$/;
         }
 
-        push @{$subroutines{$bareword}},
-          {
+        push @{$subroutines{$bareword}}, {
             uri   => $uri,
             range => {
                       start => {
@@ -713,8 +711,8 @@ sub get_subroutines
                              }
                      },
             'package' => $package,
-            kind => 21 # constant kind
-          };
+            kind      => 21          # constant kind
+        };
     } ## end while ($$text =~ /$one_constant_rx/g...)
 
     return \%subroutines;

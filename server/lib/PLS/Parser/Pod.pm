@@ -67,19 +67,6 @@ sub column_number
     return $self->{element}->lsp_column_number;
 }
 
-=head2 name
-
-The name of the element.
-
-=cut
-
-sub name
-{
-    my ($self) = @_;
-
-    return '';
-}
-
 =head2 set_perl_exe
 
 Store the perl executable path.

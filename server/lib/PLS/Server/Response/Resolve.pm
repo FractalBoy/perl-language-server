@@ -62,7 +62,7 @@ sub new
             my $label = $request->{params}{label} =~ /->/ ? $request->{params}{label} : $request->{params}{sortText};
             ($package, $subroutine) = split /->/, $label;
             $package = [$package];
-        }
+        } ## end if ($request->{params}...)
         elsif ($request->{params}{label} =~ /::/ or ($request->{params}{filterText} // '') =~ /::/)
         {
             my $label = $request->{params}{label} =~ /::/ ? $request->{params}{label} : $request->{params}{filterText};
