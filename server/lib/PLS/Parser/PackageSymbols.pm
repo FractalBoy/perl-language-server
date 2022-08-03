@@ -2,13 +2,14 @@ package PLS::Parser::PackageSymbols;
 
 use strict;
 use warnings;
+
 use feature 'state';
 
 use Future;
 use IO::Async::Loop;
 use IO::Async::Process;
+use Storable;
 
-use PLS::JSON;
 use PLS::Parser::Index;
 use PLS::Parser::Pod;
 
@@ -34,14 +35,7 @@ sub get_package_symbols
 
     start_package_symbols_process($config) if (ref $package_symbols_process ne 'IO::Async::Process');
 
-    return $package_symbols_process->stdin->write(encode_json(\@packages) . "\n")->then(sub { $package_symbols_process->stdout->read_until("\n") })->then(
-        sub {
-            my ($json) = @_;
-
-            return Future->done(eval { decode_json $json } // {});
-        },
-        sub { Future->done({}) }
-    );
+    return send_data_and_recv_response($package_symbols_process, \@packages);
 } ## end sub get_package_symbols
 
 sub get_imported_package_symbols
@@ -52,15 +46,35 @@ sub get_imported_package_symbols
 
     start_imported_package_symbols_process($config) if (ref $imported_symbols_process ne 'IO::Async::Process');
 
-    return $imported_symbols_process->stdin->write(encode_json(\@imports) . "\n")->then(sub { $imported_symbols_process->stdout->read_until("\n") })->then(
-        sub {
-            my ($json) = @_;
+    return send_data_and_recv_response($imported_symbols_process, \@imports);
+} ## end sub get_imported_package_symbols
 
-            return Future->done(eval { decode_json $json } // {});
+sub send_data_and_recv_response
+{
+    my ($process, $data) = @_;
+
+    my $storable = Storable::nfreeze($data);
+    my $size     = pack 'N', length $storable;
+
+    return $process->stdin->write("$size$storable")->then(
+        sub {
+            return $process->stdout->read_exactly(4);
+        }
+      )->then(
+        sub {
+            my ($buffer) = @_;
+
+            my $to_read = unpack 'N', $buffer;
+            return $process->stdout->read_exactly($to_read);
+        }
+      )->then(
+        sub {
+            my ($buffer) = @_;
+            return Future->done(eval { Storable::thaw($buffer) });
         },
         sub { Future->done({}) }
-    );
-} ## end sub get_imported_package_symbols
+      );
+} ## end sub send_data_and_recv_response
 
 sub _start_process
 {
@@ -121,19 +135,21 @@ sub get_package_symbols_code
     my $code = <<'EOF';
 close STDERR;
 
-use IO::Handle;
-use JSON::PP;
 use B;
-
-STDOUT->autoflush();
-
-my $json = JSON::PP->new->utf8;
+use Storable;
 
 package PackageSymbols;
 
-while (my $line = <STDIN>)
+select STDOUT;
+$| = 1;
+
+while (read STDIN, my $buffer, 4)
 {
-    my $packages_to_find = $json->decode($line);
+    my $size = unpack 'N', $buffer;
+    $buffer = '';
+    read STDIN, $buffer, $size;
+
+    my $packages_to_find = Storable::thaw($buffer);
     my %functions;
 
     foreach my $find_package (@{$packages_to_find})
@@ -195,8 +211,9 @@ while (my $line = <STDIN>)
         } ## end foreach my $package (@packages...)
     } ## end foreach my $find_package (@...)
 
-    print $json->encode(\%functions);
-    print "\n";
+    my $data = Storable::nfreeze(\%functions);
+    $size = pack 'N', length $data;
+    print "$size$data";
 } ## end while (my $packages_to_find...)
 
 sub add_parent_classes
@@ -223,22 +240,24 @@ sub get_imported_package_symbols_code
     my $code = <<'EOF';
 close STDERR;
 
-use IO::Handle;
-use JSON::PP;
-
-STDOUT->autoflush();
-
-my $json = JSON::PP->new->utf8;
+use Storable;
 
 package ImportedPackageSymbols;
+
+select STDOUT;
+$| = 1;
 
 my %mtimes;
 my %inc;
 my %symbol_cache;
 
-while (my $line = <STDIN>)
+while (read STDIN, my $buffer, 4)
 {
-    my $imports = $json->decode($line);
+    my $size = unpack 'N', $buffer;
+    $buffer = '';
+    read STDIN, $buffer, $size;
+
+    my $imports = Storable::thaw($buffer);
 
     my %functions;
 
@@ -285,8 +304,9 @@ while (my $line = <STDIN>)
         $functions{$module} = [keys %{$functions{$module}}];
     }
 
-    print $json->encode(\%functions);
-    print "\n";
+    my $data = Storable::nfreeze(\%functions);
+    $size = pack 'N', length $data;
+    print "$size$data";
 } ## end while (my $line = <STDIN>...)
 EOF
 
