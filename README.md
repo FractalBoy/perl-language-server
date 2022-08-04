@@ -97,6 +97,32 @@ BBEdit version 14.0 and higher adds support for Language Server Protocols, inclu
 }
 ```
 
+### Emacs `lsp-mode`
+
+Several LSP client implementations for
+[Emacs](https://www.gnu.org/software/emacs/) exist in the form of
+Emacs packages. This installation instruction covers the [LSP
+Mode](https://emacs-lsp.github.io/lsp-mode/) package.
+
+1. Install the the [LSP Mode](https://emacs-lsp.github.io/lsp-mode/)
+   package for Emacs as described in the [`lsp-mode` install
+   instructions](https://emacs-lsp.github.io/lsp-mode/page/installation/).
+
+2. Add the following to your Emacs init file:
+
+   ```
+   (add-to-list 'lsp-language-id-configuration '(perl-mode . "perl-pls"))
+   (add-to-list 'lsp-language-id-configuration '(cperl-mode . "perl-pls"))
+   (lsp-register-client
+    (make-lsp-client :new-connection (lsp-stdio-connection "pls")
+                     :major-modes '(perl-mode cperl-mode)
+                     :server-id 'perl-pls))
+   ```
+
+That's all. Now, a PLS server instance will be fired up when not
+already running, whenever a Perl file is opened in Emacs. For what to
+do next, see the extensive [LSP Mode
+documentation](https://emacs-lsp.github.io/lsp-mode/page/main-features/).
 
 ## Configuration
 
