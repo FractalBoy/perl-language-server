@@ -121,6 +121,13 @@ already running, whenever a Perl file is opened in Emacs. For what to
 do next, see the extensive [LSP Mode
 documentation](https://emacs-lsp.github.io/lsp-mode/page/main-features/).
 
+If `pls` is not in your `$PATH`, or you need to otherwise jump extra
+hoops, see the [LSP Mode documentation for adding a new language
+server](https://emacs-lsp.github.io/lsp-mode/page/adding-new-language/),
+which explains how to customise the language server path, how to pass
+command line arguments, how to set environment variables, and how to
+pass initialisation options in the LSP init message to the server.
+
 ## Configuration
 
 * Make sure that `perl.pls` is set to the path to the `pls` script on your system.
