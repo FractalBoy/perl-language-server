@@ -494,6 +494,10 @@ sub get_packages
     state $rx = qr/((?&PerlPackageDeclaration))$PPR::GRAMMAR/x;
     my %packages;
 
+    my $file = URI->new($uri)->file;
+    $file = readlink $file if (-l $file);
+    $uri = URI::file->new($file)->as_string();
+
     while ($$text =~ /$rx/g)
     {
         my $name = $1;
@@ -531,6 +535,10 @@ sub get_packages
 sub get_subroutines
 {
     my ($class, $text, $uri, $line_offsets) = @_;
+
+    my $file = URI->new($uri)->file;
+    $file = readlink $file if (-l $file);
+    $uri = URI::file->new($file)->as_string();
 
     # Stolen mostly from PPR definition for PerlSubroutineDeclaration
     state $sub_rx = qr/
