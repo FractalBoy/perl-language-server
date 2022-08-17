@@ -1284,7 +1284,6 @@ sub _get_ppi_document
     my ($self, %args) = @_;
 
     my $file;
-    my $sha = Digest::SHA->new(256);
 
     if ($args{text})
     {
@@ -1330,39 +1329,10 @@ sub _get_ppi_document
         } ## end elsif (open $fh, '<', $file...)
     } ## end if (length $args{line}...)
 
-    state %documents;
-
-    if (ref $file eq 'SCALAR')
-    {
-        $sha->add(Encode::encode_utf8($$file));
-    }
-    else
-    {
-        return if (not -f $file or not -r $file);
-        $sha->addfile($file);
-    }
-
-    my $digest = $sha->hexdigest();
-
-    if (    exists $documents{$digest}
-        and blessed($documents{$digest}{document})
-        and $documents{$digest}{document}->isa('PPI::Document')
-        and not $args{no_cache}
-        and not $self->{one_line})
-    {
-        return $documents{$digest}{document};
-    } ## end if (exists $documents{...})
-
     my $document = PPI::Document->new($file, readonly => 1);
     return if (not blessed($document) or not $document->isa('PPI::Document'));
-    $document->index_locations();
-    $documents{$digest} = {document => $document, time => time} if (length $digest and not $args{no_cache} and not $self->{one_line});
 
-    # Clear cache after one minute
-    foreach my $digest (keys %documents)
-    {
-        delete $documents{$digest} if (time - $documents{$digest}{time} >= Time::Seconds::ONE_MINUTE);
-    }
+    $document->index_locations();
 
     return $document;
 } ## end sub _get_ppi_document
