@@ -113,6 +113,8 @@ For example, if you run `pls` in a docker container, `pls.cmd` would be `docker`
 * Disable `perlcritic` checking entirely by setting `pls.perlcritic.enabled` to
 `false`.
 * Optionally, configure the path to an alternate `perl` to use for syntax checking using the `pls.syntax.perl` setting. By default, the `perl` used to run PLS will be used.
-*  Disable syntax checking entirely by setting `pls.syntax.enabled` to `false`.
+* Disable syntax checking entirely by setting `pls.syntax.enabled` to `false`.
+* Pass arguments to your code when syntax checking by setting `pls.syntax.args`.
+  * This is likely not useful for most developers, unless your code base changes behavior based on `@ARGV` in a `BEGIN` block.
 * Create a `.plsignore` file in your workspace root with Perl glob patterns that you do not wish to index. By default, PLS will index all files ending with `.pl`, `.pm`, or have `perl` in the shebang line that are not `.t` files.
   * If you have a lot of files that are not Perl files in your workspace, it may slow down indexing if they are not ignored. This is the case for PLS itself, where the entire `client` directory is not Perl and contains many small files in `node_modules`.
