@@ -21,7 +21,7 @@ The commands that are currently implemented are:
 
 =over
 
-=item perl.sortImports
+=item pls.sortImports
 
 This sorts the imports of the current Perl file. The sorting follows this order:
 
@@ -52,7 +52,7 @@ sub service
 {
     my ($self, $server) = @_;
 
-    if ($self->{params}{command} eq 'perl.sortImports')
+    if ($self->{params}{command} eq 'pls.sortImports')
     {
         my $file = $self->{params}{arguments}[0]{path};
         my $doc  = PLS::Parser::Document->new(path => $file);

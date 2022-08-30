@@ -48,7 +48,7 @@ sub new
     my $self = bless {id => $request->{id}}, $class;
     my $text = PLS::Parser::Document->text_from_uri($request->{params}{textDocument}{uri});
 
-    return $function->call(args => [$self, $request, $text, $PLS::Server::State::CONFIG->{perltidyrc}])->then(
+    return $function->call(args => [$self, $request, $text, $PLS::Server::State::CONFIG->{perltidy}{perltidyrc}])->then(
         sub {
             my ($ok, $formatted) = @_;
 

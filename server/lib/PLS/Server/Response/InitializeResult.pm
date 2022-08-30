@@ -50,7 +50,7 @@ sub new
                                                                    resolveProvider   => PLS::JSON::true,
                                                                   },
                                             executeCommandProvider => {
-                                                                       commands => ['perl.sortImports']
+                                                                       commands => ['pls.sortImports']
                                                                       },
                                             workspaceSymbolProvider => PLS::JSON::true,
                                             workspace               => {

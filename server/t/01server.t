@@ -156,7 +156,7 @@ subtest 'initialize server' => sub {
     ok($capabilities->{documentFormattingProvider},      'server is document formatting provider');
     ok($capabilities->{documentRangeFormattingProvider}, 'server is document formatting provider');
     is_deeply($capabilities->{completionProvider},     {triggerCharacters => ['>', ':', '$', '@', '%', ' ', '-'], resolveProvider => JSON::PP::true}, 'server is completion provider');
-    is_deeply($capabilities->{executeCommandProvider}, {commands          => ['perl.sortImports']},                                                   'server can execute commands');
+    is_deeply($capabilities->{executeCommandProvider}, {commands          => ['pls.sortImports']},                                                    'server can execute commands');
     ok($capabilities->{workspaceSymbolProvider}, 'server is workspace symbol provider');
 };
 

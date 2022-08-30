@@ -5,7 +5,7 @@ use warnings;
 
 our $INITIALIZED = 0;
 our $ROOT_PATH;
-our $CONFIG;
+our $CONFIG   = {perltidy => {}, perlcritic => {}};
 our $SHUTDOWN = 0;
 our $CLIENT_CAPABILITIES;
 
