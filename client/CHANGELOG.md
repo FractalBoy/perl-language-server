@@ -25,7 +25,7 @@ All notable changes to the "pls" extension will be documented in this file.
 ## [0.0.14] - 2022-03-01
 - Updated README to include information about syntax related settings.
 
-## [0.0.15] - TBD
+## [0.0.15] - 2022-08-29
 - Added `perl.syntax.args` setting.
 - Configuration was moved from the `perl.` to the `pls.` namespace.
   - Support for configuration in `pls.` has been deprecated, but not removed.

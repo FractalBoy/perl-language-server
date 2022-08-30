@@ -140,7 +140,7 @@ Revision history for perl module PLS
    notifications that a request has failed.
  - Documentation has been updated to include information about syntax related settings.
 
-0.900 TBD
+0.900 2022-08-29
 
  - Improvements to indexing:
    - Indexing is done using PPR now, instead of PPI, which is much faster.
