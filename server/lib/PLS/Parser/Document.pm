@@ -147,7 +147,23 @@ sub go_to_definition_of_closest_subroutine
     }
 
     return if (not blessed($word) or not $word->isa('PLS::Parser::Element') or not $word->element->isa('PPI::Token::Word'));
-    my $definitions = $self->search_elements_for_definition($line_number, $column_number, $word);
+
+    my $fully_qualified = $word->name;
+    my @parts           = split /::/, $fully_qualified;
+    my $subroutine      = pop @parts;
+
+    my $definitions;
+
+    if (scalar @parts and $parts[-1] ne 'SUPER')
+    {
+        my $package = join '::', @parts;
+        $definitions = $self->{index}->find_package_subroutine($package, $subroutine);
+    }
+    else
+    {
+        $definitions = $self->{index}->find_subroutine($subroutine);
+    }
+
     return $definitions, $word if wantarray;
     return $definitions;
 } ## end sub go_to_definition_of_closest_subroutine
