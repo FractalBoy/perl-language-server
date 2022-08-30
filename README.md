@@ -47,12 +47,12 @@ A more complex configuration will look like this:
 local config = {
   cmd = { '/opt/bin/pls' }, -- complete path to where PLS is located
   settings = {
-    perl = {
+    pls = {
       inc = { '/my/perl/5.34/lib', '/some/other/perl/lib' },  -- add list of dirs to @INC
       cwd = { '/my/projects' },   -- working directory for PLS
       perlcritic = { enabled = true, perlcriticrc = '/my/projects/.perlcriticrc' },  -- use perlcritic and pass a non-default location for its config
-      syntax = { enabled = true, perl = '/usr/bin/perl' }, -- enable syntax checking and use a non-default perl binary
-      perltidyrc = '/my/projects/.perltidyrc'  -- non-default location for perltidy's config
+      syntax = { enabled = true, perl = '/usr/bin/perl', args = { 'arg1', 'arg2' } }, -- enable syntax checking and use a non-default perl binary
+      perltidy = { perltidyrc = '/my/projects/.perltidyrc' } -- non-default location for perltidy's config
     }
   }
 }
@@ -76,13 +76,16 @@ BBEdit version 14.0 and higher adds support for Language Server Protocols, inclu
   "initializationOptions": {},
   "workspaceConfigurations": {
     "*": {
-      "perl": {
+      "pls": {
         "inc": [],
         "syntax": {
           "enabled": true,
-          "perl": "/usr/bin/perl"
+          "perl": "/usr/bin/perl",
+          "args": []
         },
-        "perltidyrc": "~/.perltidyrc",
+        "perltidy": {
+            "perltidyrc": "~/.perltidyrc"
+        },
         "perlcritic": {
           "enabled": true,
           "perlcriticrc": "~/.perlcriticrc"
