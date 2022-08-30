@@ -1,5 +1,8 @@
 package PLS::JSON;
 
+use strict;
+use warnings;
+
 use Exporter qw(import);
 
 our $package;

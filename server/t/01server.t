@@ -16,6 +16,10 @@ use URI;
 
 use t::Communicate;
 
+# Copy code to non-hidden directory.
+my $code_dir = File::Temp->newdir();
+File::Copy::copy(File::Spec->catfile($FindBin::RealBin, 'Communicate.pm'), $code_dir);
+
 sub slurp
 {
     my ($file, $id) = @_;
@@ -27,7 +31,7 @@ sub slurp
     $obj->{id} = $id // 0 if (exists $obj->{id});
     if (length $obj->{method} and $obj->{method} eq 'initialize')
     {
-        $obj->{params}{rootUri}          = URI::file->new("$FindBin::RealBin")->as_string;
+        $obj->{params}{rootUri}          = URI::file->new($code_dir)->as_string;
         $obj->{params}{workspaceFolders} = [{uri => $obj->{params}{rootUri}}];
     }
     return $obj;
@@ -37,7 +41,7 @@ sub open_file
 {
     my ($file, $comm) = @_;
 
-    my $path = File::Spec->catfile($FindBin::RealBin, $file);
+    my $path = File::Spec->catfile($code_dir, $file);
     open my $fh, '<', $path;
     my $text       = do { local $/; <$fh> };
     my $uri        = URI::file->new($path)->as_string;

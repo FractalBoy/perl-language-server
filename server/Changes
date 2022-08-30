@@ -181,3 +181,8 @@ Revision history for perl module PLS
    - Configuration in the perl. namespace currently takes precedence in order to prevent
      broken configuration on upgrade.
  - Various other stability and quality of life improvements.
+
+0.901 2022-08-29
+
+ - Allow tests to pass from hidden directory
+ - Add use strict and warnings to PLS::JSON
