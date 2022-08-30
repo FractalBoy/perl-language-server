@@ -5,8 +5,6 @@ use warnings;
 
 our $VERSION = '0.900';
 
-1;
-
 =head1 NAME
 
 PLS - Perl Language Server
@@ -122,3 +120,7 @@ Copyright 2022 Marc Reisner
 
 This library is free software; you may redistribute it and/or
 modify it under the same terms as Perl itself.
+
+=cut
+
+1;

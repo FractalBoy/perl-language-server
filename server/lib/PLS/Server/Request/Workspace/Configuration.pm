@@ -12,8 +12,8 @@ use PLS::Parser::Document;
 use PLS::Parser::Index;
 use PLS::Parser::PackageSymbols;
 use PLS::Parser::Pod;
-use PLS::Server::State;
 use PLS::Server::Request::TextDocument::PublishDiagnostics;
+use PLS::Server::State;
 
 =head1 NAME
 
