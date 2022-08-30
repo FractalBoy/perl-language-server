@@ -55,8 +55,12 @@ sub handle_response
     foreach my $result (@{$response->{result}})
     {
         next if (ref $result ne 'HASH');
-        $config = {%{$config}, %{$result}};
-    }
+
+        foreach my $key (keys %{$result})
+        {
+            $config->{$key} = $result->{$key} unless (exists $config->{$key});
+        }
+    } ## end foreach my $result (@{$response...})
 
     convert_config($config);
     use Data::Dumper;
