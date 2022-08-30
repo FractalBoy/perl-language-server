@@ -7,8 +7,9 @@ BEGIN
     use lib "$FindBin::RealBin/..";
 }
 
-use File::Path;
+use File::Copy;
 use File::Spec;
+use File::Temp;
 use JSON::PP;
 use List::Util qw(first all);
 use Test::More tests => 6;
