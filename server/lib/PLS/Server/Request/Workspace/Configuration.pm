@@ -63,10 +63,6 @@ sub handle_response
     } ## end foreach my $result (@{$response...})
 
     convert_config($config);
-    use Data::Dumper;
-    warn Dumper $config;
-
-    return if (ref $config ne 'HASH');
 
     my $index = PLS::Parser::Index->new();
     my @inc;
