@@ -35,3 +35,5 @@ All notable changes to the "pls" extension will be documented in this file.
 ## [0.0.15] - TBD
 ###
 - Added perl.syntax.args setting.
+- Configuration was moved from the `perl.` to the `pls.` namespace.
+  - Support for configuration in `pls.` has been deprecated, but not removed.

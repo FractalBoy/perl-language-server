@@ -145,7 +145,7 @@ Revision history for perl module PLS
  - Improvements to indexing:
    - Indexing is done using PPR now, instead of PPI, which is much faster.
    - Indexing is now performed by multiple child processes, which is faster.
-   - The index is no longer written to a file, instead it is done during startup.
+   - The index is no longer written to a file; instead it is done during startup.
    - Files are now reindexed on change, not just when they are saved.
    - .pls-tmp-* file deletion no longer triggers a cleanup of the index, which should
      improve performance, because it prevents a synchronous stat() of all files.
@@ -165,3 +165,10 @@ Revision history for perl module PLS
    ensure old diagnostics are not returned to the client.
  - The first parameter is now skipped in signature help if a subroutine is
    being called as a class or instance method.
+ - PLS can now use Cpanel::JSON::XS instead of JSON::XS for improved performance.
+ - PPI documents are no longer cached after every change, which was of questionable
+   utility and used a ton of memory.
+ - Configuration items have been migrated from the perl. to the pls. namespace.
+   - Support for configuration in the perl. namespace has been deprecated but not removed.
+   - Configuration in the perl. namespace currently takes precedence in order to prevent
+     broken configuration on upgrade.
