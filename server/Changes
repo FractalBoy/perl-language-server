@@ -186,3 +186,7 @@ Revision history for perl module PLS
 
  - Allow tests to pass from hidden directory
  - Add use strict and warnings to PLS::JSON
+
+0.902 2022-08-30
+
+ - Ignore default configuration in the perl. namespace.

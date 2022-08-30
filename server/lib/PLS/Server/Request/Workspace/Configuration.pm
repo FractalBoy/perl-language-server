@@ -55,10 +55,11 @@ sub handle_response
     foreach my $result (@{$response->{result}})
     {
         next if (ref $result ne 'HASH');
+        next if (exists $result->{pls} and not length $result->{pls});
 
         foreach my $key (keys %{$result})
         {
-            $config->{$key} = $result->{$key} unless (exists $config->{$key});
+            $config->{$key} = $result->{$key} unless (length $config->{$key});
         }
     } ## end foreach my $result (@{$response...})
 
