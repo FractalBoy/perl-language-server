@@ -47,12 +47,12 @@ A more complex configuration will look like this:
 local config = {
   cmd = { '/opt/bin/pls' }, -- complete path to where PLS is located
   settings = {
-    perl = {
+    pls = {
       inc = { '/my/perl/5.34/lib', '/some/other/perl/lib' },  -- add list of dirs to @INC
       cwd = { '/my/projects' },   -- working directory for PLS
       perlcritic = { enabled = true, perlcriticrc = '/my/projects/.perlcriticrc' },  -- use perlcritic and pass a non-default location for its config
-      syntax = { enabled = true, perl = '/usr/bin/perl' }, -- enable syntax checking and use a non-default perl binary
-      perltidyrc = '/my/projects/.perltidyrc'  -- non-default location for perltidy's config
+      syntax = { enabled = true, perl = '/usr/bin/perl', args = { 'arg1', 'arg2' } }, -- enable syntax checking and use a non-default perl binary
+      perltidy = { perltidyrc = '/my/projects/.perltidyrc' } -- non-default location for perltidy's config
     }
   }
 }
@@ -76,13 +76,16 @@ BBEdit version 14.0 and higher adds support for Language Server Protocols, inclu
   "initializationOptions": {},
   "workspaceConfigurations": {
     "*": {
-      "perl": {
+      "pls": {
         "inc": [],
         "syntax": {
           "enabled": true,
-          "perl": "/usr/bin/perl"
+          "perl": "/usr/bin/perl",
+          "args": []
         },
-        "perltidyrc": "~/.perltidyrc",
+        "perltidy": {
+            "perltidyrc": "~/.perltidyrc"
+        },
         "perlcritic": {
           "enabled": true,
           "perlcriticrc": "~/.perlcriticrc"
@@ -97,19 +100,21 @@ BBEdit version 14.0 and higher adds support for Language Server Protocols, inclu
 
 ## Configuration
 
-* Make sure that `perl.pls` is set to the path to the `pls` script on your system.
+* Make sure that `pls.cmd` is set to the path to the `pls` script on your system.
 If you rely on your `$PATH`, ensure that your editor is configured with the correct
 path, which may not be the same one that your terminal uses.
-* Add any additional arguments needed to execute `pls` to the `perl.plsargs` setting.
-For example, if you run `pls` in a docker container, `perl.pls` would be `docker`, and
-`perl.plsargs` would be `["run", "--rm", "-i", "<image name>", "pls"]`.
-* Optionally, change the current working directory to run PLS in by modifying the `perl.cwd` setting. If you use `$ROOT_PATH` here, it will be replaced by the first or only workspace folder.
-* Add paths to `@INC` by modifying the `perl.inc` setting. You can use the `$ROOT_PATH` mnemonic to stand in for your project's root directory, for example `$ROOT_PATH/lib`. If you are using multiple workspace folders and use `$ROOT_PATH`, the path will be multiplied by the number of workspace folders, and will be replaced that many times.
-* Configure the path to your `.perltidyrc` file using the `perl.perltidyrc` setting. The default is `~/.perltidyrc` if not configured.
-* Configure the path to your `.perlcriticrc` file using the `perl.perlcritic.perlcriticrc` setting. The default is `~/.perlcriticrc` if not configured.
-* Disable `perlcritic` checking entirely by setting `perl.perlcritic.enabled` to
+* Add any additional arguments needed to execute `pls` to the `pls.args` setting.
+For example, if you run `pls` in a docker container, `pls.cmd` would be `docker`, and
+`pls.args` would be `["run", "--rm", "-i", "<image name>", "pls"]`.
+* Optionally, change the current working directory to run PLS in by modifying the `pls.cwd` setting. If you use `$ROOT_PATH` here, it will be replaced by the first or only workspace folder.
+* Add paths to `@INC` by modifying the `pls.inc` setting. You can use the `$ROOT_PATH` mnemonic to stand in for your project's root directory, for example `$ROOT_PATH/lib`. If you are using multiple workspace folders and use `$ROOT_PATH`, the path will be multiplied by the number of workspace folders, and will be replaced that many times.
+* Configure the path to your `.perltidyrc` file using the `pls.perltidy.perltidyrc` setting. The default is `~/.perltidyrc` if not configured.
+* Configure the path to your `.perlcriticrc` file using the `pls.perlcritic.perlcriticrc` setting. The default is `~/.perlcriticrc` if not configured.
+* Disable `perlcritic` checking entirely by setting `pls.perlcritic.enabled` to
 `false`.
-* Optionally, configure the path to an alternate `perl` to use for syntax checking using the `perl.syntax.perl` setting. By default, the `perl` used to run PLS will be used.
-*  Disable syntax checking entirely by setting `perl.syntax.enabled` to `false`.
+* Optionally, configure the path to an alternate `perl` to use for syntax checking using the `pls.syntax.perl` setting. By default, the `perl` used to run PLS will be used.
+* Disable syntax checking entirely by setting `pls.syntax.enabled` to `false`.
+* Pass arguments to your code when syntax checking by setting `pls.syntax.args`.
+  * This is likely not useful for most developers, unless your code base changes behavior based on `@ARGV` in a `BEGIN` block.
 * Create a `.plsignore` file in your workspace root with Perl glob patterns that you do not wish to index. By default, PLS will index all files ending with `.pl`, `.pm`, or have `perl` in the shebang line that are not `.t` files.
   * If you have a lot of files that are not Perl files in your workspace, it may slow down indexing if they are not ignored. This is the case for PLS itself, where the entire `client` directory is not Perl and contains many small files in `node_modules`.

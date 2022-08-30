@@ -145,11 +145,11 @@ Revision history for perl module PLS
  - Improvements to indexing:
    - Indexing is done using PPR now, instead of PPI, which is much faster.
    - Indexing is now performed by multiple child processes, which is faster.
-   - The index is no longer written to a file, instead it is done during startup.
+   - The index is no longer written to a file; instead it is done during startup.
    - Files are now reindexed on change, not just when they are saved.
    - .pls-tmp-* file deletion no longer triggers a cleanup of the index, which should
      improve performance, because it prevents a synchronous stat() of all files.
-   - Indexing progress is no longer logged.
+   - Indexing progress is no longer logged. Instead, it is displayed as work done progress.
  - Support for multiple workspace folders has been added.
  - Handling for edge cases related to completion has been improved.
  - Support for non-ASCII characters in your Perl source code has been added.
@@ -163,5 +163,21 @@ Revision history for perl module PLS
    everything relevant is returned and filtering is now all done by the client.
  - Syntax checking and linting is now multi-threaded. Document versions are used to
    ensure old diagnostics are not returned to the client.
+   - Files are now checked to ensure they are not closed after syntax checking and linting
+     is complete, but before the diagnostics are sent to the client. This prevents  diagnostics from hanging around after a file is closed.
  - The first parameter is now skipped in signature help if a subroutine is
    being called as a class or instance method.
+ - PLS now evaluates use statements and determines which imported functions are available
+   to be used directly instead of with their fully-qualified names.
+   - Hover and completion resolve documentation is available for these functions.
+ - Perl built-in variables were added to the completion list.
+   - Completion resolve documentation is available for these variables.
+ - PLS can now use Cpanel::JSON::XS instead of JSON::XS for improved performance.
+ - PPI documents are no longer cached after every change, which was of questionable
+   utility and used a ton of memory.
+ - Configuration items have been migrated from the perl. to the pls. namespace.
+   - This is to prevent conflict with configuration from other Perl language servers in Emacs.
+   - Support for configuration in the perl. namespace has been deprecated but not removed.
+   - Configuration in the perl. namespace currently takes precedence in order to prevent
+     broken configuration on upgrade.
+ - Various other stability and quality of life improvements.

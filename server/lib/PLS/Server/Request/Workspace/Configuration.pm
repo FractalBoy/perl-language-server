@@ -12,8 +12,8 @@ use PLS::Parser::Document;
 use PLS::Parser::Index;
 use PLS::Parser::PackageSymbols;
 use PLS::Parser::Pod;
-use PLS::Server::State;
 use PLS::Server::Request::TextDocument::PublishDiagnostics;
+use PLS::Server::State;
 
 =head1 NAME
 
@@ -24,7 +24,7 @@ PLS::Server::Request::Workspace::Configuration
 This is a message from the server to the client requesting that it send
 the values of some configuration items.
 
-PLS requests all configuration starting with C<perl.>.
+PLS requests all configuration starting with C<pls.>.
 
 This class also handles the response from the client which stores the configuration
 in memory.
@@ -39,7 +39,7 @@ sub new
         id     => undef,                       # assigned by the server
         method => 'workspace/configuration',
         params => {
-                   items => [{section => 'perl'}]
+                   items => [{section => 'perl'}, {section => 'pls'}]
                   }
                  }, $class;
 } ## end sub new
@@ -48,9 +48,21 @@ sub handle_response
 {
     my ($self, $response, $server) = @_;
 
-    return unless (Scalar::Util::reftype $response eq 'HASH' and ref $response->{result} eq 'ARRAY');
-    my $config = $response->{result}[0];
-    return unless (ref $config eq 'HASH');
+    return if (Scalar::Util::reftype($response) ne 'HASH' or ref $response->{result} ne 'ARRAY');
+
+    my $config = {};
+
+    foreach my $result (@{$response->{result}})
+    {
+        next if (ref $result ne 'HASH');
+
+        foreach my $key (keys %{$result})
+        {
+            $config->{$key} = $result->{$key} unless (exists $config->{$key});
+        }
+    } ## end foreach my $result (@{$response...})
+
+    convert_config($config);
 
     my $index = PLS::Parser::Index->new();
     my @inc;
@@ -93,5 +105,32 @@ sub handle_response
 
     return;
 } ## end sub handle_response
+
+sub convert_config
+{
+    my ($config) = @_;
+
+    if (length $config->{pls})
+    {
+        $config->{cmd} = $config->{pls} unless (length $config->{cmd});
+        delete $config->{pls};
+    }
+
+    if (ref $config->{plsargs} eq 'ARRAY')
+    {
+        $config->{args} = $config->{plsargs} if (ref $config->{args} ne 'ARRAY');
+        delete $config->{plsargs};
+    }
+
+    $config->{perltidy} = {} if (ref $config->{perltidy} ne 'HASH');
+
+    if (length $config->{perltidyrc})
+    {
+        $config->{perltidy}{perltidyrc} = $config->{perltidyrc} unless (length $config->{perltidy}{perltidyrc});
+        delete $config->{perltidyrc};
+    }
+
+    return;
+} ## end sub convert_config
 
 1;
