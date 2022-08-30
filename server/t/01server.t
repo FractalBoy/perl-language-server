@@ -164,12 +164,10 @@ subtest 'initial requests' => sub {
     plan tests => 30;
     my $comm = t::Communicate->new();
     initialize_server($comm);
-    my $uri           = open_file('Communicate.pm', $comm);
-    my $configuration = $comm->recv_message();
 
     my @messages;
 
-    foreach (1 .. 5)
+    foreach (1 .. 6)
     {
         push @messages, $comm->recv_message();
     }
@@ -179,6 +177,7 @@ subtest 'initial requests' => sub {
     my $work_done_report    = List::Util::first { $_->{method} eq '$/progress' and $_->{params}{value}{kind} eq 'report' } @messages;
     my $work_done_end       = List::Util::first { $_->{method} eq '$/progress' and $_->{params}{value}{kind} eq 'end' } @messages;
     my $register_capability = List::Util::first { $_->{method} eq 'client/registerCapability' } @messages;
+    my $configuration       = List::Util::first { $_->{method} eq 'workspace/configuration' } @messages;
 
     my $token = $work_done_create->{params}{token};
 
@@ -186,7 +185,7 @@ subtest 'initial requests' => sub {
     ok(length($token), 'token provided');
 
     is($configuration->{method}, 'workspace/configuration', 'configuration request sent');
-    is_deeply($configuration->{params}, {items => [{section => 'perl'}]}, 'correct configuration section');
+    is_deeply($configuration->{params}, {items => [{section => 'perl'}, {section => 'pls'}]}, 'correct configuration section');
 
     is($register_capability->{method}, 'client/registerCapability', 'client register capability sent');
     cmp_ok(@{$register_capability->{params}{registrations}}, '==', 2, 'two registrations sent');
@@ -213,7 +212,9 @@ subtest 'initial requests' => sub {
     is($work_done_end->{params}{value}{kind},    'end',                         'end sent last');
     is($work_done_end->{params}{value}{message}, 'Finished indexing all files', 'correct message');
 
-    my $diagnostics = $comm->send_message_and_recv_response(slurp('configuration.json', $configuration->{id}));
+    $comm->send_message(slurp('configuration.json', $configuration->{id}));
+    my $uri         = open_file('Communicate.pm', $comm);
+    my $diagnostics = $comm->recv_message();
 
     ok(valid_notification($diagnostics), 'diagnostics notification returned');
     is($diagnostics->{method},                  'textDocument/publishDiagnostics', 'got diagnostics after configuration sent');

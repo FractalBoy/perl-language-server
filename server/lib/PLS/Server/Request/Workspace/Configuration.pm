@@ -59,6 +59,8 @@ sub handle_response
     }
 
     convert_config($config);
+    use Data::Dumper;
+    warn Dumper $config;
 
     return if (ref $config ne 'HASH');
 

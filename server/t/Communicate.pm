@@ -45,6 +45,7 @@ sub new
 
         open STDOUT, '>&', $server_write_fh;
         open STDIN,  '>&', $server_read_fh;
+
         open STDERR, '>&', $server_err_fh;
         my $server = PLS::Server->new();
         exit $server->run();
