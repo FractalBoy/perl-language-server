@@ -54,61 +54,6 @@ sub run
 {
     my ($self) = @_;
 
-    $self->{client_requests}  = Future::Queue->new();
-    $self->{client_responses} = Future::Queue->new();
-    $self->{server_requests}  = Future::Queue->new();
-    $self->{server_responses} = Future::Queue->new();
-
-    Future::Utils::repeat
-    {
-        $self->{client_requests}->shift->on_done(
-            sub {
-                my ($request) = @_;
-
-                $self->handle_client_request($request);
-                return;
-            }
-        );
-    } ## end Future::Utils::repeat
-    while => sub { 1 };
-
-    Future::Utils::repeat
-    {
-        $self->{client_responses}->shift->on_done(
-            sub {
-                my ($response) = @_;
-
-                $self->handle_client_response($response);
-                return;
-            }
-        );
-    } ## end Future::Utils::repeat
-    while => sub { 1 };
-
-    Future::Utils::repeat
-    {
-        $self->{server_requests}->shift->on_done(
-            sub {
-                my ($request) = @_;
-                $self->handle_server_request($request);
-                return;
-            }
-        );
-    } ## end Future::Utils::repeat
-    while => sub { 1 };
-
-    Future::Utils::repeat
-    {
-        $self->{server_responses}->shift->on_done(
-            sub {
-                my ($response) = @_;
-                $self->handle_server_response($response);
-                return;
-            }
-        );
-    } ## end Future::Utils::repeat
-    while => sub { 1 };
-
     $self->{stream} = IO::Async::Stream->new_for_stdio(
         autoflush => 0,
         on_read   => sub {
@@ -164,7 +109,7 @@ sub handle_client_message
 
         if (blessed($message) and $message->isa('PLS::Server::Response'))
         {
-            $self->{server_responses}->push($message);
+            $self->send_message($message);
             return;
         }
     } ## end if (length $message->{...})
@@ -177,11 +122,11 @@ sub handle_client_message
 
     if ($message->isa('PLS::Server::Request'))
     {
-        $self->{client_requests}->push($message);
+        $self->handle_client_request($message);
     }
     if ($message->isa('PLS::Server::Response'))
     {
-        $self->{client_responses}->push($message);
+        $self->handle_client_response($message);
     }
 
     return;
@@ -195,7 +140,7 @@ sub send_server_request
 
     if ($request->isa('PLS::Server::Request'))
     {
-        $self->{server_requests}->push($request);
+        $self->handle_server_request($request);
     }
     elsif ($request->isa('Future'))
     {
@@ -203,7 +148,7 @@ sub send_server_request
             sub {
                 my ($request) = @_;
 
-                $self->{server_requests}->push($request);
+                $self->handle_server_request($request);
             }
         )->retain();
     } ## end elsif ($request->isa('Future'...))
@@ -232,7 +177,7 @@ sub handle_client_request
     {
         if ($response->isa('PLS::Server::Response'))
         {
-            $self->{server_responses}->push($response);
+            $self->send_message($response);
         }
         elsif ($response->isa('Future'))
         {
@@ -241,11 +186,11 @@ sub handle_client_request
             $response->on_done(
                 sub {
                     my ($response) = @_;
-                    $self->{server_responses}->push($response);
+                    $self->send_message($response);
                 }
               )->on_cancel(
                 sub {
-                    $self->{server_responses}->push(PLS::Server::Response::Cancelled->new(id => $request->{id}));
+                    $self->send_message(PLS::Server::Response::Cancelled->new(id => $request->{id}));
                 }
               );
         } ## end elsif ($response->isa('Future'...))
