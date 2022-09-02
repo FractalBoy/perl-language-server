@@ -1461,8 +1461,8 @@ sub find_word_under_cursor
             my $end_delimiter = $delimiter;
             $end_delimiter = '}' if ($delimiter eq '{');
             $end_delimiter = ')' if ($delimiter eq '(');
-            $end_delimiter = '>' if ($delimiter eq '>');
-            $end_delimiter = ']' if ($delimiter eq ']');
+            $end_delimiter = '>' if ($delimiter eq '<');
+            $end_delimiter = ']' if ($delimiter eq '[');
 
             if ($string =~ /\Q$end_delimiter\E$/)
             {
@@ -1480,11 +1480,11 @@ sub find_word_under_cursor
         {
             return {
                     start => {
-                              line      => $line,
+                              line      => $line - 1,
                               character => $character - length $1
                              },
                     end => {
-                            line      => $line,
+                            line      => $line - 1,
                             character => $character
                            }
                    },

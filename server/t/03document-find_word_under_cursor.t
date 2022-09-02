@@ -3,7 +3,7 @@
 use strict;
 use warnings;
 
-use Test::More tests => 22;
+use Test::More tests => 38;
 use FindBin;
 use File::Basename;
 use File::Path;
@@ -301,7 +301,7 @@ subtest 'two arrows in a row' => sub {
 
     my ($range, $arrow, $package, $filter) = $doc->find_word_under_cursor(1, 6);
     is_deeply($range, {start => {line => 0, character => 6}, end => {line => 0, character => 6}}, 'correct range');
-    ok($arrow,            'no arrow');
+    ok($arrow,            'arrow');
     ok(!length($package), 'no package');
     is($filter, '', 'filter correct');
 };
@@ -314,9 +314,217 @@ subtest 'fill method name between arrows' => sub {
 
     my ($range, $arrow, $package, $filter) = $doc->find_word_under_cursor(1, 7);
     is_deeply($range, {start => {line => 0, character => 6}, end => {line => 0, character => 7}}, 'correct range');
-    ok($arrow,            'no arrow');
+    ok($arrow,            'arrow');
     ok(!length($package), 'no package');
     is($filter, 'm', 'filter correct');
+};
+
+subtest 'sigil between double quotes' => sub {
+    plan tests => 5;
+
+    my $doc = PLS::Parser::Document->new(uri => $uri->as_string, line => 31);
+    isa_ok($doc, 'PLS::Parser::Document');
+
+    my ($range, $arrow, $package, $filter) = $doc->find_word_under_cursor(1, 2);
+    is_deeply($range, {start => {line => 0, character => 1}, end => {line => 0, character => 2}}, 'correct range');
+    ok(!$arrow,           'no arrow');
+    ok(!length($package), 'no package');
+    is($filter, '$', 'filter correct');
+};
+
+subtest 'variable between double quotes' => sub {
+    plan tests => 5;
+
+    my $doc = PLS::Parser::Document->new(uri => $uri->as_string, line => 32);
+    isa_ok($doc, 'PLS::Parser::Document');
+
+    my ($range, $arrow, $package, $filter) = $doc->find_word_under_cursor(1, 3);
+    is_deeply($range, {start => {line => 0, character => 1}, end => {line => 0, character => 3}}, 'correct range');
+    ok(!$arrow,           'no arrow');
+    ok(!length($package), 'no package');
+    is($filter, '$x', 'filter correct');
+};
+
+subtest 'sigil in qr' => sub {
+    plan tests => 5;
+
+    my $doc = PLS::Parser::Document->new(uri => $uri->as_string, line => 33);
+    isa_ok($doc, 'PLS::Parser::Document');
+
+    my ($range, $arrow, $package, $filter) = $doc->find_word_under_cursor(1, 4);
+    is_deeply($range, {start => {line => 0, character => 3}, end => {line => 0, character => 4}}, 'correct range');
+    ok(!$arrow,           'no arrow');
+    ok(!length($package), 'no package');
+    is($filter, '$', 'filter correct');
+};
+
+subtest 'variable in qr' => sub {
+    plan tests => 5;
+
+    my $doc = PLS::Parser::Document->new(uri => $uri->as_string, line => 34);
+    isa_ok($doc, 'PLS::Parser::Document');
+
+    my ($range, $arrow, $package, $filter) = $doc->find_word_under_cursor(1, 5);
+    is_deeply($range, {start => {line => 0, character => 3}, end => {line => 0, character => 5}}, 'correct range');
+    ok(!$arrow,           'no arrow');
+    ok(!length($package), 'no package');
+    is($filter, '$x', 'filter correct');
+};
+
+subtest 'sigil in qx' => sub {
+    plan tests => 5;
+
+    my $doc = PLS::Parser::Document->new(uri => $uri->as_string, line => 35);
+    isa_ok($doc, 'PLS::Parser::Document');
+
+    my ($range, $arrow, $package, $filter) = $doc->find_word_under_cursor(1, 4);
+    is_deeply($range, {start => {line => 0, character => 3}, end => {line => 0, character => 4}}, 'correct range');
+    ok(!$arrow,           'no arrow');
+    ok(!length($package), 'no package');
+    is($filter, '$', 'filter correct');
+};
+
+subtest 'variable in qx' => sub {
+    plan tests => 5;
+
+    my $doc = PLS::Parser::Document->new(uri => $uri->as_string, line => 36);
+    isa_ok($doc, 'PLS::Parser::Document');
+
+    my ($range, $arrow, $package, $filter) = $doc->find_word_under_cursor(1, 5);
+    is_deeply($range, {start => {line => 0, character => 3}, end => {line => 0, character => 5}}, 'correct range');
+    ok(!$arrow,           'no arrow');
+    ok(!length($package), 'no package');
+    is($filter, '$x', 'filter correct');
+};
+
+subtest 'sigil in qq' => sub {
+    plan tests => 5;
+
+    my $doc = PLS::Parser::Document->new(uri => $uri->as_string, line => 37);
+    isa_ok($doc, 'PLS::Parser::Document');
+
+    my ($range, $arrow, $package, $filter) = $doc->find_word_under_cursor(1, 4);
+    is_deeply($range, {start => {line => 0, character => 3}, end => {line => 0, character => 4}}, 'correct range');
+    ok(!$arrow,           'no arrow');
+    ok(!length($package), 'no package');
+    is($filter, '$', 'filter correct');
+};
+
+subtest 'variable in qq' => sub {
+    plan tests => 5;
+
+    my $doc = PLS::Parser::Document->new(uri => $uri->as_string, line => 38);
+    isa_ok($doc, 'PLS::Parser::Document');
+
+    my ($range, $arrow, $package, $filter) = $doc->find_word_under_cursor(1, 5);
+    is_deeply($range, {start => {line => 0, character => 3}, end => {line => 0, character => 5}}, 'correct range');
+    ok(!$arrow,           'no arrow');
+    ok(!length($package), 'no package');
+    is($filter, '$x', 'filter correct');
+};
+
+subtest 'sigil in s' => sub {
+    plan tests => 5;
+
+    my $doc = PLS::Parser::Document->new(uri => $uri->as_string, line => 39);
+    isa_ok($doc, 'PLS::Parser::Document');
+
+    my ($range, $arrow, $package, $filter) = $doc->find_word_under_cursor(1, 3);
+    is_deeply($range, {start => {line => 0, character => 2}, end => {line => 0, character => 3}}, 'correct range');
+    ok(!$arrow,           'no arrow');
+    ok(!length($package), 'no package');
+    is($filter, '$', 'filter correct');
+};
+
+subtest 'variable in s' => sub {
+    plan tests => 5;
+
+    my $doc = PLS::Parser::Document->new(uri => $uri->as_string, line => 40);
+    isa_ok($doc, 'PLS::Parser::Document');
+
+    my ($range, $arrow, $package, $filter) = $doc->find_word_under_cursor(1, 4);
+    is_deeply($range, {start => {line => 0, character => 2}, end => {line => 0, character => 4}}, 'correct range');
+    ok(!$arrow,           'no arrow');
+    ok(!length($package), 'no package');
+    is($filter, '$x', 'filter correct');
+};
+
+subtest 'sigil in m' => sub {
+    plan tests => 5;
+
+    my $doc = PLS::Parser::Document->new(uri => $uri->as_string, line => 41);
+    isa_ok($doc, 'PLS::Parser::Document');
+
+    my ($range, $arrow, $package, $filter) = $doc->find_word_under_cursor(1, 3);
+    is_deeply($range, {start => {line => 0, character => 2}, end => {line => 0, character => 3}}, 'correct range');
+    ok(!$arrow,           'no arrow');
+    ok(!length($package), 'no package');
+    is($filter, '$', 'filter correct');
+};
+
+subtest 'variable in m' => sub {
+    plan tests => 5;
+
+    my $doc = PLS::Parser::Document->new(uri => $uri->as_string, line => 42);
+    isa_ok($doc, 'PLS::Parser::Document');
+
+    my ($range, $arrow, $package, $filter) = $doc->find_word_under_cursor(1, 4);
+    is_deeply($range, {start => {line => 0, character => 2}, end => {line => 0, character => 4}}, 'correct range');
+    ok(!$arrow,           'no arrow');
+    ok(!length($package), 'no package');
+    is($filter, '$x', 'filter correct');
+};
+
+subtest 'sigil in y' => sub {
+    plan tests => 5;
+
+    my $doc = PLS::Parser::Document->new(uri => $uri->as_string, line => 43);
+    isa_ok($doc, 'PLS::Parser::Document');
+
+    my ($range, $arrow, $package, $filter) = $doc->find_word_under_cursor(1, 3);
+    is_deeply($range, {start => {line => 0, character => 2}, end => {line => 0, character => 3}}, 'correct range');
+    ok(!$arrow,           'no arrow');
+    ok(!length($package), 'no package');
+    is($filter, '$', 'filter correct');
+};
+
+subtest 'variable in y' => sub {
+    plan tests => 5;
+
+    my $doc = PLS::Parser::Document->new(uri => $uri->as_string, line => 44);
+    isa_ok($doc, 'PLS::Parser::Document');
+
+    my ($range, $arrow, $package, $filter) = $doc->find_word_under_cursor(1, 4);
+    is_deeply($range, {start => {line => 0, character => 2}, end => {line => 0, character => 4}}, 'correct range');
+    ok(!$arrow,           'no arrow');
+    ok(!length($package), 'no package');
+    is($filter, '$x', 'filter correct');
+};
+
+subtest 'sigil in tr' => sub {
+    plan tests => 5;
+
+    my $doc = PLS::Parser::Document->new(uri => $uri->as_string, line => 45);
+    isa_ok($doc, 'PLS::Parser::Document');
+
+    my ($range, $arrow, $package, $filter) = $doc->find_word_under_cursor(1, 4);
+    is_deeply($range, {start => {line => 0, character => 3}, end => {line => 0, character => 4}}, 'correct range');
+    ok(!$arrow,           'no arrow');
+    ok(!length($package), 'no package');
+    is($filter, '$', 'filter correct');
+};
+
+subtest 'variable in tr' => sub {
+    plan tests => 5;
+
+    my $doc = PLS::Parser::Document->new(uri => $uri->as_string, line => 46);
+    isa_ok($doc, 'PLS::Parser::Document');
+
+    my ($range, $arrow, $package, $filter) = $doc->find_word_under_cursor(1, 5);
+    is_deeply($range, {start => {line => 0, character => 3}, end => {line => 0, character => 5}}, 'correct range');
+    ok(!$arrow,           'no arrow');
+    ok(!length($package), 'no package');
+    is($filter, '$x', 'filter correct');
 };
 
 __END__
@@ -351,3 +559,19 @@ $->method
 ($,$y)
 $obj->->method()
 $obj->m->method()
+"$"
+"$x"
+qr/$/
+qr/$x/
+qx($)
+qx($x)
+qq{$}
+qq{$x}
+s/$/
+s/$x/
+m<$>
+m<$x>
+y/$/
+y/$x/
+tr[$]
+tr[$x]
