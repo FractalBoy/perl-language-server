@@ -2,6 +2,7 @@ package PLS::Parser::Pod;
 
 use strict;
 use warnings;
+use feature 'state';
 
 use File::Spec;
 use FindBin;
@@ -290,30 +291,39 @@ with things included in PLS.
 
 sub get_clean_inc
 {
-    local $ENV{PERL5LIB};
-    # default to including everything except PLS code in search.
-    my @include = grep { not /\Q$FindBin::RealBin\E/ } @INC;
+    state @include;
+    state $last_perl;
 
-    # try to get a clean @INC from the perl we're using
-    if (my $pid = open my $perl, '-|', $PERL_EXE, '-e', q{$, = "\n"; print @INC; print "\n"})
+    if (not scalar @include or $last_perl ne $PERL_EXE)
     {
-        @include = ();
+        $last_perl = $PERL_EXE;
+        local $ENV{PERL5LIB};
 
-        while (my $line = <$perl>)
+        # default to including everything except PLS code in search.
+        @include = grep { not /\Q$FindBin::RealBin\E/ } @INC;
+
+        # try to get a clean @INC from the perl we're using
+        if (my $pid = open my $perl, '-|', $PERL_EXE, '-e', q{$, = "\n"; print @INC; print "\n"})
         {
-            chomp $line;
-            next unless (length $line);
-            push @include, $line;
-        } ## end while (my $line = <$perl>...)
+            @include = ();
 
-        waitpid $pid, 0;
-    } ## end if (my $pid = open my ...)
+            while (my $line = <$perl>)
+            {
+                chomp $line;
+                next unless (length $line);
+                push @include, $line;
+            } ## end while (my $line = <$perl>...)
 
-    push @include, @{$PLS::Server::State::CONFIG->{inc}} if (ref $PLS::Server::State::CONFIG->{inc} eq 'ARRAY');
+            waitpid $pid, 0;
+        } ## end if (my $pid = open my ...)
+    }
+
+    my @temp_include = @include;
+    push @temp_include, @{$PLS::Server::State::CONFIG->{inc} // []};
     my $index = PLS::Parser::Index->new();
-    push @include, @{PLS::Parser::Index->new->workspace_folders};
+    push @temp_include, @{PLS::Parser::Index->new->workspace_folders // []};
 
-    return \@include;
+    return \@temp_include;
 } ## end sub get_clean_inc
 
 1;
