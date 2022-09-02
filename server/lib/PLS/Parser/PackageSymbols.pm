@@ -170,7 +170,8 @@ while (my $line = <STDIN>)
 
             foreach my $name (keys %{$ref})
             {
-                next if $name =~ /^BEGIN|UNITCHECK|INIT|CHECK|END|VERSION|import|unimport$/;
+                next if $name =~ /^BEGIN|UNITCHECK|INIT|CHECK|END|VERSION|DESTROY|import|unimport|can|isa$/;
+                next if $name =~ /^_/; # hide private subroutines
 
                 my $code_ref = $package->can($name);
                 next if (ref $code_ref ne 'CODE');
