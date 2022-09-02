@@ -290,6 +290,7 @@ with things included in PLS.
 
 sub get_clean_inc
 {
+    local $ENV{PERL5LIB};
     # default to including everything except PLS code in search.
     my @include = grep { not /\Q$FindBin::RealBin\E/ } @INC;
 
