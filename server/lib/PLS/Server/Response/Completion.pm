@@ -67,18 +67,21 @@ sub new
             push @results, @{get_keywords()};
         }
 
-        if ($package)
+        if (length $package)
         {
             push @futures, get_package_functions($package, $filter, $arrow);
         }
 
+        push @results, @{get_subroutines($document, $arrow, $full_text, $this_document_packages[0])};
+
         if ($filter)
         {
             push @results, @{get_constants($document, $filter, $full_text)};
-            push @futures, get_imported_package_functions($document, $full_text);
-        }
 
-        push @results, @{get_subroutines($document, $arrow, $full_text, $this_document_packages[0])};
+            # Imported functions can't be called with an arrow
+            push @futures, get_imported_package_functions($document, $full_text) unless $arrow;
+        } ## end if ($filter)
+
     } ## end else [ if ($filter =~ /^[\$\@\%]/...)]
 
     push @results, @{Future->wait_all(@futures)->then(
@@ -137,34 +140,6 @@ sub get_keywords
     return \@keywords;
 } ## end sub get_keywords
 
-sub get_ext_modules
-{
-    # Can use state here, external modules unlikely to change.
-    state @ext_modules;
-
-    return \@ext_modules if (scalar @ext_modules);
-
-    my $include   = PLS::Parser::Pod->get_clean_inc();
-    my $installed = ExtUtils::Installed->new(inc_override => $include);
-
-    foreach my $module ($installed->modules)
-    {
-        my @files = $installed->files($module, 'prog');
-        $module =~ s/::/\//g;
-
-        # Find all the packages that are part of this module
-        foreach my $file (@files)
-        {
-            my ($path) = $file =~ /(\Q$module\E(?:\/.+)?)\.pm$/;
-            next unless (length $path);
-            my $mod_package = $path =~ s/\//::/gr;
-            push @ext_modules, $mod_package;
-        } ## end foreach my $file (@files)
-    } ## end foreach my $module ($installed...)
-
-    return \@ext_modules;
-} ## end sub get_ext_modules
-
 sub get_package_functions
 {
     my ($package, $filter, $arrow) = @_;
@@ -187,10 +162,12 @@ sub get_package_functions
                     my $fully_qualified = join $separator, $package_name, $name;
 
                     my $result = {
-                                  label    => $name,
-                                  sortText => $fully_qualified,
-                                  kind     => 3
-                                 };
+                        label => $name,
+
+                        # If there is an arrow, we need to make sure to sort all the methods in this package to the top
+                        sortText => $arrow ? "0000$name" : $fully_qualified,
+                        kind     => 3
+                    };
 
                     if ($arrow)
                     {
@@ -203,15 +180,8 @@ sub get_package_functions
 
                     if ($arrow)
                     {
-                        if (length $filter)
-                        {
-                            $result->{filterText} = $name;
-                        }
-                        else
-                        {
-                            $result->{filterText} = $fully_qualified;
-                        }
-                    } ## end if ($arrow)
+                        $result->{filterText} = $name;
+                    }
                     else
                     {
                         $result->{filterText} = $fully_qualified;
@@ -307,9 +277,8 @@ sub get_packages
 
     my @packages;
 
-    # Can use state here, core modules unlikely to change.
-    state $core_modules = [Module::CoreList->find_modules(qr//, $])];
-    my $ext_modules = get_ext_modules();
+    my $core_modules = PLS::Server::Cache::get_core_modules();
+    my $ext_modules  = PLS::Server::Cache::get_ext_modules();
 
     @{$this_document_packages} = @{$document->get_packages_fast($full_text)};
     push @packages, @{$this_document_packages};
@@ -352,33 +321,7 @@ sub get_variables
     my @variables;
     my %seen_variables;
 
-    state @builtin_variables;
-
-    unless (scalar @builtin_variables)
-    {
-        my $perldoc = PLS::Parser::Pod->get_perldoc_location();
-
-        if (open my $fh, '-|', $perldoc, '-Tu', 'perlvar')
-        {
-            while (my $line = <$fh>)
-            {
-                if ($line =~ /=item\s*(C<)?([\$\@\%]\S+)\s*/)
-                {
-                    # If variable started with pod sequence "C<" remove ">" from the end
-                    my $variable = $2;
-                    $variable = substr $variable, 0, -1 if (length $1);
-
-                    # Remove variables indicated by pod sequences
-                    next if ($variable =~ /^\$</ and $variable ne '$<');
-                    push @builtin_variables, $variable;
-                } ## end if ($line =~ /=item\s*(C<)?([\$\@\%]\S+)\s*/...)
-            } ## end while (my $line = <$fh>)
-
-            close $fh;
-        } ## end if (open my $fh, '-|',...)
-    } ## end unless (scalar @builtin_variables...)
-
-    foreach my $variable (@builtin_variables, @{$document->get_variables_fast($full_text)})
+    foreach my $variable (@{PLS::Server::Cache::get_builtin_variables()}, @{$document->get_variables_fast($full_text)})
     {
         next if $seen_variables{$variable}++;
         next if ($variable =~ /\n/);
@@ -401,7 +344,7 @@ sub get_variables
                 kind       => 6
               };
         } ## end if ($variable =~ /^[\@\%]/...)
-    } ## end foreach my $variable (@builtin_variables...)
+    } ## end foreach my $variable (@{PLS::Server::Cache::get_builtin_variables...})
 
     return \@variables;
 } ## end sub get_variables

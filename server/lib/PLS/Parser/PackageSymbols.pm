@@ -125,15 +125,28 @@ sub _get_setup
 sub get_package_symbols_code
 {
     my $code = <<'EOF';
-close STDERR;
+#close STDERR;
 
-use IO::Handle;
-use JSON::PP;
 use B;
 
-STDOUT->autoflush();
+my $json_package = 'JSON::PP';
 
-my $json = JSON::PP->new->utf8;
+if (eval { require Cpanel::JSON::XS; 1 })
+{
+    $json_package = 'Cpanel::JSON::XS'
+}
+elsif (eval { require JSON::XS; 1 })
+{
+    $json_package = 'JSON::XS'
+}
+else
+{
+    require JSON::PP;
+}
+
+$| = 1;
+
+my $json = $json_package->new->utf8;
 
 package PackageSymbols;
 
@@ -229,12 +242,24 @@ sub get_imported_package_symbols_code
     my $code = <<'EOF';
 close STDERR;
 
-use IO::Handle;
-use JSON::PP;
+my $json_package = 'JSON::PP';
 
-STDOUT->autoflush();
+if (eval { require Cpanel::JSON::XS; 1 })
+{
+    $json_package = 'Cpanel::JSON::XS'
+}
+elsif (eval { require JSON::XS; 1 })
+{
+    $json_package = 'JSON::XS'
+}
+else
+{
+    require JSON::PP;
+}
 
-my $json = JSON::PP->new->utf8;
+$| = 1;
+
+my $json = $json_package->new->utf8;
 
 package ImportedPackageSymbols;
 

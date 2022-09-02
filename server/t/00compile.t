@@ -3,11 +3,13 @@
 use strict;
 use warnings;
 
-use Test::More tests => 71;
+use Test::More tests => 72;
 
 use_ok('PLS');
 use_ok('PLS::JSON');
 use_ok('PLS::Server');
+
+use_ok('PLS::Server::Cache');
 
 use_ok('PLS::Server::Method::CompletionItem');
 use_ok('PLS::Server::Method::ServerMethod');

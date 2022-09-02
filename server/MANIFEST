@@ -23,6 +23,7 @@ lib/PLS/Parser/Index.pm
 lib/PLS/Parser/PackageSymbols.pm
 lib/PLS/Parser/Element.pm
 lib/PLS/Parser/Pod.pm
+lib/PLS/Server/Cache.pm
 lib/PLS/Server/State.pm
 lib/PLS/Server/Method/ServerMethod.pm
 lib/PLS/Server/Method/TextDocument.pm

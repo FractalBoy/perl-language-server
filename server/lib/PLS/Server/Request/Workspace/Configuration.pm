@@ -12,6 +12,7 @@ use PLS::Parser::Document;
 use PLS::Parser::Index;
 use PLS::Parser::PackageSymbols;
 use PLS::Parser::Pod;
+use PLS::Server::Cache;
 use PLS::Server::Request::TextDocument::PublishDiagnostics;
 use PLS::Server::State;
 
@@ -103,6 +104,8 @@ sub handle_response
 
     PLS::Parser::PackageSymbols::start_package_symbols_process($config);
     PLS::Parser::PackageSymbols::start_imported_package_symbols_process($config);
+
+    PLS::Server::Cache::warm_up();
 
     return;
 } ## end sub handle_response
