@@ -150,7 +150,6 @@ while (my $line = <STDIN>)
             next unless (length $package);
 
             eval "require $package";
-            next if (length $@);
 
             push @packages, $package;
 
