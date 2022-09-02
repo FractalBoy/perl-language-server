@@ -1039,13 +1039,12 @@ sub get_subroutines_fast
 
     while ($$text =~ /$sub_rx/g)
     {
+        my $sub = $1;
+        $sub =~ s/^\s+|\s+$//;
         push @subroutine_declarations, $1;
     }
 
-    return [
-            map  { s/^\s+|\s+$//r }
-            grep { defined } @subroutine_declarations
-           ];
+    return \@subroutine_declarations;
 } ## end sub get_subroutines_fast
 
 =head2 get_constants_fast
