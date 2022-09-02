@@ -34,14 +34,7 @@ sub get_package_symbols
 
     start_package_symbols_process($config) if (ref $package_symbols_process ne 'IO::Async::Process');
 
-    return $package_symbols_process->stdin->write(encode_json(\@packages) . "\n")->then(sub { $package_symbols_process->stdout->read_until("\n") })->then(
-        sub {
-            my ($json) = @_;
-
-            return Future->done(eval { decode_json $json } // {});
-        },
-        sub { Future->done({}) }
-    );
+    return _send_data_and_recv_result($package_symbols_process, \@packages);
 } ## end sub get_package_symbols
 
 sub get_imported_package_symbols
@@ -52,14 +45,7 @@ sub get_imported_package_symbols
 
     start_imported_package_symbols_process($config) if (ref $imported_symbols_process ne 'IO::Async::Process');
 
-    return $imported_symbols_process->stdin->write(encode_json(\@imports) . "\n")->then(sub { $imported_symbols_process->stdout->read_until("\n") })->then(
-        sub {
-            my ($json) = @_;
-
-            return Future->done(eval { decode_json $json } // {});
-        },
-        sub { Future->done({}) }
-    );
+    return _send_data_and_recv_result($imported_symbols_process, \@imports);
 } ## end sub get_imported_package_symbols
 
 sub _start_process
@@ -84,12 +70,30 @@ sub _start_process
     return $process;
 } ## end sub _start_process
 
+sub _send_data_and_recv_result
+{
+    my ($process, $data) = @_;
+
+    $data = encode_json $data;
+
+    return $process->stdin->write("$data\n")->then(sub { $process->stdout->read_until("\n") })->then(
+        sub {
+            my ($json) = @_;
+
+            return Future->done(eval { decode_json $json } // {});
+        },
+        sub { Future->done({}) }
+    );
+} ## end sub _send_data_and_recv_result
+
 sub start_package_symbols_process
 {
     my ($config) = @_;
 
     eval { $package_symbols_process->kill('TERM') } if (ref $package_symbols_process eq 'IO::Async::Process');
     $package_symbols_process = _start_process($config, get_package_symbols_code());
+
+    return;
 } ## end sub start_package_symbols_process
 
 sub start_imported_package_symbols_process
@@ -98,6 +102,8 @@ sub start_imported_package_symbols_process
 
     eval { $imported_symbols_process->kill('TERM') } if (ref $package_symbols_process eq 'IO::Async::Process');
     $imported_symbols_process = _start_process($config, get_imported_package_symbols_code());
+
+    return;
 } ## end sub start_imported_package_symbols_process
 
 sub _get_setup
