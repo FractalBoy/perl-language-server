@@ -1,7 +1,9 @@
+#!perl
+
 use strict;
 use warnings;
 
-use Test::More tests => 20;
+use Test::More tests => 22;
 use FindBin;
 use File::Basename;
 use File::Path;
@@ -291,6 +293,32 @@ subtest 'only sigil before comma' => sub {
     is($filter, '$', 'filter correct');
 };
 
+subtest 'two arrows in a row' => sub {
+    plan tests => 5;
+
+    my $doc = PLS::Parser::Document->new(uri => $uri->as_string, line => 29);
+    isa_ok($doc, 'PLS::Parser::Document');
+
+    my ($range, $arrow, $package, $filter) = $doc->find_word_under_cursor(1, 6);
+    is_deeply($range, {start => {line => 0, character => 6}, end => {line => 0, character => 6}}, 'correct range');
+    ok($arrow,            'no arrow');
+    ok(!length($package), 'no package');
+    is($filter, '', 'filter correct');
+};
+
+subtest 'fill method name between arrows' => sub {
+    plan tests => 5;
+
+    my $doc = PLS::Parser::Document->new(uri => $uri->as_string, line => 30);
+    isa_ok($doc, 'PLS::Parser::Document');
+
+    my ($range, $arrow, $package, $filter) = $doc->find_word_under_cursor(1, 7);
+    is_deeply($range, {start => {line => 0, character => 6}, end => {line => 0, character => 7}}, 'correct range');
+    ok($arrow,            'no arrow');
+    ok(!length($package), 'no package');
+    is($filter, 'm', 'filter correct');
+};
+
 __END__
 $
 $o
@@ -321,3 +349,5 @@ $->method
 ($)
 {$}
 ($,$y)
+$obj->->method()
+$obj->m->method()

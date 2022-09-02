@@ -1395,21 +1395,20 @@ sub find_word_under_cursor
     @elements = map { $_->tokens } @elements;
     @elements =
       sort { (abs $character - $a->lsp_column_number) <=> (abs $character - $b->lsp_column_number) } @elements;
-    my @in_range = grep { $_->lsp_column_number <= $character and $_->lsp_column_number + length($_->content) >= $character } @elements;
-    my $element  = first
-    {
+    my @in_range  = grep { $_->lsp_column_number <= $character and $_->lsp_column_number + length($_->content) >= $character } @elements;
+    my $predicate = sub {
              $_->type eq 'PPI::Token::Word'
           or $_->type eq 'PPI::Token::Label'
           or $_->type eq 'PPI::Token::Symbol'
           or $_->type eq 'PPI::Token::Magic'
-          or $_->type eq 'PPI::Token::Operator'
           or $_->type eq 'PPI::Token::Quote::Double'
           or $_->type eq 'PPI::Token::Quote::Interpolate'
           or $_->type eq 'PPI::Token::QuoteLike::Regexp'
           or $_->type eq 'PPI::Token::QuoteLike::Command'
-          or $_->element->isa('PPI::Token::Regexp')
-    } @in_range;
-    my $closest_operator = first { $_->type eq 'PPI::Token::Operator' } @elements;
+          or $_->element->isa('PPI::Token::Regexp');
+    };
+    my $element          = first { $predicate->() or $_->type eq 'PPI::Token::Operator' } @in_range;
+    my $closest_operator = first { $_->type eq 'PPI::Token::Operator' } grep { $_->lsp_column_number < $character } @elements;
 
     # Handle -X operators
     if (blessed($element) and $element->isa('PLS::Parser::Element') and $element->type eq 'PPI::Token::Operator')
@@ -1431,6 +1430,8 @@ sub find_word_under_cursor
 
         undef $element;
     } ## end if (blessed($element) ...)
+
+    $element = first { $predicate->() } @in_range;
 
     if (
             blessed($element)

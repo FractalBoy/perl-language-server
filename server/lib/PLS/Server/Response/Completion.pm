@@ -76,8 +76,9 @@ sub new
         {
             push @results, @{get_constants($document, $filter, $full_text)};
             push @futures, get_imported_package_functions($document, $full_text);
-            push @results, @{get_subroutines($document, $arrow, $full_text, $this_document_packages[0])};
-        } ## end if ($filter)
+        }
+
+        push @results, @{get_subroutines($document, $arrow, $full_text, $this_document_packages[0])};
     } ## end else [ if ($filter =~ /^[\$\@\%]/...)]
 
     push @results, @{Future->wait_all(@futures)->then(
