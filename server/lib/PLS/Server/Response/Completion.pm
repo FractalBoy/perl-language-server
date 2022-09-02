@@ -58,7 +58,8 @@ sub new
     }
     else
     {
-        my @packages = @{get_packages($document, $full_text)};
+        my @this_document_packages;
+        my @packages = @{get_packages($document, $full_text, \@this_document_packages)};
 
         unless ($arrow)
         {
@@ -75,7 +76,7 @@ sub new
         {
             push @results, @{get_constants($document, $filter, $full_text)};
             push @futures, get_imported_package_functions($document, $full_text);
-            push @results, @{get_subroutines($document, $arrow, $full_text, $packages[0]{label})};
+            push @results, @{get_subroutines($document, $arrow, $full_text, $this_document_packages[0])};
         } ## end if ($filter)
     } ## end else [ if ($filter =~ /^[\$\@\%]/...)]
 
@@ -267,7 +268,7 @@ sub get_subroutines
     {
         next if ($sub =~ /\n/);
         $subroutines{$sub} = {label => $sub, kind => 3};
-        $subroutines{$sub}{data} = ["${this_document_package}::${sub}"] if (length $this_document_package);
+        $subroutines{$sub}{data} = [$this_document_package] if (length $this_document_package);
     } ## end foreach my $sub (@{$document...})
 
     # Add subroutines to the list, uniquifying and keeping track of the packages in which
@@ -301,7 +302,7 @@ sub get_subroutines
 
 sub get_packages
 {
-    my ($document, $full_text) = @_;
+    my ($document, $full_text, $this_document_packages) = @_;
 
     my @packages;
 
@@ -309,7 +310,8 @@ sub get_packages
     state $core_modules = [Module::CoreList->find_modules(qr//, $])];
     my $ext_modules = get_ext_modules();
 
-    push @packages, @{$document->get_packages_fast($full_text)};
+    @{$this_document_packages} = @{$document->get_packages_fast($full_text)};
+    push @packages, @{$this_document_packages};
 
     foreach my $pack (@{$core_modules}, @{$ext_modules})
     {
