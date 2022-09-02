@@ -1411,11 +1411,26 @@ sub find_word_under_cursor
     } @in_range;
     my $closest_operator = first { $_->type eq 'PPI::Token::Operator' } @elements;
 
+    # Handle -X operators
     if (blessed($element) and $element->isa('PLS::Parser::Element') and $element->type eq 'PPI::Token::Operator')
     {
-        return $element->range(), 0, '', '-' if ((not blessed($element->element->previous_sibling) or $element->element->previous_sibling->isa('PPI::Token::Whitespace')) and $element->content eq '-');
+        if (
+            # -X operators must be preceded by whitespace
+            (not blessed($element->element->previous_sibling) or $element->element->previous_sibling->isa('PPI::Token::Whitespace'))
+
+            # -X operators must not be subroutine declarations
+            and (   not blessed($element->previous_sibling)
+                 or not $element->previous_sibling->isa('PLS::Parser::Element')
+                 or not $element->previous_sibling->element->isa('PPI::Token::Word')
+                 or not $element->previous_sibling->name eq 'sub')
+            and $element->content eq '-'
+           )
+        {
+            return $element->range(), 0, '', '-';
+        } ## end if ( (not blessed($element...)))
+
         undef $element;
-    }
+    } ## end if (blessed($element) ...)
 
     if (
             blessed($element)
@@ -1573,9 +1588,15 @@ sub find_word_under_cursor
 
     if ($element->type eq 'PPI::Token::Magic')
     {
-        my $range = $element->range;
-        $range->{end}{character}--;
-        return $range, 0, '', '$';
+        if ($element->name =~ /^[\$\@\%]/)
+        {
+            my $sigil = substr $element->name, 0, 1;
+            my $range = $element->range;
+            $range->{end}{character}--;
+            return $range, 0, '', $sigil;
+        } ## end if ($element->name =~ ...)
+
+        return;
     } ## end if ($element->type eq ...)
 
     # If we're typing right before a sigil, return the previous element.
@@ -1693,6 +1714,11 @@ sub find_word_under_cursor
     {
         $package = $element->name;
     } ## end if ($element->type eq ...)
+
+    # Don't suggest anything when this is a subroutine declaration.
+    return if (    blessed($element->parent)
+               and $element->parent->isa('PLS::Parser::Element')
+               and $element->parent->element->isa('PPI::Statement::Sub'));
 
     my $name = $element->name;
     $name =~ s/:?:$//;
