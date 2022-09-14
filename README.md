@@ -104,32 +104,23 @@ Several LSP client implementations for
 Emacs packages. This installation instruction covers the [LSP
 Mode](https://emacs-lsp.github.io/lsp-mode/) package.
 
-1. Install the the [LSP Mode](https://emacs-lsp.github.io/lsp-mode/)
-   package for Emacs as described in the [`lsp-mode` install
-   instructions](https://emacs-lsp.github.io/lsp-mode/page/installation/).
+LSP Mode version 8.0.1 and higher has built-in support for PLS. Thus,
+after installing PLS, all you need to do is to make sure that the
+`lsp-mode` package is installed into Emacs, and gets activated when
+Emacs opens a Perl file. Both steps are described in the [LSP Mode
+installation
+instructions](https://emacs-lsp.github.io/lsp-mode/page/installation/).
 
-2. Add the following to your Emacs init file:
-
-   ```
-   (add-to-list 'lsp-language-id-configuration '(perl-mode . "perl-pls"))
-   (add-to-list 'lsp-language-id-configuration '(cperl-mode . "perl-pls"))
-   (lsp-register-client
-    (make-lsp-client :new-connection (lsp-stdio-connection "pls")
-                     :major-modes '(perl-mode cperl-mode)
-                     :server-id 'perl-pls))
-   ```
+If `pls` should not be in your `$PATH`, you will need to set the
+variable `lsp-pls-executable` in Emacs to point to the `pls`
+executable. All PLS related, configurable options are available in the
+customisation group `lsp-pls` in Emacs (`M-x customize-group
+lsp-pls`).
 
 That's all. Now, a PLS server instance will be fired up when not
-already running, whenever a Perl file is opened in Emacs. For what to
-do next, see the extensive [LSP Mode
+already running, whenever a Perl file is opened in Emacs. For more
+details, or what to do next, see the extensive [LSP Mode
 documentation](https://emacs-lsp.github.io/lsp-mode/page/main-features/).
-
-If `pls` is not in your `$PATH`, or you need to otherwise jump extra
-hoops, see the [LSP Mode documentation for adding a new language
-server](https://emacs-lsp.github.io/lsp-mode/page/adding-new-language/),
-which explains how to customise the language server path, how to pass
-command line arguments, how to set environment variables, and how to
-pass initialisation options in the LSP init message to the server.
 
 ## Configuration
 
