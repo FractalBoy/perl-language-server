@@ -101,11 +101,11 @@ Several LSP client implementations for
 Emacs packages. This installation instruction covers the [LSP
 Mode](https://emacs-lsp.github.io/lsp-mode/) package.
 
-LSP Mode version 8.0.1 and higher has built-in support for PLS. Thus,
-after installing PLS, all you need to do is to make sure that the
-`lsp-mode` package is installed into Emacs, and gets activated when
-Emacs opens a Perl file. Both steps are described in the [LSP Mode
-installation
+Starting with version 20220914.1807, LSP Mode has built-in support for
+PLS. Thus, after installing PLS, all you need to do is to make sure
+that the `lsp-mode` package is installed into Emacs, and gets
+activated when Emacs opens a Perl file. Both steps are described in
+the [LSP Mode installation
 instructions](https://emacs-lsp.github.io/lsp-mode/page/installation/).
 
 If `pls` should not be in your `$PATH`, you will need to set the
