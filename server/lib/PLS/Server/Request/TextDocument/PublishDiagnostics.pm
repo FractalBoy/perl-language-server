@@ -151,9 +151,16 @@ sub get_compilation_errors
     push @setup, (chdir => $new_cwd) if (length $new_cwd and -d $new_cwd);
 
     my @diagnostics;
+    my @loadfile;
+    if ( $path =~ /[.]pm$/ ) {
+      @loadfile = ( -e => "BEGIN { require '$path' }" );
+    }
+    else {
+      @loadfile = ( -c => $path );
+    }
 
     my $proc = IO::Async::Process->new(
-        command => [$perl, @inc, '-c', $path, @{$args}],
+        command => [$perl, @inc, @loadfile, @{$args}],
         setup   => \@setup,
         stderr  => {
             on_read => sub {
