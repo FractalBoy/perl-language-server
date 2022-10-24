@@ -152,11 +152,13 @@ sub get_compilation_errors
 
     my @diagnostics;
     my @loadfile;
-    if ($suffix && $suffix eq 'pm') {
-      @loadfile = ( -e => "BEGIN { require '$path' }" );
+    if ($suffix && $suffix eq 'pm')
+    {
+        @loadfile = (-e => "BEGIN { require '$path' }");
     }
-    else {
-      @loadfile = ( -c => $path );
+    else
+    {
+        @loadfile = (-c => $path);
     }
 
     my $proc = IO::Async::Process->new(
