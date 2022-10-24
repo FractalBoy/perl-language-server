@@ -152,7 +152,7 @@ sub get_compilation_errors
 
     my @diagnostics;
     my @loadfile;
-    if ($suffix && $suffix eq 'pm') {
+    if (length $suffix and $suffix eq 'pm') {
       @loadfile = ( -e => "BEGIN { require '$path' }" );
     }
     else {
