@@ -58,7 +58,7 @@ sub new
                      },
       $class;
 
-    my (undef, $dir) = File::Basename::fileparse($uri->file);
+    my (undef, $dir, $suffix) = File::Basename::fileparse($uri->file, qw/pm pl/);
 
     my $source = $uri->file;
     my $text   = PLS::Parser::Document->text_from_uri($uri->as_string);
@@ -72,7 +72,7 @@ sub new
 
     my @futures;
 
-    push @futures, get_compilation_errors($source, $dir) if (defined $PLS::Server::State::CONFIG->{syntax}{enabled} and $PLS::Server::State::CONFIG->{syntax}{enabled});
+    push @futures, get_compilation_errors($source, $dir, $suffix) if (defined $PLS::Server::State::CONFIG->{syntax}{enabled} and $PLS::Server::State::CONFIG->{syntax}{enabled});
     push @futures, get_perlcritic_errors($source, $uri->file)
       if (defined $PLS::Server::State::CONFIG->{perlcritic}{enabled} and $PLS::Server::State::CONFIG->{perlcritic}{enabled});
 
@@ -99,7 +99,7 @@ sub new
 
 sub get_compilation_errors
 {
-    my ($source, $dir) = @_;
+    my ($source, $dir, $suffix) = @_;
 
     my $temp;
     my $future = $loop->new_future();
@@ -152,7 +152,7 @@ sub get_compilation_errors
 
     my @diagnostics;
     my @loadfile;
-    if ( $path =~ /[.]pm$/ ) {
+    if ($suffix && $suffix eq 'pm') {
       @loadfile = ( -e => "BEGIN { require '$path' }" );
     }
     else {
