@@ -9,7 +9,6 @@ use Future::Utils;
 use IO::Async::Loop;
 use IO::Async::Signal;
 use IO::Async::Stream;
-use IO::Async::Timer::Periodic;
 use IO::Handle;
 use Scalar::Util qw(blessed);
 
@@ -239,24 +238,6 @@ sub handle_server_response
     $self->send_message($response);
     return;
 } ## end sub handle_server_response
-
-sub monitor_client_process
-{
-    my ($self, $pid) = @_;
-
-    my $timer = IO::Async::Timer::Periodic->new(
-        interval => 30,
-        on_tick  => sub {
-            return if (kill 'ZERO', $pid);
-            $self->stop(1);
-        }
-    );
-    $self->{loop}->add($timer);
-
-    $timer->start();
-
-    return;
-} ## end sub monitor_client_process
 
 sub stop
 {

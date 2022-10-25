@@ -28,7 +28,7 @@ some initialization for itself and returns its capabilities.
 
 sub service
 {
-    my ($self, $server) = @_;
+    my ($self) = @_;
 
     my $root_uri          = $self->{params}{rootUri};
     my $workspace_folders = $self->{params}{workspaceFolders};
@@ -39,11 +39,6 @@ sub service
 
     # Create and cache index object
     PLS::Parser::Index->new(workspace_folders => $workspace_folders);
-
-    if (length $self->{params}{processId})
-    {
-        $server->monitor_client_process($self->{params}{processId});
-    }
 
     $PLS::Server::State::CLIENT_CAPABILITIES = $self->{params}{capabilities};
 
