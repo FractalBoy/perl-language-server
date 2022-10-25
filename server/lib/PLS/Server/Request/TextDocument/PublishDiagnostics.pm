@@ -58,7 +58,7 @@ sub new
                      },
       $class;
 
-    my (undef, $dir, $suffix) = File::Basename::fileparse($uri->file, qw/pm pl/);
+    my (undef, $dir, $suffix) = File::Basename::fileparse($uri->file, qw/pm pl al/);
 
     my $source = $uri->file;
     my $text   = PLS::Parser::Document->text_from_uri($uri->as_string);
@@ -152,13 +152,13 @@ sub get_compilation_errors
 
     my @diagnostics;
     my @loadfile;
-    if (length $suffix and $suffix eq 'pm')
+    if (not length $suffix or $suffix eq 'pl')
     {
-      @loadfile = (-e => "BEGIN { require '$path' }");
+        @loadfile = (-c => $path);
     }
     else
     {
-        @loadfile = (-c => $path);
+        @loadfile = (-e => "BEGIN { require '$path' }");
     }
 
     my $proc = IO::Async::Process->new(
