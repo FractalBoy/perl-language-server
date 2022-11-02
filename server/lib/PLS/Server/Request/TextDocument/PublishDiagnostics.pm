@@ -158,11 +158,12 @@ sub get_compilation_errors
     }
     else
     {
-        @loadfile = (-e => "BEGIN { require '$path' }");
+        # escape any weird input, just in case
+        @loadfile = (-e => "BEGIN { require '\Q$path\E' }");
     }
 
     my $proc = IO::Async::Process->new(
-        command => [$perl, @inc, @loadfile, @{$args}],
+        command => [$perl, @inc, @loadfile, '--', @{$args}],
         setup   => \@setup,
         stderr  => {
             on_read => sub {
