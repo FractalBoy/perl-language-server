@@ -156,8 +156,7 @@ sub get_compilation_errors
     my @loadfile;
     if ($is_module)
     {
-        # escape any weird input, just in case
-        @loadfile = (-e => "BEGIN { require '\Q$path\E' }");
+        @loadfile = (-e => "BEGIN { require '$path' }");
     }
     else
     {
