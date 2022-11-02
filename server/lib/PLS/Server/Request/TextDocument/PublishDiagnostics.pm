@@ -156,7 +156,8 @@ sub get_compilation_errors
     my @loadfile;
     if ($is_module)
     {
-        @loadfile = (-e => "BEGIN { require '$path' }");
+        my $safe_path = $path =~ s/'/\\'/gr;
+        @loadfile = (-e => "BEGIN { require '$safe_path' }");
     }
     else
     {
