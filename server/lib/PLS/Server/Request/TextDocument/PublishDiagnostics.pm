@@ -58,7 +58,9 @@ sub new
                      },
       $class;
 
-    my (undef, $dir, $suffix) = File::Basename::fileparse($uri->file, qw/pm pl al/);
+    # pm + al files are modules, so anything with those extensions will have a truthy
+    # value in the extension, which is $is_module
+    my (undef, $dir, $is_module) = File::Basename::fileparse($uri->file, qw/pm al/);
 
     my $source = $uri->file;
     my $text   = PLS::Parser::Document->text_from_uri($uri->as_string);
@@ -72,7 +74,7 @@ sub new
 
     my @futures;
 
-    push @futures, get_compilation_errors($source, $dir, $suffix) if (defined $PLS::Server::State::CONFIG->{syntax}{enabled} and $PLS::Server::State::CONFIG->{syntax}{enabled});
+    push @futures, get_compilation_errors($source, $dir, $uri->file, $is_module) if (defined $PLS::Server::State::CONFIG->{syntax}{enabled} and $PLS::Server::State::CONFIG->{syntax}{enabled});
     push @futures, get_perlcritic_errors($source, $uri->file)
       if (defined $PLS::Server::State::CONFIG->{perlcritic}{enabled} and $PLS::Server::State::CONFIG->{perlcritic}{enabled});
 
@@ -99,7 +101,7 @@ sub new
 
 sub get_compilation_errors
 {
-    my ($source, $dir, $suffix) = @_;
+    my ($source, $dir, $orig_path, $is_module) = @_;
 
     my $temp;
     my $future = $loop->new_future();
@@ -152,14 +154,14 @@ sub get_compilation_errors
 
     my @diagnostics;
     my @loadfile;
-    if (not length $suffix or $suffix eq 'pl')
-    {
-        @loadfile = (-c => $path);
-    }
-    else
+    if ($is_module)
     {
         # escape any weird input, just in case
         @loadfile = (-e => "BEGIN { require '\Q$path\E' }");
+    }
+    else
+    {
+        @loadfile = (-c => $path);
     }
 
     my $proc = IO::Async::Process->new(
@@ -184,7 +186,11 @@ sub get_compilation_errors
                     {
                         $error .= $area if (length $area);
                         $line = int $line;
-                        next if $file ne $path;
+                        # if we required the module, sometimes the error is reported as -e
+                        $file = $path if ($file eq '-e');
+                        next          if ($file ne $path);
+
+                        $error =~ s/\Q$path\E/$orig_path/g;
 
                         push @diagnostics,
                           {
