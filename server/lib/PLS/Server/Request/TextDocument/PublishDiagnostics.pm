@@ -58,9 +58,7 @@ sub new
                      },
       $class;
 
-    # pm + al files are modules, so anything with those extensions will have a truthy
-    # value in the extension, which is $is_module
-    my (undef, $dir, $is_module) = File::Basename::fileparse($uri->file, qw/pm al/);
+    my (undef, $dir, $suffix) = File::Basename::fileparse($uri->file, qr/\.[^\.]*$/);
 
     my $source = $uri->file;
     my $text   = PLS::Parser::Document->text_from_uri($uri->as_string);
@@ -74,7 +72,7 @@ sub new
 
     my @futures;
 
-    push @futures, get_compilation_errors($source, $dir, $uri->file, $is_module) if (defined $PLS::Server::State::CONFIG->{syntax}{enabled} and $PLS::Server::State::CONFIG->{syntax}{enabled});
+    push @futures, get_compilation_errors($source, $dir, $uri->file, $suffix) if (defined $PLS::Server::State::CONFIG->{syntax}{enabled} and $PLS::Server::State::CONFIG->{syntax}{enabled});
     push @futures, get_perlcritic_errors($source, $uri->file)
       if (defined $PLS::Server::State::CONFIG->{perlcritic}{enabled} and $PLS::Server::State::CONFIG->{perlcritic}{enabled});
 
@@ -101,7 +99,7 @@ sub new
 
 sub get_compilation_errors
 {
-    my ($source, $dir, $orig_path, $is_module) = @_;
+    my ($source, $dir, $orig_path, $suffix) = @_;
 
     my $temp;
     my $future = $loop->new_future();
@@ -139,34 +137,81 @@ sub get_compilation_errors
 
     close $fh;
 
-    my $perl             = PLS::Parser::Pod->get_perl_exe();
-    my $inc              = PLS::Parser::Pod->get_clean_inc();
-    my $args             = PLS::Parser::Pod->get_perl_args();
-    my @inc              = map { "-I$_" } @{$inc // []};
-    my $index            = PLS::Parser::Index->new();
-    my $workspace_folder = List::Util::first { path($_)->subsumes($path) } @{$index->workspace_folders};
-    ($workspace_folder) = @{$index->workspace_folders} unless (length $workspace_folder);
-    my $new_cwd = $PLS::Server::State::CONFIG->{cwd} // '';
-    $new_cwd =~ s/\$ROOT_PATH/$workspace_folder/;
-
-    my @setup;
-    push @setup, (chdir => $new_cwd) if (length $new_cwd and -d $new_cwd);
+    my $perl = PLS::Parser::Pod->get_perl_exe();
+    my $inc  = PLS::Parser::Pod->get_clean_inc();
+    my $args = PLS::Parser::Pod->get_perl_args();
+    my @inc  = map { "-I$_" } @{$inc // []};
 
     my @diagnostics;
     my @loadfile;
-    if ($is_module)
-    {
-        my $safe_path = $path =~ s/'/\\'/gr;
-        @loadfile = (-e => "BEGIN { require '$safe_path' }");
-    }
-    else
+
+    if (not length $suffix or $suffix eq '.pl' or $suffix eq '.t' or $suffix eq '.plx')
     {
         @loadfile = (-c => $path);
     }
+    else
+    {
+        my ($relative, $module);
+
+        # Try to get the path as relative to @INC. If we're successful,
+        # then we can convert it to a package name and import it using that name
+        # instead of the full path.
+        foreach my $inc_path (@{$inc})
+        {
+            my $rel = path($orig_path)->relative($inc_path);
+
+            if ($rel !~ /\.\./)
+            {
+                $module   = $rel;
+                $relative = $rel;
+                $module =~ s/\.pm$//;
+                $module =~ s/\//::/g;
+                last;
+            } ## end if ($rel !~ /\.\./)
+        } ## end foreach my $inc_path (@{$inc...})
+
+        my $code;
+        $path =~ s/'/\\'/g;
+
+        if (length $module and length $relative)
+        {
+            $relative =~ s/'/\\'/g;
+
+            # Load code using module name, but redirect Perl to the temp file
+            # when loading the file we are compiling.
+            $code = <<~ "EOF";
+            BEGIN
+            {
+                unshift \@INC, sub {
+                    my (undef, \$filename) = \@_;
+
+                    if (\$filename eq '$relative')
+                    {
+                        if (open my \$fh, '<', '$path')
+                        {
+                            \$INC{\$filename} = '$orig_path';
+                            return \$fh;
+                        }
+                    }
+
+                    return undef;
+                };
+
+                require $module;
+            }
+            EOF
+        } ## end if (length $module and...)
+        else
+        {
+            $code = "BEGIN { require '$path' }";
+        }
+
+        @loadfile = (-e => $code);
+    } ## end else [ if (not length $suffix...)]
 
     my $proc = IO::Async::Process->new(
         command => [$perl, @inc, @loadfile, '--', @{$args}],
-        setup   => \@setup,
+        setup   => [chdir => path($orig_path)->parent],
         stderr  => {
             on_read => sub {
                 my ($stream, $buffref, $eof) = @_;
@@ -174,29 +219,38 @@ sub get_compilation_errors
                 while ($$buffref =~ s/^(.*)\n//)
                 {
                     my $line = $1;
+
                     next if $line =~ /syntax OK$/;
 
-                    # Hide warnings from circular references
-                    next if $line =~ /Subroutine .+ redefined/;
-
-                    # Hide "BEGIN failed" and "Compilation failed" messages - these provide no useful info.
-                    #next if $line =~ /^BEGIN failed/;
-                    #next if $line =~ /^Compilation failed/;
-                    if (my ($error, $file, $line, $area) = $line =~ /^(.+) at (.+?) line (\d+)(, .+)?/)
+                    if (my ($error, $file, $line_num, $area) = $line =~ /^(.+) at (.+?) line (\d+)(, .+)?/)
                     {
-                        $error .= $area if (length $area);
-                        $line = int $line;
-                        # if we required the module, sometimes the error is reported as -e
-                        $file = $path if ($file eq '-e');
-                        next          if ($file ne $path);
+                        if (length $area)
+                        {
+                            if ($area =~ /^, near "/ and $area !~ /"$/)
+                            {
+                                $area .= "\n";
 
-                        $error =~ s/\Q$path\E/$orig_path/g;
+                                while ($$buffref =~ s/^(.*\n)//)
+                                {
+                                    $area .= $1;
+                                    last if ($1 =~ /"$/);
+                                }
+                            } ## end if ($area =~ /^, near "/...)
+
+                            $error .= $area;
+                        } ## end if (length $area)
+
+                        $line_num = int $line_num;
+                        $file     = $orig_path if ($file eq '-e');
+                        $file     = $orig_path if ($file eq $path);
+
+                        next if ($file ne $orig_path);
 
                         push @diagnostics,
                           {
                             range => {
-                                      start => {line => $line - 1, character => 0},
-                                      end   => {line => $line - 1, character => $line_lengths[$line]}
+                                      start => {line => $line_num - 1, character => 0},
+                                      end   => {line => $line_num - 1, character => $line_lengths[$line_num]}
                                      },
                             message  => $error,
                             severity => 1,
