@@ -509,9 +509,8 @@ sub get_packages
         my $end_line = $class->get_line_by_offset($line_offsets, $end);
         $end -= $line_offsets->[$end_line];
 
-        $name =~ s/package//;
-        $name =~ s/;\s*$//g;
-        $name =~ s/^\s+|\s+$//g;
+        ($name) = $name =~ /package\s*(\S+)/;
+        $name =~ s/;$//;
 
         push @{$packages{$name}},
           {

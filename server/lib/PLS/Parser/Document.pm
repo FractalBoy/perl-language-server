@@ -1011,7 +1011,8 @@ sub get_packages_fast
 
     while ($$text =~ /$package_rx/g)
     {
-        my ($package) = $1 =~ /^package\s+(\S+)\s*;\s*$/;
+        my ($package) = $1 =~ /^package\s+(\S+)/;
+        $package =~ s/;$//;
         next unless (length $package);
 
         push @packages, $package;
