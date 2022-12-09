@@ -2,12 +2,12 @@ name: Server CI
 
 on:
   push:
-    branches: [ master ]
+    branches: [master]
     tags: '**'
     paths:
       - 'server/**'
   pull_request:
-    branches: [ master ]
+    branches: [master]
     paths:
       - 'server/**'
 
@@ -24,13 +24,13 @@ jobs:
     strategy:
       matrix:
         os: ['ubuntu-latest', 'macos-latest']
-        perl: [ '5.34', '5.32', '5.30', '5.28', '5.26' ]
+        perl: ['5.34', '5.32', '5.30', '5.28', '5.26']
 
     name: Perl ${{ matrix.perl }} on ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v2
 
-      - uses: shogo82148/actions-setup-perl@v1.12.2
+      - uses: shogo82148/actions-setup-perl@v1.19.0
         with:
           perl-version: ${{ matrix.perl }}
           install-modules-with: cpanm
