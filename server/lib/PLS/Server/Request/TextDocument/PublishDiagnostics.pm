@@ -224,6 +224,15 @@ sub get_compilation_errors
 
                     if (my ($error, $file, $line_num, $area) = $line =~ /^(.+) at (.+?) line (\d+)(, .+)?/)
                     {
+                        $line_num = int $line_num;
+                        $file     = $orig_path if ($file eq $path);
+
+                        if ($file ne $path and $file ne $orig_path)
+                        {
+                            $error .= " at $file line $line_num" if ($file ne '-e');
+                            $line_num = 1;
+                        }
+
                         if (length $area)
                         {
                             if ($area =~ /^, near "/ and $area !~ /"$/)
@@ -239,12 +248,6 @@ sub get_compilation_errors
 
                             $error .= $area;
                         } ## end if (length $area)
-
-                        $line_num = int $line_num;
-                        $file     = $orig_path if ($file eq '-e');
-                        $file     = $orig_path if ($file eq $path);
-
-                        next if ($file ne $orig_path);
 
                         push @diagnostics,
                           {
