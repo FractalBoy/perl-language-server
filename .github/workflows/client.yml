@@ -5,6 +5,7 @@ on:
     tags: '**'
     paths:
       - 'client/**'
+      - '.github/workflows/client.yml'
 
   workflow_dispatch:
 
@@ -19,18 +20,18 @@ jobs:
       VSCE_PAT: ${{ secrets.VSCE_PAT }}
 
     steps:
-    - uses: actions/checkout@v2
+      - uses: actions/checkout@v3s
 
-    - uses: actions/setup-node@v1
-      with:
-        node-version: 14.x
-        cache: yarn
+      - uses: actions/setup-node@v3
+        with:
+          node-version: 16.x
+          cache: yarn
 
-    - name: Install dependencies
-      run: yarn install
+      - name: Install dependencies
+        run: yarn install
 
-    - name: Install vsce
-      run: yarn global add vsce
+      - name: Install vsce
+        run: yarn global add vsce
 
-    - name: Publish extension
-      run: vsce publish
+      - name: Publish extension
+        run: vsce publish
