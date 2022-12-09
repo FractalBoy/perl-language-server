@@ -6,10 +6,12 @@ on:
     tags: '**'
     paths:
       - 'server/**'
+      - '.github/workflows/server.yml'
   pull_request:
     branches: [master]
     paths:
       - 'server/**'
+      - '.github/workflows/server.yml'
 
   workflow_dispatch:
 
