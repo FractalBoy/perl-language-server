@@ -6,6 +6,7 @@ use warnings;
 use feature 'state';
 
 use File::Find;
+no warnings 'File::Find';
 use File::Spec;
 use File::stat;
 use IO::Async::Function;
