@@ -72,7 +72,7 @@ sub new
 
     my @futures;
 
-    push @futures, get_compilation_errors($source, $dir, $uri->file, $suffix) if (defined $PLS::Server::State::CONFIG->{syntax}{enabled} and $PLS::Server::State::CONFIG->{syntax}{enabled});
+    push @futures, get_compilation_errors($source, $dir, $uri->file, $suffix) if ($PLS::Server::State::CONFIG->{syntax}{enabled} or $PLS::Server::State::CONFIG->{podchecker}{enabled});
     push @futures, get_perlcritic_errors($source, $uri->file)
       if (defined $PLS::Server::State::CONFIG->{perlcritic}{enabled} and $PLS::Server::State::CONFIG->{perlcritic}{enabled});
 
@@ -143,6 +143,9 @@ sub get_compilation_errors
     my @inc  = map { "-I$_" } @{$inc // []};
 
     my @diagnostics;
+    push @diagnostics, get_podchecker_errors($path, \@line_lengths) if $PLS::Server::State::CONFIG->{podchecker}{enabled};
+    return Future->done(@diagnostics) unless $PLS::Server::State::CONFIG->{syntax}{enabled};
+
     my @loadfile;
 
     if (not length $suffix or $suffix eq '.pl' or $suffix eq '.t' or $suffix eq '.plx')
@@ -151,37 +154,7 @@ sub get_compilation_errors
     }
     elsif ($suffix eq '.pod')
     {
-        if (eval { require Pod::Checker; 1 })
-        {
-            my $errors = '';
-            open my $fh, '>', \$errors;
-            my $has_errors = Pod::Checker::podchecker($path, $fh);
-
-            return Future->done() unless $has_errors;
-
-            my @diagnostics;
-
-            while ($errors =~ s/^(.*)\n//)
-            {
-                my $line = $1;
-
-                if (my ($error, $line_num) = $line =~ /(.+) at line (\d+) in file/)
-                {
-                    push @diagnostics,
-                      {
-                        range => {
-                                  start => {line => $line_num - 1, character => 0},
-                                  end   => {line => $line_num - 1, character => $line_lengths[$line_num]}
-                                 },
-                        message  => $error,
-                        severity => 1,
-                        source   => 'podchecker',
-                      };
-                } ## end if (my ($error, $line_num...))
-            } ## end while ($errors =~ s/^(.*)\n//...)
-
-            return Future->done(@diagnostics);
-        } ## end if (eval { require Pod::Checker...})
+        return Future->done(@diagnostics);
     } ## end elsif ($suffix eq '.pod')
     else
     {
@@ -376,5 +349,41 @@ sub run_perlcritic
 
     return @diagnostics;
 } ## end sub run_perlcritic
+
+sub get_podchecker_errors
+{
+    my ($path, $line_lengths) = @_;
+
+    return unless (eval { require Pod::Checker; 1 });
+
+    my $errors = '';
+    open my $fh, '>', \$errors;
+    my $has_errors = Pod::Checker::podchecker($path, $fh);
+
+    return unless $has_errors;
+
+    my @diagnostics;
+
+    while ($errors =~ s/^(.*)\n//)
+    {
+        my $line = $1;
+
+        if (my ($severity, $error, $line_num) = $line =~ /^\**\s*([A-Z]{3,}):\s*(.+) at line (\d+) in file/)
+        {
+            push @diagnostics,
+              {
+                range => {
+                          start => {line => $line_num - 1, character => 0},
+                          end   => {line => $line_num - 1, character => $line_lengths->[$line_num]}
+                         },
+                message  => $error,
+                severity => $severity eq 'ERROR' ? 1 : 2,
+                source   => 'podchecker',
+              };
+        } ## end if (my ($error, $line_num...))
+    } ## end while ($errors =~ s/^(.*)\n//...)
+
+    return @diagnostics;
+}
 
 1;

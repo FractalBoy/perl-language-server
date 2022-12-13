@@ -124,6 +124,11 @@
           "type": "boolean",
           "default": true,
           "description": "Enable perlcritic"
+        },
+        "pls.podchecker.enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable podchecker (requires Pod::Checker to be installed)"
         }
       }
     },
