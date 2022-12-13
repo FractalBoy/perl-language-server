@@ -149,6 +149,40 @@ sub get_compilation_errors
     {
         @loadfile = (-c => $path);
     }
+    elsif ($suffix eq '.pod')
+    {
+        if (eval { require Pod::Checker; 1 })
+        {
+            my $errors = '';
+            open my $fh, '>', \$errors;
+            my $has_errors = Pod::Checker::podchecker($path, $fh);
+
+            return Future->done() unless $has_errors;
+
+            my @diagnostics;
+
+            while ($errors =~ s/^(.*)\n//)
+            {
+                my $line = $1;
+
+                if (my ($error, $line_num) = $line =~ /(.+) at line (\d+) in file/)
+                {
+                    push @diagnostics,
+                      {
+                        range => {
+                                  start => {line => $line_num - 1, character => 0},
+                                  end   => {line => $line_num - 1, character => $line_lengths[$line_num]}
+                                 },
+                        message  => $error,
+                        severity => 1,
+                        source   => 'podchecker',
+                      };
+                } ## end if (my ($error, $line_num...))
+            } ## end while ($errors =~ s/^(.*)\n//...)
+
+            return Future->done(@diagnostics);
+        } ## end if (eval { require Pod::Checker...})
+    } ## end elsif ($suffix eq '.pod')
     else
     {
         my ($relative, $module);
