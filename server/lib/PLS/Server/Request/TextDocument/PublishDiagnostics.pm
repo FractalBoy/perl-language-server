@@ -6,6 +6,7 @@ use warnings;
 use parent 'PLS::Server::Request';
 
 use Encode;
+use Fcntl ();
 use File::Basename;
 use File::Path;
 use File::Spec;
@@ -34,10 +35,12 @@ These diagnostics currently include compilation errors and linting (using L<perl
 
 =cut
 
-my $function = IO::Async::Function->new(code => \&run_perlcritic);
+my $perlcritic_function = IO::Async::Function->new(code => \&run_perlcritic);
+my $podchecker_function = IO::Async::Function->new(code => \&run_podchecker);
 
 my $loop = IO::Async::Loop->new();
-$loop->add($function);
+$loop->add($perlcritic_function);
+$loop->add($podchecker_function);
 
 sub new
 {
@@ -72,9 +75,9 @@ sub new
 
     my @futures;
 
-    push @futures, get_compilation_errors($source, $dir, $uri->file, $suffix) if ($PLS::Server::State::CONFIG->{syntax}{enabled} or $PLS::Server::State::CONFIG->{podchecker}{enabled});
-    push @futures, get_perlcritic_errors($source, $uri->file)
-      if (defined $PLS::Server::State::CONFIG->{perlcritic}{enabled} and $PLS::Server::State::CONFIG->{perlcritic}{enabled});
+    push @futures, get_compilation_errors($source, $dir, $uri->file, $suffix) if ($PLS::Server::State::CONFIG->{syntax}{enabled});
+    push @futures, get_perlcritic_errors($source, $uri->file)                 if ($PLS::Server::State::CONFIG->{perlcritic}{enabled});
+    push @futures, get_podchecker_errors($source)                             if ($PLS::Server::State::CONFIG->{podchecker}{enabled});
 
     return Future->wait_all(@futures)->then(
         sub {
@@ -101,19 +104,19 @@ sub get_compilation_errors
 {
     my ($source, $dir, $orig_path, $suffix) = @_;
 
-    my $temp;
     my $future = $loop->new_future();
 
     my $fh;
     my $path;
+    my $temp;
 
     if (ref $source eq 'SCALAR')
     {
         $temp = eval { File::Temp->new(CLEANUP => 0, TEMPLATE => '.pls-tmp-XXXXXXXXXX', DIR => $dir) };
         $temp = eval { File::Temp->new(CLEANUP => 0) } if (ref $temp ne 'File::Temp');
         $path = $temp->filename;
-
         $future->on_done(sub { unlink $temp });
+
         my $source_text = Encode::encode_utf8($$source);
 
         print {$temp} $source_text;
@@ -127,13 +130,7 @@ sub get_compilation_errors
         open $fh, '<', $path or return [];
     }
 
-    my @line_lengths;
-
-    while (my $line = <$fh>)
-    {
-        chomp $line;
-        $line_lengths[$.] = length $line;
-    }
+    my $line_lengths = get_line_lengths($fh);
 
     close $fh;
 
@@ -141,10 +138,6 @@ sub get_compilation_errors
     my $inc  = PLS::Parser::Pod->get_clean_inc();
     my $args = PLS::Parser::Pod->get_perl_args();
     my @inc  = map { "-I$_" } @{$inc // []};
-
-    my @diagnostics;
-    push @diagnostics, get_podchecker_errors($path, \@line_lengths) if $PLS::Server::State::CONFIG->{podchecker}{enabled};
-    return Future->done(@diagnostics) unless $PLS::Server::State::CONFIG->{syntax}{enabled};
 
     my @loadfile;
 
@@ -154,8 +147,9 @@ sub get_compilation_errors
     }
     elsif ($suffix eq '.pod')
     {
-        return Future->done(@diagnostics);
-    } ## end elsif ($suffix eq '.pod')
+        $future->done();
+        return $future;
+    }
     else
     {
         my ($relative, $module);
@@ -216,6 +210,8 @@ sub get_compilation_errors
         @loadfile = (-e => $code);
     } ## end else [ if (not length $suffix...)]
 
+    my @diagnostics;
+
     my $proc = IO::Async::Process->new(
         command => [$perl, @inc, @loadfile, '--', @{$args}],
         setup   => [chdir => path($orig_path)->parent],
@@ -260,7 +256,7 @@ sub get_compilation_errors
                           {
                             range => {
                                       start => {line => $line_num - 1, character => 0},
-                                      end   => {line => $line_num - 1, character => $line_lengths[$line_num]}
+                                      end   => {line => $line_num - 1, character => $line_lengths->[$line_num]}
                                      },
                             message  => $error,
                             severity => 1,
@@ -300,7 +296,7 @@ sub get_perlcritic_errors
     my ($profile) = glob $PLS::Server::State::CONFIG->{perlcritic}{perlcriticrc};
     undef $profile if (not length $profile or not -f $profile or not -r $profile);
 
-    return $function->call(args => [$profile, $source, $path]);
+    return $perlcritic_function->call(args => [$profile, $source, $path]);
 } ## end sub get_perlcritic_errors
 
 sub run_perlcritic
@@ -350,17 +346,42 @@ sub run_perlcritic
     return @diagnostics;
 } ## end sub run_perlcritic
 
+sub get_line_lengths
+{
+    my ($fh) = @_;
+
+    my @line_lengths;
+
+    while (my $line = <$fh>)
+    {
+        chomp $line;
+        $line_lengths[$.] = length $line;
+    }
+
+    return \@line_lengths;
+} ## end sub get_line_lengths
+
 sub get_podchecker_errors
 {
-    my ($path, $line_lengths) = @_;
+    my ($source) = @_;
+
+    return $podchecker_function->call(args => [$source]);
+}
+
+sub run_podchecker
+{
+    my ($source) = @_;
 
     return unless (eval { require Pod::Checker; 1 });
 
     my $errors = '';
-    open my $fh, '>', \$errors;
-    my $has_errors = Pod::Checker::podchecker($path, $fh);
+    open my $ofh, '>', \$errors;
+    open my $ifh, '<', $source;
 
-    return unless $has_errors;
+    my $line_lengths = get_line_lengths($ifh);
+    seek $ifh, 0, Fcntl::SEEK_SET;
+
+    Pod::Checker::podchecker($ifh, $ofh);
 
     my @diagnostics;
 
@@ -380,10 +401,10 @@ sub get_podchecker_errors
                 severity => $severity eq 'ERROR' ? 1 : 2,
                 source   => 'podchecker',
               };
-        } ## end if (my ($error, $line_num...))
+        } ## end if (my ($severity, $error...))
     } ## end while ($errors =~ s/^(.*)\n//...)
 
     return @diagnostics;
-}
+} ## end sub run_podchecker
 
 1;
