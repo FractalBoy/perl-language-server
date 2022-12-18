@@ -55,6 +55,10 @@ sub _start_process
     my $perl = PLS::Parser::Pod->get_perl_exe();
     my @inc  = map { "-I$_" } @{$config->{inc}};
     my $args = PLS::Parser::Pod->get_perl_args();
+
+    my $script_name = $0 =~ s/'/\'/gr;
+    $code = "\$0 = '$script_name';\n$code";
+
     my $process = IO::Async::Process->new(
                                           command => [$perl, @inc, '-e', $code, @{$args}],
                                           setup   => _get_setup($config),
