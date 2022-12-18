@@ -53,6 +53,9 @@ sub get_ext_modules
                 next unless (length $file);
                 $file =~ s/\.pm$//;
                 my $mod_package = $file =~ s/\//::/gr;
+
+                # Skip private packages
+                next if ($mod_package =~ /^_/ or $mod_package =~ /::_/);
                 push @{$modules}, $mod_package;
             } ## end foreach my $file (@files)
         } ## end foreach my $module ($installed...)

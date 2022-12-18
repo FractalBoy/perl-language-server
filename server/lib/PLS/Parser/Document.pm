@@ -1043,7 +1043,7 @@ sub get_subroutines_fast
         my $sub = $1;
         $sub =~ s/^\s+|\s+$//;
         push @subroutine_declarations, $1;
-    }
+    } ## end while ($$text =~ /$sub_rx/g...)
 
     return \@subroutine_declarations;
 } ## end sub get_subroutines_fast
