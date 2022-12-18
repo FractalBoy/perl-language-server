@@ -125,7 +125,7 @@ sub _get_setup
 sub get_package_symbols_code
 {
     my $code = <<'EOF';
-#close STDERR;
+close STDERR;
 
 use B;
 
@@ -133,11 +133,11 @@ my $json_package = 'JSON::PP';
 
 if (eval { require Cpanel::JSON::XS; 1 })
 {
-    $json_package = 'Cpanel::JSON::XS'
+    $json_package = 'Cpanel::JSON::XS';
 }
 elsif (eval { require JSON::XS; 1 })
 {
-    $json_package = 'JSON::XS'
+    $json_package = 'JSON::XS';
 }
 else
 {
@@ -149,6 +149,8 @@ $| = 1;
 my $json = $json_package->new->utf8;
 
 package PackageSymbols;
+
+my %mtimes;
 
 while (my $line = <STDIN>)
 {
@@ -168,7 +170,18 @@ while (my $line = <STDIN>)
             my $package = join '::', @{$parts};
             next unless (length $package);
 
+            my $package_path = $package =~ s/::/\//gr;
+            $package_path .= '.pm';
+
+            if (exists $mtimes{$package_path} and $mtimes{$package_path} != (stat $INC{$package_path})[9])
+            {
+                delete $INC{$package_path};
+            }
+
             eval "require $package";
+            next unless (length $INC{$package_path});
+
+            $mtimes{$package_path} = (stat $INC{$package_path})[9];
 
             push @packages, $package;
 
@@ -176,8 +189,19 @@ while (my $line = <STDIN>)
 
             foreach my $isa (@isa)
             {
+                my $isa_path = $isa =~ s/::/\//gr;
+                $isa_path .= '.pm';
+
+                if (exists $mtimes{$isa_path} and $mtimes{$isa_path} != (stat $INC{$isa_path})[9])
+                {
+                    delete $INC{$isa_path};
+                }
+
                 eval "require $isa";
                 next if (length $@);
+
+                $mtimes{$isa_path} = (stat $INC{$isa_path})[9];
+
                 push @packages, $isa;
             } ## end foreach my $isa (@isa)
         } ## end foreach my $parts (\@parent_module_parts...)
@@ -190,7 +214,7 @@ while (my $line = <STDIN>)
             foreach my $name (keys %{$ref})
             {
                 next if $name =~ /^BEGIN|UNITCHECK|INIT|CHECK|END|VERSION|DESTROY|import|unimport|can|isa$/;
-                next if $name =~ /^_/; # hide private subroutines
+                next if $name =~ /^_/;                                                                         # hide private subroutines
 
                 my $code_ref = $package->can($name);
                 next if (ref $code_ref ne 'CODE');
@@ -206,17 +230,12 @@ while (my $line = <STDIN>)
                     push @{$functions{$package}}, $name;
                 }
             } ## end foreach my $name (keys %{$ref...})
-
-            # Unrequire packages
-            my $package_path = $package =~ s/::/\//gr;
-            $package_path .= '.pm';
-            delete $INC{$package_path};
         } ## end foreach my $package (@packages...)
     } ## end foreach my $find_package (@...)
 
     print $json->encode(\%functions);
     print "\n";
-} ## end while (my $packages_to_find...)
+} ## end while (my $line = <STDIN>...)
 
 sub add_parent_classes
 {
@@ -240,17 +259,17 @@ EOF
 sub get_imported_package_symbols_code
 {
     my $code = <<'EOF';
-close STDERR;
+#close STDERR;
 
 my $json_package = 'JSON::PP';
 
 if (eval { require Cpanel::JSON::XS; 1 })
 {
-    $json_package = 'Cpanel::JSON::XS'
+    $json_package = 'Cpanel::JSON::XS';
 }
 elsif (eval { require JSON::XS; 1 })
 {
-    $json_package = 'JSON::XS'
+    $json_package = 'JSON::XS';
 }
 else
 {
@@ -264,7 +283,6 @@ my $json = $json_package->new->utf8;
 package ImportedPackageSymbols;
 
 my %mtimes;
-my %inc;
 my %symbol_cache;
 
 while (my $line = <STDIN>)
@@ -275,21 +293,35 @@ while (my $line = <STDIN>)
 
     foreach my $import (@{$imports})
     {
-        if (-f $inc{$import->{module}} and $mtimes{$import->{use}} and (stat $inc{$import->{module}})[9] == $mtimes{$import->{use}} and ref $symbol_cache{$import->{use}} eq 'HASH')
+        my $module_path = $import->{module} =~ s/::/\//gr;
+        $module_path .= '.pm';
+
+        if (exists $mtimes{$module_path})
         {
-            foreach my $subroutine (keys %{$symbol_cache{$import->{use}}})
+            if ($mtimes{$module_path} == (stat $INC{$module_path})[9])
             {
-                $functions{$import->{module}}{$subroutine} = 1;
+                if (ref $symbol_cache{$module->{use}} eq 'ARRAY')
+                {
+                    foreach my $subroutine (@{$symbol_cache{$module->{use}}})
+                    {
+                        $functions{$import->{module}}{$subroutine} = 1;
+                    }
+
+                    next;
+                } ## end if (ref $symbol_cache{...})
+            } ## end if (length $module_abs_path...)
+            else
+            {
+                delete $INC{$module_path};
             }
-            next;
-        } ## end if (-f $inc{$import->{...}})
+        }
 
         my %symbol_table_before = %ImportedPackageSymbols::;
         eval $import->{use};
         my %symbol_table_after = %ImportedPackageSymbols::;
         delete @symbol_table_after{keys %symbol_table_before};
 
-        $functions{$import->{module}} = {};
+        my @subroutines;
 
         foreach my $subroutine (keys %symbol_table_after)
         {
@@ -297,18 +329,14 @@ while (my $line = <STDIN>)
             next if (ref $symbol_table_after{$subroutine} ne 'SCALAR' and ref $symbol_table_after{$subroutine} ne 'GLOB' and ref \($symbol_table_after{$subroutine}) ne 'GLOB');
             next if ((ref $symbol_table_after{$subroutine} eq 'GLOB' or ref \($symbol_table_after{$subroutine}) eq 'GLOB') and ref *{$symbol_table_after{$subroutine}}{CODE} ne 'CODE');
             $functions{$import->{module}}{$subroutine} = 1;
+            push @subroutines, $subroutine;
         } ## end foreach my $subroutine (keys...)
 
-        # Reset symbol table and %INC
+        # Reset symbol table
         %ImportedPackageSymbols:: = %symbol_table_before;
-        my $module_path = $import->{module} =~ s/::/\//gr;
-        $module_path .= '.pm';
 
-        $mtimes{$import->{use}}       = (stat $INC{$module_path})[9];
-        $inc{$import->{module}}       = $INC{$module_path};
-        $symbol_cache{$import->{use}} = $functions{$import->{module}};
-
-        delete $INC{$module_path};
+        $mtimes{$module_path} = (stat $INC{$module_path})[9];
+        $symbol_cache{$import->{use}} = \@subroutines;
     } ## end foreach my $import (@{$imports...})
 
     foreach my $module (keys %functions)
