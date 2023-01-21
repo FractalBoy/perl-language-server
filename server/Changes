@@ -191,11 +191,11 @@ Revision history for perl module PLS
 
  - Ignore default configuration in the perl. namespace.
 
-0.903 2023-01-21
+0.903, 0.904 2023-01-21
 
- - Skipped release number
+ - Skipped release numbers
 
-0.904 2023-01-21
+0.905 2023-01-21
 
  - Many performance improvements for completion
  - Many usability improvements for completion
