@@ -112,6 +112,8 @@ For example, if you run `pls` in a docker container, `pls.cmd` would be `docker`
 * Configure the path to your `.perlcriticrc` file using the `pls.perlcritic.perlcriticrc` setting. The default is `~/.perlcriticrc` if not configured.
 * Disable `perlcritic` checking entirely by setting `pls.perlcritic.enabled` to
 `false`.
+* Disable `podchecker` checking entirely by setting `pls.podchecker.enabled` to
+`false`.
 * Optionally, configure the path to an alternate `perl` to use for syntax checking using the `pls.syntax.perl` setting. By default, the `perl` used to run PLS will be used.
 * Disable syntax checking entirely by setting `pls.syntax.enabled` to `false`.
 * Pass arguments to your code when syntax checking by setting `pls.syntax.args`.

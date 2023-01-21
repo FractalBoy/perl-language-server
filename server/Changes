@@ -190,3 +190,17 @@ Revision history for perl module PLS
 0.902 2022-08-30
 
  - Ignore default configuration in the perl. namespace.
+
+0.903 2023-01-21
+
+ - Many performance improvements for completion
+ - Many usability improvements for completion
+ - Signature help performance improvements
+ - Syntax checking improvements
+   - Now using require for syntax checking - thank you @rabbiveesh (https://github.com/rabbiveesh)!
+ - Syntax checking now includes POD errors, if Pod::Checker is installed
+   and POD checking is enabled.
+ - Fixed a crash when code uses File::Glob
+   - Works around https://github.com/Perl/perl5/issues/20615
+ - Server no longer checks to see if the client process is still running, to allow
+   for running PLS in a container - thank you @mbudde (https://github.com/mbudde)!

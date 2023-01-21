@@ -74,6 +74,8 @@ Defaults to C<~/.perltidyrc> if not configured.
 
 Defaults to C<~/.perlcriticrc> if not configured.
 
+=item pls.podchecker.enabled - whether to enable checking of POD using L<podchecker>.
+
 =item pls.syntax.enabled - whether to enable syntax checking.
 
 =item pls.syntax.perl - path to an alternate C<perl> to use for syntax checking.

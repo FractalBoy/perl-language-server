@@ -30,3 +30,9 @@ All notable changes to the "pls" extension will be documented in this file.
 - Configuration was moved from the `perl.` to the `pls.` namespace.
   - Support for configuration in `pls.` has been deprecated, but not removed.
 - Renamed the `perl.sortImports` command to `pls.sortImports` to match the new settings namespace.
+
+## [0.0.16] - 2022-09-02
+- Bumped vscode-languageclient version from 7.0.0 to 8.0.2.
+
+## [0.0.17] - 2023-01-21
+- Added `pls.podchecker.enabled` setting, to disable and re-enable podchecker.
