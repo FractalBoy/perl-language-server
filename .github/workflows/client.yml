@@ -20,7 +20,7 @@ jobs:
       VSCE_PAT: ${{ secrets.VSCE_PAT }}
 
     steps:
-      - uses: actions/checkout@v3s
+      - uses: actions/checkout@v3
 
       - uses: actions/setup-node@v3
         with:
