@@ -193,6 +193,10 @@ Revision history for perl module PLS
 
 0.903 2023-01-21
 
+ - Skipped release number
+
+0.904 2023-01-21
+
  - Many performance improvements for completion
  - Many usability improvements for completion
  - Signature help performance improvements
