@@ -173,5 +173,6 @@
   },
   "dependencies": {
     "vscode-languageclient": "8.0.2"
-  }
+  },
+  "packageManager": "yarn@3.4.1"
 }
