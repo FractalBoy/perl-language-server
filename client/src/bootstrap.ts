@@ -9,15 +9,14 @@ import * as crypto from 'crypto';
 import * as vscode from 'vscode';
 
 const fsExists = promisify(fs.exists);
+const fsAccess = promisify(fs.access);
 const fsRealpath = promisify(fs.realpath);
 const readdir = promisify(fs.readdir);
 const execFile = promisify(cp.execFile);
 
 export class Context {
-  public environment: NodeJS.ProcessEnv;
-  public perl: string;
-  public localLib: vscode.Uri;
-  public pls: string;
+  public readonly perl: string;
+  public readonly localLib: vscode.Uri;
 
   constructor(
     context: vscode.ExtensionContext,
@@ -29,38 +28,166 @@ export class Context {
       perlIdentifier
     );
 
-    this.environment = {
-      PERL5LIB:
-        vscode.Uri.joinPath(this.localLib, 'lib', 'perl5').fsPath +
-        (process.env.PERL5LIB ? `:${process.env.PERL5LIB}` : ''),
-      PERL_MB_OPT: `--install_base "${this.localLib.fsPath}"`,
-      PERL_MM_OPT: `INSTALL_BASE="${this.localLib.fsPath}"`,
-      PERL_LOCAL_LIB_ROOT: this.localLib.fsPath,
-    };
-
     this.perl = perl;
-    this.pls = vscode.Uri.joinPath(this.localLib, 'bin', 'pls').fsPath;
+  }
+
+  get libPath() {
+    return vscode.Uri.joinPath(this.localLib, 'lib', 'perl5');
+  }
+
+  get cpanmBuildPath() {
+    return vscode.Uri.joinPath(this.localLib, '.cpanm');
+  }
+
+  get pls() {
+    return vscode.Uri.joinPath(this.localLib, 'bin', 'pls').fsPath;
+  }
+
+  get environment(): NodeJS.ProcessEnv {
+    return {
+      PERL5LIB:
+        this.libPath.fsPath +
+        (process.env.PERL5LIB ? `:${process.env.PERL5LIB}` : ''),
+      PERL_CPANM_HOME: this.cpanmBuildPath.fsPath,
+    };
   }
 
   async createDirectories() {
-    await vscode.workspace.fs.createDirectory(this.localLib);
+    return Promise.all([
+      vscode.workspace.fs.createDirectory(this.localLib),
+      vscode.workspace.fs.createDirectory(this.cpanmBuildPath),
+    ]);
   }
 }
 
 export async function bootstrap(
-  context: vscode.ExtensionContext
+  context: vscode.ExtensionContext,
+  pls: string
 ): Promise<Context> {
-  let perlPath = '/usr/bin/perl';
+  if (os.platform() === 'win32') {
+    throw new Error('Platform not supported');
+  }
+
+  let perlPath;
+
+  if (pls) {
+    perlPath = path.resolve(pls, '..', 'perl');
+  } else {
+    perlPath = await getPerlPathFromUser();
+
+    if (perlPath === '') {
+      return new Context(context, '', '');
+    }
+  }
+
   const ctx = new Context(
     context,
     perlPath,
     await uniquePerlIdentifier(perlPath)
   );
 
+  let plsInstalled = false;
+
+  try {
+    // Get the PLS version, if it doesn't throw an exception then PLS is already installed.
+    await getPLSVersion(ctx);
+    plsInstalled = true;
+  } catch {
+    installOrUpgrade(ctx);
+    return ctx;
+  }
+
+  if (plsInstalled) {
+    if (await shouldUpgrade(ctx)) {
+      installOrUpgrade(ctx);
+    }
+  }
+
   return ctx;
 }
 
-export async function uniquePerlIdentifier(perl: string) {
+async function installOrUpgrade(ctx: Context): Promise<void> {
+  await ctx.createDirectories();
+  await installPLS(ctx);
+  await installCpanelJSONXS(ctx);
+}
+
+async function shouldUpgrade(ctx: Context): Promise<boolean> {
+  const plsVersion = await getPLSVersion(ctx);
+  const newestPLSVersion = await getNewestPLSVersion();
+
+  // Not possible to be newer, but just in case.
+  if (plsVersion >= newestPLSVersion) {
+    return false;
+  }
+
+  const response = await vscode.window.showInformationMessage(
+    'There is a new version of PLS available. Would you like to upgrade?',
+    'Yes',
+    'No'
+  );
+
+  return response === 'Yes';
+}
+
+async function getPerlPathFromUser(): Promise<string> {
+  const items = await findAllPerlPaths();
+  items.unshift(
+    {
+      label: '$(add) Choose a Perl installation not on this list',
+    },
+    {
+      label: 'I am using a container',
+    }
+  );
+
+  const result = await vscode.window.showQuickPick(items, {
+    placeHolder: 'Choose a Perl installation',
+  });
+
+  if (result === items[0]) {
+    const customPath = await vscode.window.showInputBox({
+      placeHolder: 'Enter a custom path to a perl binary',
+      ignoreFocusOut: true,
+      validateInput: async (value) => {
+        if (!(await fsExists(value))) {
+          return 'Path does not exist';
+        }
+
+        try {
+          await fsAccess(value, fs.constants.X_OK);
+        } catch {
+          return 'Path is not executable';
+        }
+      },
+    });
+
+    if (customPath) {
+      return customPath;
+    }
+
+    throw new Error('You must select a Perl installation to use');
+  }
+
+  if (result == items[1]) {
+    // Using docker, we can't/shouldn't help here.
+    // They should have built their docker image with the PLS installation
+    return '';
+  }
+
+  if (!result?.detail) {
+    throw new Error('You must select a Perl installation to use.');
+  }
+
+  return result.detail;
+}
+
+/**
+ * Create a unique identifier for an installation of perl.
+ * @param perl Path to perl binary
+ * @returns String that is unique for every installation of perl on the system.
+ */
+export async function uniquePerlIdentifier(perl: string): Promise<string> {
   const result = await execFile(perl, [
     '-MConfig',
     '-e',
@@ -74,23 +201,25 @@ export async function uniquePerlIdentifier(perl: string) {
   return crypto.createHash('sha256').update(result.stdout).digest('hex');
 }
 
-export async function installPLS(context: Context) {
+async function runCpanm(
+  context: Context,
+  packageNames: string[]
+): Promise<string> {
   return vscode.window.withProgress(
     {
       location: vscode.ProgressLocation.Notification,
       cancellable: true,
-      title: 'Installing PLS',
+      title: `Installing ${packageNames.join(', ')}`,
     },
     (progress, token) => {
       return new Promise((resolve, reject) => {
         https.get('https://cpanmin.us', (res) => {
           progress.report({ increment: 0 });
-          const proc = cp.spawn(context.perl, [
-            '-',
-            '-l',
-            context.localLib.fsPath,
-            'PLS',
-          ]);
+          const proc = cp.spawn(
+            context.perl,
+            ['-', '-l', context.localLib.fsPath, ...packageNames],
+            { env: { PERL_CPANM_HOME: context.environment.PERL_CPANM_HOME } }
+          );
           res.on('data', (chunk) => proc.stdin.write(chunk));
           res.on('end', () => proc.stdin.end());
 
@@ -98,48 +227,59 @@ export async function installPLS(context: Context) {
             proc.kill();
           });
 
-          let totalInstalling: number = 1;
-          let finishedInstalling: number = 0;
+          let total: number = 1;
+          let finished: number = 0;
+
+          const outputChannel = vscode.window.createOutputChannel('cpanm');
 
           proc.stdout.on('data', (chunk) => {
             const data = chunk.toString();
-            let match = /Found dependencies: (.+)/.exec(data);
+            outputChannel.append(data);
+
+            let match = /Found dependencies: (.+)$/m.exec(data);
 
             if (match) {
-              totalInstalling += match[1].split(', ').length;
+              total += match[1].split(', ').length;
               return;
             }
 
-            if (/Successfully installed/.exec(data)) {
-              finishedInstalling++;
+            match = /^(Successfully installed.*)$/m.exec(data);
+
+            if (match) {
+              finished++;
               progress.report({
-                message: data,
-                increment: Math.floor(
-                  (finishedInstalling * 100.0) / totalInstalling
-                ),
+                message: match[1],
+                increment: Math.floor((finished * 100) / total),
               });
             }
           });
 
-          let allErrors = '';
-
           proc.stderr.on('data', (error) => {
-            allErrors += error.toString();
+            outputChannel.append(error.toString());
           });
 
-          proc.on('exit', (code) => {
+          proc.on('exit', (code, signal) => {
             if (code === 0) {
               progress.report({
                 increment: 100,
-                message: 'Successfully installed PLS',
+                message: `Successfully installed ${packageNames.join(', ')}`,
               });
-              resolve('Completed installation of PLS');
+              resolve(`Completed installation of ${packageNames.join(', ')}`);
             } else {
-              let errorMessage = `Installation exited with code ${code}`;
-              if (allErrors) {
-                errorMessage += `\n${allErrors}`;
+              outputChannel.show();
+              if (code) {
+                reject(
+                  `Installation of ${packageNames.join(
+                    ', '
+                  )} was exited with code ${code}`
+                );
+              } else {
+                reject(
+                  `Installation of ${packageNames.join(
+                    ', '
+                  )} was killed with signal ${signal}`
+                );
               }
-              reject(allErrors);
             }
           });
         });
@@ -148,14 +288,19 @@ export async function installPLS(context: Context) {
   );
 }
 
-export async function findAllPerlPaths(): Promise<
-  vscode.QuickPickItem[] | undefined
-> {
-  if (os.platform() === 'win32') {
-    // TODO: PLS doesn't currently support Windows, so no need to implement this right now
-    return undefined;
-  }
+export async function installPLS(context: Context): Promise<string> {
+  return runCpanm(context, ['PLS']);
+}
 
+export async function installCpanelJSONXS(context: Context): Promise<string> {
+  try {
+    return await runCpanm(context, ['Cpanel::JSON::XS']);
+  } catch {
+    return 'Failed to install Cpanel::JSON::XS. PLS will use JSON::PP.';
+  }
+}
+
+export async function findAllPerlPaths(): Promise<vscode.QuickPickItem[]> {
   const items = [];
 
   if (
@@ -192,10 +337,16 @@ export async function findAllPerlPaths(): Promise<
     items.unshift(...plenv);
     return items;
   }
+
+  return items;
 }
 
-async function getPLSVersion(perl: string): Promise<number> {
-  const result = await execFile(perl, ['-MPLS', '-e', 'print $PLS::VERSION']);
+async function getPLSVersion(ctx: Context): Promise<number> {
+  const result = await execFile(
+    ctx.perl,
+    ['-MPLS', '-e', 'print $PLS::VERSION'],
+    { env: ctx.environment }
+  );
 
   if (result.stderr || !result.stdout) {
     throw new Error('PLS not installed');
