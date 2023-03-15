@@ -1,0 +1,17 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "args": [
+                "--extensionDevelopmentPath=${workspaceFolder}/client"
+            ],
+            "name": "Launch Extension",
+            "outFiles": [
+                "${workspaceFolder}/client/out/**/*.js"
+            ],
+            "preLaunchTask": "Run webpack-dev",
+            "request": "launch",
+            "type": "extensionHost"
+        },
+    ]
+}

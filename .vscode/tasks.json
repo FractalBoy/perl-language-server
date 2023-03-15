@@ -1,0 +1,54 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "Run yarn",
+            "type": "shell",
+            "command": "${workspaceFolder}/client/.yarn/releases/yarn-3.4.1.cjs",
+        },
+        {
+            "label": "Run webpack-dev",
+            "type": "shell",
+            "command": "${workspaceFolder}/client/node_modules/.bin/webpack",
+            "problemMatcher": {
+                "owner": "typescript",
+                "source": "ts",
+                "applyTo": "closedDocuments",
+                "fileLocation": "absolute",
+                "severity": "error",
+                "pattern": [
+                    {
+                        "regexp": "^\\[tsl\\](ERROR|WARNING) in (.*)?\\((\\d+),(\\d+)\\)$",
+                        "severity": 1,
+                        "file": 2,
+                        "line": 3,
+                        "column": 4
+                    },
+                    {
+                        "regexp": "\\s*TS(\\d+):\\s*(.*)$",
+                        "code": 1,
+                        "message": 2
+                    }
+                ],
+                "background": {
+                    "activeOnStart": true,
+                    "beginsPattern": {
+                        "regexp": "^asset"
+                    },
+                    "endsPattern": {
+                        "regexp": "^webpack .* compiled"
+                    }
+                }
+            },
+            "args": [
+                "--mode",
+                "development",
+                "--watch"
+            ],
+            "isBackground": true,
+            "options": {
+                "cwd": "${workspaceFolder}/client"
+            },
+        }
+    ]
+}
