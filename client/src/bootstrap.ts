@@ -370,20 +370,20 @@ async function getPLSVersion(ctx: Context): Promise<number> {
 }
 
 async function getNewestPLSVersion(): Promise<number> {
-  return httpsGet(
+  const code = await httpsGet(
     'https://raw.githubusercontent.com/FractalBoy/perl-language-server/master/server/lib/PLS.pm'
-  ).then((code) => {
-    const lines = code.split('\n');
+  );
 
-    for (const line of lines) {
-      const match = /^our \$VERSION\s*=\s*['"]?(.+)['"]?;$/.exec(line);
-      if (match) {
-        return Number.parseFloat(match[1]);
-      }
+  const lines = code.split('\n');
+
+  for (const line of lines) {
+    const match = /^our \$VERSION\s*=\s*['"]?(.+)['"]?;$/.exec(line);
+    if (match) {
+      return Number.parseFloat(match[1]);
     }
+  }
 
-    throw new Error('Could not determine current PLS version');
-  });
+  throw new Error('Could not determine current PLS version');
 }
 
 async function httpsGet(url: string): Promise<string> {
