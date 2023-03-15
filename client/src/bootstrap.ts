@@ -11,6 +11,7 @@ import * as vscode from 'vscode';
 const fsExists = promisify(fs.exists);
 const fsAccess = promisify(fs.access);
 const fsRealpath = promisify(fs.realpath);
+const readFile = promisify(fs.readFile);
 const readdir = promisify(fs.readdir);
 const execFile = promisify(cp.execFile);
 
@@ -71,8 +72,18 @@ export async function bootstrap(
   let perlPath;
 
   if (pls && path.isAbsolute(pls)) {
-    perlPath = path.resolve(pls, '..', 'perl');
-  } else {
+    const file = await readFile(pls);
+
+    for (const line of file.toString().split('\n')) {
+      const match = /^\s*#!(.+)$/.exec(line)
+      if (match) {
+        perlPath = match[1];
+        break;
+      }
+    }
+  }
+
+  if (!perlPath) {
     perlPath = await getPerlPathFromUser(context);
 
     if (perlPath === '') {
