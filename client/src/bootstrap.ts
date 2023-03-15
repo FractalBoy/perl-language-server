@@ -283,7 +283,7 @@ async function runCpanm(
                 reject(
                   `Installation of ${packageNames.join(
                     ', '
-                  )} was exited with code ${code}`
+                  )} exited with code ${code}`
                 );
               } else {
                 reject(
