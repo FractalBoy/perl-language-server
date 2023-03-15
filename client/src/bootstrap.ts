@@ -231,7 +231,7 @@ async function runCpanm(
           const proc = cp.spawn(
             context.perl,
             ['-', '-l', context.localLib.fsPath, ...packageNames],
-            { env: { PERL_CPANM_HOME: context.environment.PERL_CPANM_HOME } }
+            { env: { ...process.env, PERL_CPANM_HOME: context.environment.PERL_CPANM_HOME } }
           );
           res.on('data', (chunk) => proc.stdin.write(chunk));
           res.on('end', () => proc.stdin.end());
@@ -243,11 +243,10 @@ async function runCpanm(
           let total: number = 1;
           let finished: number = 0;
 
-          const outputChannel = vscode.window.createOutputChannel('cpanm');
+          const outputChannel = vscode.window.createOutputChannel(`Installing ${packageNames.join(', ')}`);
 
           proc.stdout.on('data', (chunk) => {
             const data = chunk.toString();
-            outputChannel.append(data);
 
             let match = /Found dependencies: (.+)$/m.exec(data);
 
@@ -302,7 +301,7 @@ async function runCpanm(
 }
 
 export async function installPLS(context: Context): Promise<string> {
-  return runCpanm(context, ['PLS']);
+  return await runCpanm(context, ['PLS']);
 }
 
 export async function installCpanelJSONXS(context: Context): Promise<string> {
@@ -358,7 +357,7 @@ async function getPLSVersion(ctx: Context): Promise<number> {
   const result = await execFile(
     ctx.perl,
     ['-MPLS', '-e', 'print $PLS::VERSION'],
-    { env: ctx.environment }
+    { env: { ...process.env, ...ctx.environment } }
   );
 
   if (result.stderr || !result.stdout) {
@@ -424,6 +423,10 @@ async function getAllPerlBrewItems(): Promise<
       label: line.trim(),
       detail: '',
     };
+
+    if (!item.label) {
+      continue;
+    }
 
     if (item.label.charAt(0) === '*') {
       item.label = item.label.substring(2);
