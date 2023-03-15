@@ -104,13 +104,13 @@ export async function bootstrap(
     await getPLSVersion(ctx);
     plsInstalled = true;
   } catch {
-    installOrUpgrade(ctx);
+    await installOrUpgrade(ctx);
     return ctx;
   }
 
   if (plsInstalled) {
     if (await shouldUpgrade(ctx)) {
-      installOrUpgrade(ctx);
+      await installOrUpgrade(ctx);
     }
   }
 
