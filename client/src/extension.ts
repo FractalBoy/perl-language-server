@@ -21,9 +21,19 @@ export async function activate(context: vscode.ExtensionContext) {
     pls.update('cmd', ctx.pls);
   }
 
+  let inc = pls.get<string[]>('inc');
+
+  if (!inc) {
+    inc = [];
+  }
+
+  if (!inc || inc.indexOf(ctx.libPath.fsPath) === -1) {
+    pls.update('inc', [...inc, ctx.libPath.fsPath]);
+  }
+
   const serverOptions: ServerOptions = {
-    run: { command: ctx.pls, args: serverArgs },
-    debug: { command: ctx.pls, args: serverArgs },
+    run: { command: ctx.pls, args: serverArgs, options: { env: ctx.environment } },
+    debug: { command: ctx.pls, args: serverArgs, options: { env: ctx.environment } },
   };
 
   const clientOptions: LanguageClientOptions = {
