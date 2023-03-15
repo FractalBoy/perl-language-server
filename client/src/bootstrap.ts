@@ -70,10 +70,10 @@ export async function bootstrap(
 
   let perlPath;
 
-  if (pls) {
+  if (pls && path.isAbsolute(pls)) {
     perlPath = path.resolve(pls, '..', 'perl');
   } else {
-    perlPath = await getPerlPathFromUser();
+    perlPath = await getPerlPathFromUser(context);
 
     if (perlPath === '') {
       return new Context(context, '', '');
@@ -130,7 +130,9 @@ async function shouldUpgrade(ctx: Context): Promise<boolean> {
   return response === 'Yes';
 }
 
-async function getPerlPathFromUser(): Promise<string> {
+async function getPerlPathFromUser(
+  context: vscode.ExtensionContext
+): Promise<string> {
   const items = await findAllPerlPaths();
   items.unshift(
     {
@@ -388,11 +390,13 @@ async function httpsGet(url: string): Promise<string> {
 async function getAllPerlBrewItems(): Promise<
   vscode.QuickPickItem[] | undefined
 > {
-  if (!process.env.PERLBREW_ROOT) {
-    return undefined;
-  }
-
-  const perlbrew = path.join(process.env.PERLBREW_ROOT, 'bin', 'perlbrew');
+  const perlbrew = path.join(
+    os.homedir(),
+    'perl5',
+    'perlbrew',
+    'bin',
+    'perlbrew'
+  );
   const result = await execFile(perlbrew, ['list']);
   const items: vscode.QuickPickItem[] = [];
 
