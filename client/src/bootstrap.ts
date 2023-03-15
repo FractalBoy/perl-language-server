@@ -233,6 +233,10 @@ async function runCpanm(
             ['-', '-l', context.localLib.fsPath, ...packageNames],
             { env: { ...process.env, PERL_CPANM_HOME: context.environment.PERL_CPANM_HOME } }
           );
+
+          proc.on('error', (error) => reject(`cpanm exited with an error: ${error}`));
+          proc.stdin.on('error', (error) => reject(`cpanm stdin closed with an error: ${error}`));
+
           res.on('data', (chunk) => proc.stdin.write(chunk));
           res.on('end', () => proc.stdin.end());
 
