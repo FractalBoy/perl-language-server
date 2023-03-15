@@ -401,13 +401,16 @@ async function httpsGet(url: string): Promise<string> {
 async function getAllPerlBrewItems(): Promise<
   vscode.QuickPickItem[] | undefined
 > {
+  const perlbrewRoot = process.env.PERLBREW_ROOT ? process.env.PERLBREW_ROOT : path.join(os.homedir(), 'perl5', 'perlbrew');
   const perlbrew = path.join(
-    os.homedir(),
-    'perl5',
-    'perlbrew',
+    perlbrewRoot,
     'bin',
     'perlbrew'
   );
+  if (!await fsExists(perlbrew)) {
+    return undefined;
+  }
+
   const result = await execFile(perlbrew, ['list']);
   const items: vscode.QuickPickItem[] = [];
 
