@@ -45,7 +45,7 @@ export async function activate(context: vscode.ExtensionContext) {
     clientOptions
   );
 
-  await client.start();
+  return client.start();
 }
 
 export function deactivate() {
@@ -53,5 +53,5 @@ export function deactivate() {
     return undefined;
   }
 
-  client.stop();
+  return client.stop();
 }
