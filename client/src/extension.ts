@@ -50,7 +50,7 @@ export async function activate(context: vscode.ExtensionContext) {
 
 export function deactivate() {
   if (!client) {
-    return undefined;
+    return;
   }
 
   return client.stop();
