@@ -161,32 +161,20 @@ export class PerlRuntime extends EventEmitter {
       return;
     }
 
-    let importedB = false;
+    command =
+      `if (!$INC{'B.pm'}) { require B; $requiredB = 1; } ` +
+      `$cv = B::svref_2object(\\&${name}); ` +
+      `print {$DB::OUT} q[{"file":"].$cv->FILE.q[","line":].$cv->START->line.q[}]; ` +
+      `undef $cv; if ($requiredB) { delete $INC{'B.pm'}; undef %B::; undef $requiredB }`;
 
-    if (!(await this.runCommand("p $INC{'B.pm'}")).trim()) {
-      await this.runCommand('require B');
-      importedB = true;
-    }
+    const result = await this.runCommand(command);
 
-    await this.runCommand(`$cv = B::svref_2object(\\&${name})`);
-    const path = await this.runCommand('p $cv->FILE');
-    const line = Number((await this.runCommand('p $cv->START->line')).trim());
+    const fileAndLine: { file: string; line: number } = JSON.parse(result);
 
-    // Leave things the way I found them...
-    await this.runCommand('undef $cv');
+    const breakpoint = { path: fileAndLine.file, name, line: fileAndLine.line };
+    this.functionBreakpoints.push(breakpoint);
 
-    if (importedB) {
-      await this.runCommand("delete $INC{'B.pm'}");
-      await this.runCommand('delete %B::');
-    }
-
-    this.functionBreakpoints.push({
-      path,
-      name,
-      line,
-    });
-
-    return { path, name, line };
+    return breakpoint;
   }
 
   async clearAllBreakpoints(): Promise<void> {

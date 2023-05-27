@@ -257,8 +257,8 @@
     "compile": "webpack",
     "watch": "webpack --watch",
     "package": "webpack --mode production",
-    "compile-tests": "tsc -p . --outDir dist",
-    "watch-tests": "tsc -p . -w --outDir dist",
+    "compile-tests": "tsc -p . --outDir out",
+    "watch-tests": "tsc -p . -w --outDir out",
     "pretest": "npm run compile-tests && npm run compile && npm run lint",
     "lint": "eslint src --ext ts",
     "test": "node ./dist/test/runTest.js"

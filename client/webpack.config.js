@@ -13,9 +13,11 @@ const config = {
     path: path.resolve(__dirname, 'out'),
     filename: 'extension.js',
     libraryTarget: 'commonjs2',
-    devtoolModuleFilenameTemplate: '../[resource-path]',
   },
   devtool: 'nosources-source-map',
+  infrastructureLogging: {
+    level: 'log',
+  },
   externals: {
     vscode: 'commonjs vscode',
   },
@@ -30,11 +32,6 @@ const config = {
         use: [
           {
             loader: 'ts-loader',
-            options: {
-              compilerOptions: {
-                module: 'es6',
-              },
-            },
           },
         ],
       },

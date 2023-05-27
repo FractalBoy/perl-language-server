@@ -12,8 +12,12 @@
                 "--extensionDevelopmentPath=${workspaceFolder}"
             ],
             "outFiles": [
-                "${workspaceFolder}/out/**/*.js"
-            ]
+                "${workspaceFolder}/client/out/**/*.js",
+            ],
+            "sourceMapPathOverrides": {
+                "webpack:///./~/*": "${workspaceFolder}/client/node_modules/*",
+                "webpack://?:*/*": "${workspaceFolder}/client/*"
+            }
         }
     ]
 }
