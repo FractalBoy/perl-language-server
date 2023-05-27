@@ -7,6 +7,9 @@ import {
   LanguageClientOptions,
   ServerOptions,
 } from 'vscode-languageclient/node';
+import { PerlDebugSession } from './perlDebugSession';
+
+let client: LanguageClient;
 
 // this method is called when your extension is activated
 // your extension is activated the very first time the command is executed
@@ -26,10 +29,60 @@ export function activate(context: vscode.ExtensionContext) {
     documentSelector: [{ scheme: 'file', language: 'perl' }],
   };
 
-  const disposable = new LanguageClient(
+  context.subscriptions.push(
+    vscode.debug.registerDebugConfigurationProvider(
+      'perl',
+      {
+        provideDebugConfigurations() {
+          return [
+            {
+              type: 'perl',
+              request: 'launch',
+              name: 'Start debugger',
+              perl: 'perl',
+              program: '${file}',
+              cwd: '${workspaceFolder}',
+            },
+            {
+              type: 'perl',
+              request: 'attach',
+              name: 'Start debugger for manual attach',
+              port: 4026,
+            },
+          ];
+        },
+      },
+      vscode.DebugConfigurationProviderTriggerKind.Dynamic
+    )
+  );
+
+  const factory = new DebugAdapterFactory();
+  context.subscriptions.push(
+    vscode.debug.registerDebugAdapterDescriptorFactory('perl', factory)
+  );
+
+  client = new LanguageClient(
     'pls',
     'Perl Language Server (PLS)',
     serverOptions,
     clientOptions
-  ).start();
+  );
+
+  client.start();
+}
+
+export function deactivate(): Thenable<void> | undefined {
+  if (!client) {
+    return;
+  }
+  return client.stop();
+}
+
+class DebugAdapterFactory implements vscode.DebugAdapterDescriptorFactory {
+  createDebugAdapterDescriptor(
+    session: vscode.DebugSession,
+    executable: vscode.DebugAdapterExecutable | undefined
+  ): vscode.ProviderResult<vscode.DebugAdapterDescriptor> {
+    return new vscode.DebugAdapterInlineImplementation(new PerlDebugSession());
+  }
 }
