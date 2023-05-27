@@ -1,12 +1,12 @@
-import * as cp from "child_process";
-import * as crypto from "crypto";
-import * as fs from "fs";
-import { IncomingMessage } from "http";
-import * as https from "https";
-import * as os from "os";
-import * as path from "path";
-import { promisify } from "util";
-import * as vscode from "vscode";
+import * as cp from 'child_process';
+import * as crypto from 'crypto';
+import * as fs from 'fs';
+import { IncomingMessage } from 'http';
+import * as https from 'https';
+import * as os from 'os';
+import * as path from 'path';
+import { promisify } from 'util';
+import * as vscode from 'vscode';
 
 const fsExists = promisify(fs.exists);
 const fsAccess = promisify(fs.access);
@@ -35,11 +35,11 @@ export class Context {
   }
 
   get libPath() {
-    return vscode.Uri.joinPath(this.localLib, "lib", "perl5");
+    return vscode.Uri.joinPath(this.localLib, 'lib', 'perl5');
   }
 
   get cpanmBuildPath() {
-    return vscode.Uri.joinPath(this.localLib, ".cpanm");
+    return vscode.Uri.joinPath(this.localLib, '.cpanm');
   }
 
   get pls() {
@@ -47,16 +47,16 @@ export class Context {
       return this.plsOverride;
     }
 
-    return vscode.Uri.joinPath(this.localLib, "bin", "pls").fsPath;
+    return vscode.Uri.joinPath(this.localLib, 'bin', 'pls').fsPath;
   }
 
   get environment(): NodeJS.ProcessEnv {
     return {
       PERL5LIB:
         this.libPath.fsPath +
-        (process.env.PERL5LIB ? `:${process.env.PERL5LIB}` : ""),
+        (process.env.PERL5LIB ? `:${process.env.PERL5LIB}` : ''),
       PERL_CPANM_HOME: this.cpanmBuildPath.fsPath,
-      PATH: `${vscode.Uri.joinPath(this.localLib, "bin").fsPath}:${
+      PATH: `${vscode.Uri.joinPath(this.localLib, 'bin').fsPath}:${
         process.env.PATH
       }`,
     };
@@ -74,8 +74,8 @@ export async function bootstrap(
   context: vscode.ExtensionContext,
   pls: string | undefined
 ): Promise<Context> {
-  if (os.platform() === "win32") {
-    throw new Error("Platform not supported");
+  if (os.platform() === 'win32') {
+    throw new Error('Platform not supported');
   }
 
   let perlPath;
@@ -83,7 +83,7 @@ export async function bootstrap(
   if (pls && path.isAbsolute(pls)) {
     const file = await readFile(pls);
 
-    for (const line of file.toString().split("\n")) {
+    for (const line of file.toString().split('\n')) {
       const match = /^\s*#!(.+)$/.exec(line);
       if (match) {
         perlPath = match[1];
@@ -95,8 +95,8 @@ export async function bootstrap(
   if (!perlPath) {
     perlPath = await getPerlPathFromUser(context);
 
-    if (perlPath === "") {
-      return new Context(context, "", "");
+    if (perlPath === '') {
+      return new Context(context, '', '');
     }
   }
 
@@ -109,19 +109,19 @@ export async function bootstrap(
 
   await installCpanm(ctx);
   await ctx.createDirectories();
-  await runCpanmWithRetry(ctx, "PLS");
-  await runCpanmWithRetry(ctx, "Cpanel::JSON::XS", false);
+  await runCpanmWithRetry(ctx, 'PLS');
+  await runCpanmWithRetry(ctx, 'Cpanel::JSON::XS', false);
 
   return ctx;
 }
 
 async function installCpanm(ctx: Context): Promise<void> {
   return new Promise(async (resolve, reject) => {
-    const res = await httpsGet("https://cpanmin.us");
+    const res = await httpsGet('https://cpanmin.us');
 
     const proc = cp.spawn(
       ctx.perl,
-      ["-", "-l", ctx.localLib.fsPath, "App::cpanminus"],
+      ['-', '-l', ctx.localLib.fsPath, 'App::cpanminus'],
       {
         env: {
           ...process.env,
@@ -130,15 +130,15 @@ async function installCpanm(ctx: Context): Promise<void> {
       }
     );
 
-    proc.on("error", (error) => reject(`cpanm exited with an error: ${error}`));
-    proc.stdin.on("error", (error) =>
+    proc.on('error', (error) => reject(`cpanm exited with an error: ${error}`));
+    proc.stdin.on('error', (error) =>
       reject(`cpanm stdin closed with an error: ${error}`)
     );
 
-    res.on("data", (chunk) => proc.stdin.write(chunk));
-    res.on("end", () => proc.stdin.end());
+    res.on('data', (chunk) => proc.stdin.write(chunk));
+    res.on('end', () => proc.stdin.end());
 
-    proc.on("exit", (code, signal) => {
+    proc.on('exit', (code, signal) => {
       if (code === 0) {
         resolve();
       } else {
@@ -159,18 +159,18 @@ async function shouldRetry(
   const response = await vscode.window.showErrorMessage(
     `Installation of ${module} failed. Review the output for details. ${
       notRequired
-        ? "Successful installation is not required for full functionality. "
-        : ""
+        ? 'Successful installation is not required for full functionality. '
+        : ''
     }Retry?`,
-    "Yes",
-    "No"
+    'Yes',
+    'No'
   );
-  return response === "Yes";
+  return response === 'Yes';
 }
 
 async function CpanelJSONXSInstalled(ctx: Context): Promise<boolean> {
   try {
-    await execFile(ctx.perl, ["-MCpanel::JSON::XS", "-e", "1"], {
+    await execFile(ctx.perl, ['-MCpanel::JSON::XS', '-e', '1'], {
       env: { ...process.env, ...ctx.environment },
     });
     return true;
@@ -185,30 +185,31 @@ async function getPerlPathFromUser(
   const items = await findAllPerlPaths();
   items.unshift(
     {
-      label: "$(add) Choose a Perl installation not on this list",
+      label: '$(add) Choose a Perl installation not on this list',
     },
     {
-      label: "I am using a container",
+      label: 'I am using a container',
     }
   );
 
   const result = await vscode.window.showQuickPick(items, {
-    placeHolder: "Choose a Perl installation",
+    placeHolder: 'Choose a Perl installation',
+    ignoreFocusOut: true,
   });
 
   if (result === items[0]) {
     const customPath = await vscode.window.showInputBox({
-      placeHolder: "Enter a custom path to a perl binary",
+      placeHolder: 'Enter a custom path to a perl binary',
       ignoreFocusOut: true,
       validateInput: async (value) => {
         if (!(await fsExists(value))) {
-          return "Path does not exist";
+          return 'Path does not exist';
         }
 
         try {
           await fsAccess(value, fs.constants.X_OK);
         } catch {
-          return "Path is not executable";
+          return 'Path is not executable';
         }
       },
     });
@@ -217,17 +218,17 @@ async function getPerlPathFromUser(
       return customPath;
     }
 
-    throw new Error("You must select a Perl installation to use");
+    throw new Error('You must select a Perl installation to use');
   }
 
   if (result == items[1]) {
     // Using docker, we can't/shouldn't help here.
     // They should have built their docker image with the PLS installation
-    return "";
+    return '';
   }
 
   if (!result?.detail) {
-    throw new Error("You must select a Perl installation to use.");
+    throw new Error('You must select a Perl installation to use.');
   }
 
   return result.detail;
@@ -240,16 +241,16 @@ async function getPerlPathFromUser(
  */
 export async function uniquePerlIdentifier(perl: string): Promise<string> {
   const result = await execFile(perl, [
-    "-MConfig",
-    "-e",
+    '-MConfig',
+    '-e',
     'foreach my $key (keys %Config::Config) { print "$key=$Config::Config{$key}\\n" }',
   ]);
 
   if (result.stderr || !result.stdout) {
-    throw new Error("unable to execute perl");
+    throw new Error('unable to execute perl');
   }
 
-  return crypto.createHash("sha256").update(result.stdout).digest("hex");
+  return crypto.createHash('sha256').update(result.stdout).digest('hex');
 }
 
 async function runCpanmWithRetry(
@@ -279,8 +280,8 @@ async function runCpanm(context: Context, module: string): Promise<string> {
       return new Promise((resolve, reject) => {
         progress.report({ increment: 0 });
         const proc = cp.spawn(
-          "cpanm",
-          ["-", "-l", context.localLib.fsPath, module],
+          'cpanm',
+          ['-l', context.localLib.fsPath, module],
           {
             env: {
               ...process.env,
@@ -289,10 +290,10 @@ async function runCpanm(context: Context, module: string): Promise<string> {
           }
         );
 
-        proc.on("error", (error) =>
+        proc.on('error', (error) =>
           reject(`cpanm exited with an error: ${error}`)
         );
-        proc.stdin.on("error", (error) =>
+        proc.stdin.on('error', (error) =>
           reject(`cpanm stdin closed with an error: ${error}`)
         );
 
@@ -307,13 +308,13 @@ async function runCpanm(context: Context, module: string): Promise<string> {
           `Installing ${module}`
         );
 
-        proc.stdout.on("data", (chunk) => {
+        proc.stdout.on('data', (chunk) => {
           const data = chunk.toString();
 
           let match = /Found dependencies: (.+)$/m.exec(data);
 
           if (match) {
-            total += match[1].split(", ").length;
+            total += match[1].split(', ').length;
             return;
           }
 
@@ -328,11 +329,11 @@ async function runCpanm(context: Context, module: string): Promise<string> {
           }
         });
 
-        proc.stderr.on("data", (error) => {
+        proc.stderr.on('data', (error) => {
           outputChannel.append(error.toString());
         });
 
-        proc.on("exit", (code, signal) => {
+        proc.on('exit', (code, signal) => {
           if (code === 0) {
             progress.report({
               increment: 100,
@@ -359,24 +360,24 @@ export async function findAllPerlPaths(): Promise<vscode.QuickPickItem[]> {
   const items = [];
 
   if (
-    (await fsExists("/usr/bin/perl")) &&
-    (await fsRealpath("/usr/bin/perl")) === "/usr/bin/perl"
+    (await fsExists('/usr/bin/perl')) &&
+    (await fsRealpath('/usr/bin/perl')) === '/usr/bin/perl'
   ) {
-    items.push({ label: "System", detail: "/usr/bin/perl" });
+    items.push({ label: 'System', detail: '/usr/bin/perl' });
   }
 
   if (
-    (await fsExists("/bin/perl")) &&
-    (await fsRealpath("/bin/perl")) === "/bin/perl"
+    (await fsExists('/bin/perl')) &&
+    (await fsRealpath('/bin/perl')) === '/bin/perl'
   ) {
-    items.push({ label: "System", detail: "/bin/perl" });
+    items.push({ label: 'System', detail: '/bin/perl' });
   }
 
   if (
-    (await fsExists("/usr/local/bin/perl")) &&
-    (await fsRealpath("/usr/local/bin/perl")) == "/usr/local/bin/perl"
+    (await fsExists('/usr/local/bin/perl')) &&
+    (await fsRealpath('/usr/local/bin/perl')) == '/usr/local/bin/perl'
   ) {
-    items.push({ label: "System", detail: "/usr/local/bin/perl" });
+    items.push({ label: 'System', detail: '/usr/local/bin/perl' });
   }
 
   const perlbrew = await getAllPerlBrewItems();
@@ -405,13 +406,13 @@ async function httpsGet(url: string): Promise<IncomingMessage> {
 async function getAllPerlBrewItems(): Promise<
   vscode.QuickPickItem[] | undefined
 > {
-  const result = await execFile("perlbrew", ["list"]);
+  const result = await execFile('perlbrew', ['list']);
 
   const items: vscode.QuickPickItem[] = [];
 
   const versions = result.stdout
-    .split("\n")
-    .map((s) => s.replace(/^\*?\s*(\S+).*/, "$1"))
+    .split('\n')
+    .map((s) => s.replace(/^\*?\s*(\S+).*/, '$1'))
     .filter((s) => s.length > 0);
 
   for (const version of versions) {
@@ -428,23 +429,23 @@ async function getPerlBrewVersionPath(
   version: string
 ): Promise<string | undefined> {
   return (
-    await execFile("perlbrew", [
-      "exec",
-      "--with",
+    await execFile('perlbrew', [
+      'exec',
+      '--with',
       version,
-      "perl",
-      "-e",
-      "print $^X",
+      'perl',
+      '-e',
+      'print $^X',
     ])
   ).stdout;
 }
 
 async function getAllPlenvItems(): Promise<vscode.QuickPickItem[]> {
-  const result = await execFile("plenv", ["versions"]);
+  const result = await execFile('plenv', ['versions']);
 
   const versions = result.stdout
-    .split("\n")
-    .map((s) => s.replace(/^(?:\*?\s*)(\S+).*/, "$1"))
+    .split('\n')
+    .map((s) => s.replace(/^(?:\*?\s*)(\S+).*/, '$1'))
     .filter((s) => s.length > 0);
 
   const items: vscode.QuickPickItem[] = [];
@@ -460,5 +461,5 @@ async function getAllPlenvItems(): Promise<vscode.QuickPickItem[]> {
 }
 
 async function getPlenvVersionPath(version: string): Promise<string> {
-  return (await execFile("plenv", ["exec", "perl", "-e", "print $^X"])).stdout;
+  return (await execFile('plenv', ['exec', 'perl', '-e', 'print $^X'])).stdout;
 }
