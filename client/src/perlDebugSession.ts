@@ -62,9 +62,7 @@ export class PerlDebugSession extends DebugSession {
           proxy.listen().then((port) => {
             this.sendRequest(
               'startDebugging',
-              {
-                configuration: { request: 'launch', port, __pipe: true },
-              },
+              { configuration: { port, __pipe: true }, request: 'launch' },
               30000,
               () => {}
             );
