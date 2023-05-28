@@ -14,7 +14,7 @@ import { Proxy } from './proxy';
 export class PerlDebugSession extends DebugSession {
   private server?: net.Server;
   private runtime?: PerlRuntime;
-  private pid?: number;
+  private thread: number;
   private numRunning: number;
 
   constructor() {
@@ -28,6 +28,7 @@ export class PerlDebugSession extends DebugSession {
     this.setDebuggerColumnsStartAt1(true);
 
     this.numRunning = 0;
+    this.thread = 0;
   }
 
   protected override initializeRequest(
@@ -190,7 +191,7 @@ export class PerlDebugSession extends DebugSession {
     return [
       request.arguments.perl,
       ...(request.arguments.perlArgs || []),
-      '-d',
+      request.arguments.threads ? '-dt' : '-d',
       request.arguments.program,
       ...(request.arguments.args || []),
     ];
@@ -215,8 +216,6 @@ export class PerlDebugSession extends DebugSession {
       );
     });
 
-    // When this socket closes, check to see if all processes have exited
-    // and send TerminatedEvent if so, which will end the debugging session.
     socket.on('close', () => {
       this.numRunning--;
 
@@ -245,38 +244,39 @@ export class PerlDebugSession extends DebugSession {
       })
       .on('connect', async () => {
         this.runtime = new PerlRuntime(socket);
-        this.pid = await this.runtime.getPid();
 
-        // This is a child process, and should not have any child processes of its own
-        // as all child processes connect to the same port. Send the TerminatedEvent as
-        // soon as the socket closes.
-        socket.on('close', (hadError) => {
-          this.sendEvent(new ExitedEvent(hadError ? 1 : 0));
-          this.sendEvent(new TerminatedEvent());
+        this.runtime.on('thread', (thread) => {
+          this.thread = thread;
         });
 
         response.success = true;
         this.sendResponse(response);
-        this.sendEvent(new InitializedEvent());
-        this.sendEvent(new StoppedEvent('entry', this.pid));
       });
   }
 
-  private async startRuntime(socket: net.Socket) {
+  private async startRuntime(socket: net.Socket, child?: boolean) {
     this.runtime = new PerlRuntime(socket);
 
-    await this.runtime.setStartupOptions();
-    this.pid = await this.runtime.getPid();
+    this.runtime.on('thread', (thread) => {
+      this.thread = thread;
+    });
+
+    if (!child) {
+      await this.runtime.setStartupOptions();
+    }
+
     this.sendEvent(new InitializedEvent());
-    this.sendEvent(new StoppedEvent('entry', this.pid));
+    this.sendEvent(new StoppedEvent('entry', this.thread));
 
     // When this socket closes send ExitedEvent, and TerminatedEvent
     // if no child processes are still running.
     socket.on('close', (hadError) => {
-      this.numRunning--;
       this.sendEvent(new ExitedEvent(hadError ? 1 : 0));
 
-      if (this.numRunning == 0) {
+      if (!child) {
+        this.numRunning--;
+      }
+      if (child || this.numRunning == 0) {
         this.sendEvent(new TerminatedEvent());
       }
     });
@@ -298,16 +298,9 @@ export class PerlDebugSession extends DebugSession {
     response: DebugProtocol.ThreadsResponse,
     request?: DebugProtocol.Request | undefined
   ): void {
-    this.runtime?.getName().then((name) => {
+    this.runtime?.getThreads().then((threads) => {
       response.success = true;
-      response.body = {
-        threads: [
-          {
-            id: this.pid!,
-            name,
-          },
-        ],
-      };
+      response.body = { threads };
       this.sendResponse(response);
     });
   }
@@ -327,7 +320,7 @@ export class PerlDebugSession extends DebugSession {
     stoppedReason: 'breakpoint' | 'step'
   ) {
     cb().then(() => {
-      this.sendEvent(new StoppedEvent(stoppedReason, args.threadId));
+      this.sendEvent(new StoppedEvent(stoppedReason, this.thread));
     });
 
     response.success = true;

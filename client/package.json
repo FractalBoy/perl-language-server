@@ -211,6 +211,11 @@
                 "type": "string",
                 "description": "If running via remote debug, the hostname that will be used to connect to this server. Default is to use the first IP address found.",
                 "default": ""
+              },
+              "threads": {
+                "type": "boolean",
+                "description": "Whether threads will be used in debugged program",
+                "default": false
               }
             }
           },

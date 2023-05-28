@@ -1,6 +1,6 @@
 import { EventEmitter } from 'stream';
 import * as net from 'net';
-import { StackFrame } from '@vscode/debugadapter';
+import { StackFrame, Thread } from '@vscode/debugadapter';
 
 interface PerlBreakpoint {
   path: string;
@@ -32,15 +32,19 @@ export class PerlRuntime extends EventEmitter {
 
     let buffer = '';
     const regex =
-      /^.*?(?:\[pid=(?:\d+->)+\d+\]\s*)?(?:\[\d+\]\s*)?DB<?<\d+>>? (.*?)(?=\n? {0,2}(?:\[pid=(?:\d+->)+\d+\]\s*)?(?:\[\d+\]\s*)?DB<?<\d+>>?)/s;
+      /^.*?(?:\[pid=(?:\d+->)+\d+\]\s*)?(?:\[\d+\]\s*)?DB<?<\d+>>? (?<result>.*?)(?=\n? {0,2}(?:\[pid=(?:\d+->)+\d+\]\s*)?(?:\[(?<thread>\d+)\]\s*)?DB<?<\d+>>?)/s;
 
     this.socket.on('data', (data) => {
       buffer += data.toString();
 
       const match = buffer.match(regex);
 
-      if (match !== null) {
-        this.emit(this.runningCommand?.sym!, match[1]);
+      if (match !== null && match?.groups) {
+        if (match.groups['thread'] !== undefined) {
+          this.emit('thread', Number(match.groups['thread']));
+        }
+
+        this.emit(this.runningCommand?.sym!, match.groups['result']);
         buffer = buffer.replace(regex, '');
 
         if (this.runningCommand?.nextCommand) {
@@ -63,19 +67,6 @@ export class PerlRuntime extends EventEmitter {
     ]);
   }
 
-  async getPid(): Promise<number> {
-    const pid = (await this.runCommand('p $$')).trim();
-    return Number(pid);
-  }
-
-  async getName(): Promise<string> {
-    return (await this.runCommand('p $0')).trim();
-  }
-
-  async getHostname(): Promise<string> {
-    return (await this.runCommand('p `hostname`')).trim();
-  }
-
   async getSource(path: string): Promise<string> {
     return await Promise.all([
       this.runCommand(`f ${path}`),
@@ -84,6 +75,16 @@ export class PerlRuntime extends EventEmitter {
       this.runCommand("p join '', @DB::dbline[1 .. $#DB::dbline]"),
       this.runCommand('.'),
     ]).then(([_file, source, _curr]) => source);
+  }
+
+  async getThreads(): Promise<Thread[]> {
+    return (
+      await this.runCommand(
+        'p join "\n", threads->tid, map { $_->tid } threads->list'
+      )
+    )
+      .split('\n')
+      .map((t) => ({ id: Number(t), name: `Thread ${t}` }));
   }
 
   terminate() {
