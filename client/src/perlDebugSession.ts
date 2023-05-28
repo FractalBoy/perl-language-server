@@ -416,6 +416,14 @@ export class PerlDebugSession extends DebugSession {
     args: DebugProtocol.DisconnectArguments,
     request?: DebugProtocol.Request | undefined
   ): void {
+    this.terminateRequest(response, args, request);
+  }
+
+  protected override terminateRequest(
+    response: DebugProtocol.TerminateResponse,
+    args: DebugProtocol.TerminateArguments,
+    request?: DebugProtocol.Request | undefined
+  ): void {
     this.runtime?.terminate();
 
     this.server?.close(() => {
