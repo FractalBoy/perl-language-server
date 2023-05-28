@@ -42,6 +42,7 @@ export class PerlDebugSession extends DebugSession {
     response.body.supportTerminateDebuggee = true;
     response.body.supportsEvaluateForHovers = true;
     response.body.supportsSingleThreadExecutionRequests = true;
+    response.body.supportsBreakpointLocationsRequest = true;
 
     response.success = true;
     this.sendResponse(response);
@@ -386,6 +387,21 @@ export class PerlDebugSession extends DebugSession {
     );
   }
 
+  protected override breakpointLocationsRequest(
+    response: DebugProtocol.BreakpointLocationsResponse,
+    args: DebugProtocol.BreakpointLocationsArguments,
+    request?: DebugProtocol.Request | undefined
+  ): void {
+    const runtime = this.runtimes.get(this.mainPid!)!;
+    runtime
+      .getBreakpointLocations(args.source.path!, args.line, args.endLine)
+      .then((breakpoints) => {
+        response.success = true;
+        response.body = { breakpoints };
+        this.sendResponse(response);
+      });
+  }
+
   protected override disconnectRequest(
     response: DebugProtocol.DisconnectResponse,
     args: DebugProtocol.DisconnectArguments,
@@ -496,6 +512,7 @@ export class PerlDebugSession extends DebugSession {
         line: location?.line,
         source: {
           path: location?.path,
+          name: location?.path,
         },
       });
     }

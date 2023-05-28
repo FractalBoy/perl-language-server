@@ -77,10 +77,13 @@ export class PerlRuntime extends EventEmitter {
   }
 
   async getSource(path: string): Promise<string> {
-    await this.runCommand(`f ${path}`);
-    // Only grab starting at index 1.
-    // Only the file being debugged will have BEGIN { require 'perl5db.pl' } at index 0.
-    return await this.runCommand("p join '', @DB::dbline[1 .. $#DB::dbline]");
+    return await Promise.all([
+      this.runCommand(`f ${path}`),
+      // Only grab starting at index 1.
+      // Only the file being debugged will have BEGIN { require 'perl5db.pl' } at index 0.
+      this.runCommand("p join '', @DB::dbline[1 .. $#DB::dbline]"),
+      this.runCommand('.'),
+    ]).then(([_file, source, _curr]) => source);
   }
 
   terminate() {
@@ -168,10 +171,9 @@ export class PerlRuntime extends EventEmitter {
       `undef $cv; if ($requiredB) { delete $INC{'B.pm'}; undef %B::; undef $requiredB }`;
 
     const result = await this.runCommand(command);
-
     const fileAndLine: { file: string; line: number } = JSON.parse(result);
-
     const breakpoint = { path: fileAndLine.file, name, line: fileAndLine.line };
+
     this.functionBreakpoints.push(breakpoint);
 
     return breakpoint;
@@ -194,9 +196,33 @@ export class PerlRuntime extends EventEmitter {
   }
 
   async clearBreakpoint(breakpoint: PerlBreakpoint): Promise<void> {
-    await this.runCommand(`f ${breakpoint.path}`);
-    await this.runCommand(`B ${breakpoint.line}`);
-    await this.runCommand('.');
+    await Promise.all([
+      this.runCommand(`f ${breakpoint.path}`),
+      this.runCommand(`B ${breakpoint.line}`),
+      this.runCommand('.'),
+    ]);
+  }
+
+  getBreakpointLocations(
+    path: string,
+    startLine: number,
+    endLine?: number
+  ): Promise<PerlBreakpoint[]> {
+    return Promise.all([
+      this.runCommand(`f ${path}`),
+      endLine
+        ? this.runCommand(
+            `p join "\n", grep { $DB::dbline[$_] != 0 } (${startLine}..${endLine})`
+          )
+        : this.runCommand(
+            `p $DB::dbline[${startLine}] == 0 ? '': ${startLine}`
+          ),
+    ]).then(([_, lines]) => {
+      return lines
+        .split('\n')
+        .filter((line) => line.length)
+        .map((line) => ({ path, line: Number(line) }));
+    });
   }
 
   async getStackTrace(): Promise<StackFrame[]> {
@@ -217,7 +243,11 @@ export class PerlRuntime extends EventEmitter {
         new StackFrame(
           index,
           match.groups?.sub!,
-          { path: match.groups?.file!, name: '', sourceReference: 0 },
+          {
+            path: match.groups?.file!,
+            name: match.groups?.file!,
+            sourceReference: 0,
+          },
           Number(match.groups?.line!)
         )
       );
