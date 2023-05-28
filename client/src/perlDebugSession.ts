@@ -101,7 +101,10 @@ export class PerlDebugSession extends DebugSession {
         this.sendResponse(response);
       });
 
-    this.server.listen(0, () => cb());
+    this.server.listen(
+      request?.arguments.port ? request.arguments.port : 0,
+      () => cb()
+    );
   }
 
   private startInTerminal(
