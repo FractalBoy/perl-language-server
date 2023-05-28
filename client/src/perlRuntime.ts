@@ -80,7 +80,7 @@ export class PerlRuntime extends EventEmitter {
   async getThreads(): Promise<Thread[]> {
     return (
       await this.runCommand(
-        'p join "\n", threads->tid, map { $_->tid } threads->list'
+        'if ($ENV{PERL5DB_THREADED}) { print {$DB::OUT} join "\n", threads->tid, map { $_->tid } threads->list } else { print {$DB::OUT} 0 }'
       )
     )
       .split('\n')
