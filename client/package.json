@@ -164,7 +164,6 @@
           "launch": {
             "required": [
               "program",
-              "cwd",
               "perl"
             ],
             "properties": {
@@ -176,7 +175,7 @@
               "cwd": {
                 "type": "string",
                 "description": "Working directory to start in",
-                "default": "${workspaceFolder}"
+                "default": ""
               },
               "program": {
                 "type": "string",

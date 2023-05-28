@@ -9,7 +9,7 @@ import { DebugProtocol } from '@vscode/debugprotocol';
 import * as net from 'net';
 import * as os from 'os';
 import { PerlRuntime } from './perlRuntime';
-import { ProxyRuntime } from './proxyRuntime';
+import { Proxy } from './proxy';
 
 export class PerlDebugSession extends DebugSession {
   private server?: net.Server;
@@ -19,6 +19,10 @@ export class PerlDebugSession extends DebugSession {
 
   constructor() {
     super();
+
+    // _sequence not initialized by DebugSession when running as inline debugger.
+    // It is a private property, but this lets us workaround the bug.
+    this['_sequence'] = 1;
 
     this.setDebuggerLinesStartAt1(true);
     this.setDebuggerColumnsStartAt1(true);
@@ -53,51 +57,7 @@ export class PerlDebugSession extends DebugSession {
     args: DebugProtocol.AttachRequestArguments,
     request?: DebugProtocol.Request | undefined
   ): void {
-    this.server = net
-      .createServer(async (socket) => {
-        this.numRunning++;
-
-        if (this.runtime) {
-          const proxy = new ProxyRuntime(socket);
-          proxy.listen().then((port) => {
-            this.sendRequest(
-              'startDebugging',
-              { configuration: { port, __pipe: true }, request: 'launch' },
-              30000,
-              () => {}
-            );
-          });
-
-          socket.on('close', () => {
-            this.numRunning--;
-            if (this.numRunning == 0) {
-              this.sendEvent(new TerminatedEvent());
-            }
-          });
-        } else {
-          this.runtime = new PerlRuntime(socket);
-          await this.runtime.setStartupOptions();
-          this.pid = await this.runtime.getPid();
-          this.sendEvent(new InitializedEvent());
-          this.sendEvent(new StoppedEvent('entry', this.pid));
-
-          socket.on('close', (hadError) => {
-            this.numRunning--;
-            this.sendEvent(new ExitedEvent(hadError ? 1 : 0));
-
-            if (this.numRunning == 0) {
-              this.sendEvent(new TerminatedEvent());
-            }
-          });
-        }
-      })
-      .on('error', (e) => {
-        response.message = e.message;
-        response.success = false;
-        this.sendResponse(response);
-      });
-
-    this.server.listen(request?.arguments.port || 4026, () => {
+    this.startDebugger(response, request, 'attach', () => {
       response.success = true;
       this.sendResponse(response);
     });
@@ -108,27 +68,19 @@ export class PerlDebugSession extends DebugSession {
     args: DebugProtocol.LaunchRequestArguments,
     request?: DebugProtocol.Request | undefined
   ): void {
-    if (request?.arguments.__pipe) {
-      const socket = net
-        .createConnection({
-          port: request?.arguments.port,
-          host: 'localhost',
-        })
-        .on('connect', async () => {
-          this.runtime = new PerlRuntime(socket);
-          this.pid = await this.runtime.getPid();
+    this.startDebugger(response, request, 'launch', () =>
+      this.startInTerminal(response, request)
+    );
+  }
 
-          socket.on('close', (hadError) => {
-            this.sendEvent(new ExitedEvent(hadError ? 1 : 0));
-            this.sendEvent(new TerminatedEvent());
-          });
-
-          response.success = true;
-          this.sendResponse(response);
-          this.sendEvent(new InitializedEvent());
-          this.sendEvent(new StoppedEvent('entry', this.pid));
-        });
-
+  private startDebugger(
+    response: DebugProtocol.LaunchResponse | DebugProtocol.AttachResponse,
+    request: DebugProtocol.Request | undefined,
+    type: 'launch' | 'attach',
+    cb: () => void
+  ) {
+    if (request?.arguments.__proxy) {
+      this.connectToProxy(response, request);
       return;
     }
 
@@ -137,40 +89,9 @@ export class PerlDebugSession extends DebugSession {
         this.numRunning++;
 
         if (this.runtime) {
-          const proxyRuntime = new ProxyRuntime(socket);
-          proxyRuntime.listen().then((port) => {
-            this.sendRequest(
-              'startDebugging',
-              { configuration: { port, __pipe: true }, request: 'launch' },
-              30000,
-              (response) => {
-                console.log(response);
-              }
-            );
-          });
-
-          socket.on('close', () => {
-            this.numRunning--;
-            if (this.numRunning == 0) {
-              this.sendEvent(new TerminatedEvent());
-            }
-          });
+          this.startProxy(socket, type);
         } else {
-          this.runtime = new PerlRuntime(socket);
-
-          await this.runtime.setStartupOptions();
-          this.pid = await this.runtime.getPid();
-          this.sendEvent(new InitializedEvent());
-          this.sendEvent(new StoppedEvent('entry', this.pid));
-
-          socket.on('close', (hadError) => {
-            this.numRunning--;
-            this.sendEvent(new ExitedEvent(hadError ? 1 : 0));
-
-            if (this.numRunning == 0) {
-              this.sendEvent(new TerminatedEvent());
-            }
-          });
+          this.startRuntime(socket);
         }
       })
       .on('error', (e) => {
@@ -179,80 +100,185 @@ export class PerlDebugSession extends DebugSession {
         this.sendResponse(response);
       });
 
-    this.server.listen(0, () => {
-      const port = (this.server?.address()! as net.AddressInfo).port;
-      response.success = true;
-      this.sendResponse(response);
+    this.server.listen(0, () => cb());
+  }
 
-      const args = [];
-      let env = {};
-      let hostname = 'localhost';
+  private startInTerminal(
+    response: DebugProtocol.LaunchResponse,
+    request?: DebugProtocol.Request | undefined
+  ) {
+    if (!this.server || !request) {
+      return;
+    }
 
-      if (request?.arguments.hostname) {
-        args.push('ssh', request?.arguments.hostname);
+    const port = (this.server.address() as net.AddressInfo).port;
 
-        if (request?.arguments.localHostname) {
-          hostname = request?.arguments.localHostname;
-        } else {
-          // Determine how to connect back to this host
-          const ifaces = os.networkInterfaces();
-          for (const iface of Object.keys(ifaces)) {
-            for (const net of ifaces[iface]!) {
-              if (net.internal) {
-                continue;
-              }
-              hostname = net.address;
-              break;
-            }
+    const args = [];
+    let env = {};
+
+    if (request.arguments.hostname) {
+      args.push(
+        'ssh',
+        request.arguments.hostname,
+        this.buildRemoteCommand(request, port)
+      );
+    } else {
+      args.push(...this.buildLocalCommand(request));
+      env = this.buildLocalEnv(request, port);
+    }
+
+    this.runInTerminalRequest(
+      {
+        args,
+        env,
+        cwd: request.arguments.cwd ? request.arguments.cwd : '',
+        kind: 'integrated',
+      },
+      30000,
+      (runInTerminalResponse) => {
+        response.success = runInTerminalResponse.success;
+        this.sendResponse(response);
+      }
+    );
+  }
+
+  private determineLocalHostname(request: DebugProtocol.Request): string {
+    if (request.arguments.localHostname) {
+      return request.arguments.localHostname;
+    } else {
+      // Determine how to connect back to this host
+      const ifaces = os.networkInterfaces();
+      for (const iface of Object.keys(ifaces)) {
+        for (const net of ifaces[iface]!) {
+          if (!net.internal) {
+            return net.address;
           }
         }
-
-        let perlArgs = (request.arguments.perlArgs || []).join(' ');
-        if (perlArgs) {
-          perlArgs = ` ${perlArgs} `;
-        }
-
-        let programArgs = (request.arguments.args || []).join(' ');
-        if (programArgs) {
-          programArgs = ` ${programArgs}`;
-        }
-
-        const envParts = [`PERLDB_OPTS='RemotePort=${hostname}:${port}'`];
-
-        for (const variable of Object.keys(request.arguments.env || {})) {
-          envParts.push(`${variable}='${request.arguments.env}'`);
-        }
-
-        const env = envParts.join(' ');
-
-        args.push(
-          `${env} ${request.arguments.perl}${perlArgs} -d ${request.arguments.program}${programArgs}`
-        );
-      } else {
-        args.push(
-          request?.arguments.perl,
-          ...(request?.arguments.perlArgs || []),
-          '-d',
-          request?.arguments.program,
-          ...(request?.arguments.args || [])
-        );
-        env = {
-          ...(request?.arguments.env || {}),
-          // eslint-disable-next-line @typescript-eslint/naming-convention
-          PERLDB_OPTS: `RemotePort=${hostname}:${port}`,
-        };
       }
+    }
 
-      this.runInTerminalRequest(
-        {
-          args,
-          env,
-          cwd: request?.arguments.cwd,
-          kind: 'integrated',
-        },
+    return 'localhost';
+  }
+
+  private buildRemoteCommand(
+    request: DebugProtocol.Request,
+    port: number
+  ): string {
+    const hostname = this.determineLocalHostname(request);
+
+    let perlArgs = (request.arguments.perlArgs || []).join(' ');
+    if (perlArgs) {
+      perlArgs = ` ${perlArgs} `;
+    }
+
+    let programArgs = (request.arguments.args || []).join(' ');
+    if (programArgs) {
+      programArgs = ` ${programArgs}`;
+    }
+
+    const envParts = [`PERLDB_OPTS='RemotePort=${hostname}:${port}'`];
+
+    for (const variable of Object.keys(request.arguments.env || {})) {
+      envParts.push(`${variable}='${request.arguments.env}'`);
+    }
+
+    const env = envParts.join(' ');
+    return `${env} ${request.arguments.perl}${perlArgs} -d ${request.arguments.program}${programArgs}`;
+  }
+
+  private buildLocalCommand(request: DebugProtocol.Request): string[] {
+    return [
+      request.arguments.perl,
+      ...(request.arguments.perlArgs || []),
+      '-d',
+      request.arguments.program,
+      ...(request.arguments.args || []),
+    ];
+  }
+
+  private buildLocalEnv(request: DebugProtocol.Request, port: number): any {
+    return {
+      ...(request?.arguments.env || {}),
+      // eslint-disable-next-line @typescript-eslint/naming-convention
+      PERLDB_OPTS: `RemotePort=localhost:${port}`,
+    };
+  }
+
+  private startProxy(socket: net.Socket, type: 'launch' | 'attach') {
+    const proxy = new Proxy(socket);
+
+    proxy.listen().then((port) => {
+      this.startDebuggingRequest(
+        { configuration: { port, __proxy: true }, request: type },
         30000,
         () => {}
       );
+    });
+
+    // When this socket closes, check to see if all processes have exited
+    // and send TerminatedEvent if so, which will end the debugging session.
+    socket.on('close', () => {
+      this.numRunning--;
+
+      if (this.numRunning == 0) {
+        this.sendEvent(new TerminatedEvent());
+      }
+    });
+  }
+
+  private startDebuggingRequest(
+    args: any,
+    timeout: number,
+    cb: (response: DebugProtocol.Response) => void
+  ) {
+    this.sendRequest('startDebugging', args, timeout, cb);
+  }
+
+  private connectToProxy(
+    response: DebugProtocol.LaunchResponse | DebugProtocol.AttachResponse,
+    request: DebugProtocol.Request
+  ) {
+    const socket = net
+      .createConnection({
+        port: request?.arguments.port,
+        host: 'localhost',
+      })
+      .on('connect', async () => {
+        this.runtime = new PerlRuntime(socket);
+        this.pid = await this.runtime.getPid();
+
+        // This is a child process, and should not have any child processes of its own
+        // as all child processes connect to the same port. Send the TerminatedEvent as
+        // soon as the socket closes.
+        socket.on('close', (hadError) => {
+          this.sendEvent(new ExitedEvent(hadError ? 1 : 0));
+          this.sendEvent(new TerminatedEvent());
+        });
+
+        response.success = true;
+        this.sendResponse(response);
+        this.sendEvent(new InitializedEvent());
+        this.sendEvent(new StoppedEvent('entry', this.pid));
+      });
+  }
+
+  private async startRuntime(socket: net.Socket) {
+    this.runtime = new PerlRuntime(socket);
+
+    await this.runtime.setStartupOptions();
+    this.pid = await this.runtime.getPid();
+    this.sendEvent(new InitializedEvent());
+    this.sendEvent(new StoppedEvent('entry', this.pid));
+
+    // When this socket closes send ExitedEvent, and TerminatedEvent
+    // if no child processes are still running.
+    socket.on('close', (hadError) => {
+      this.numRunning--;
+      this.sendEvent(new ExitedEvent(hadError ? 1 : 0));
+
+      if (this.numRunning == 0) {
+        this.sendEvent(new TerminatedEvent());
+      }
     });
   }
 
