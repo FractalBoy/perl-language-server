@@ -9,7 +9,7 @@ import { DebugProtocol } from '@vscode/debugprotocol';
 import * as net from 'net';
 import * as os from 'os';
 import { PerlRuntime } from './perlRuntime';
-import { Proxy } from './proxy';
+import { DebuggerProxy } from './debuggerProxy';
 
 export class PerlDebugSession extends DebugSession {
   private server?: net.Server;
@@ -206,7 +206,7 @@ export class PerlDebugSession extends DebugSession {
   }
 
   private startProxy(socket: net.Socket, type: 'launch' | 'attach') {
-    const proxy = new Proxy(socket);
+    const proxy = new DebuggerProxy(socket);
 
     proxy.listen().then((port) => {
       this.startDebuggingRequest(

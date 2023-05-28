@@ -12,7 +12,7 @@ import * as net from 'net';
  * 3. A new debugger is created which will open up a client connection to the server in this
  *    class, and it will send commands and receive results to the process through this server.
  */
-export class Proxy {
+export class DebuggerProxy {
   private client: net.Socket;
   private socket?: net.Socket;
 
