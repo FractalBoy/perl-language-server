@@ -165,16 +165,27 @@ export class PerlRuntime extends EventEmitter {
       return;
     }
 
-    command =
-      `if (!$INC{'B.pm'}) { require B; $requiredB = 1; } ` +
-      `$cv = B::svref_2object(\\&${name}); ` +
-      `print {$DB::OUT} q[{"file":"].$cv->FILE.q[","line":].$cv->START->line.q[}]; ` +
-      `undef $cv; if ($requiredB) { delete $INC{'B.pm'}; undef %B::; undef $requiredB }`;
+    // The break command worked, so the function name is valid.
+    const [lineOutput, path, _] = await Promise.all([
+      // Switch context to the subroutine we are creating a breakpoint for
+      this.runCommand(`l ${name}`),
+      // Print the file we're in
+      this.runCommand('p $DB::dbline'),
+      // Switch back to the current line
+      this.runCommand('.'),
+    ]);
 
-    const result = await this.runCommand(command);
-    const fileAndLine: { file: string; line: number } = JSON.parse(result);
-    const breakpoint = { path: fileAndLine.file, name, line: fileAndLine.line };
+    // Each line starts with line number and a colon if the line is breakable,
+    // otherwise it will just start with the line number.
+    const line = Number(
+      lineOutput
+        .split('\n')
+        .map((line) => line.match(/^(\d+):/))
+        .map((m) => (m !== null ? m[1] : ''))
+        .filter((n) => n !== '')[0]
+    );
 
+    const breakpoint = { path, line, name };
     this.functionBreakpoints.push(breakpoint);
 
     return breakpoint;
