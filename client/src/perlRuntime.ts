@@ -193,7 +193,15 @@ export class PerlRuntime extends EventEmitter {
 
   async clearAllBreakpoints(): Promise<void> {
     for (const breakpoint of this.breakpoints) {
-      await this.clearBreakpoint(breakpoint);
+      // Only actually clear the breakpoint if there is not a function
+      // breakpoint on that line
+      if (
+        !this.functionBreakpoints.filter(
+          (b) => b.line == breakpoint.line && b.path == breakpoint.path
+        ).length
+      ) {
+        await this.clearBreakpoint(breakpoint);
+      }
     }
 
     this.breakpoints = [];
@@ -201,7 +209,15 @@ export class PerlRuntime extends EventEmitter {
 
   async clearAllFunctionBreakpoints(): Promise<void> {
     for (const breakpoint of this.functionBreakpoints) {
-      await this.clearBreakpoint(breakpoint);
+      // Only actually clear the breakpoint if there is not a non-function
+      // breakpoint on that line
+      if (
+        !this.breakpoints.filter(
+          (b) => b.line == breakpoint.line && b.path == breakpoint.path
+        ).length
+      ) {
+        await this.clearBreakpoint(breakpoint);
+      }
     }
 
     this.functionBreakpoints = [];
