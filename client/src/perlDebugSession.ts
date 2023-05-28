@@ -245,14 +245,7 @@ export class PerlDebugSession extends DebugSession {
         host: 'localhost',
       })
       .on('connect', async () => {
-        this.runtime = new PerlRuntime(socket);
-
-        this.runtime.on('thread', (thread) => {
-          this.thread = thread;
-        });
-
-        response.success = true;
-        this.sendResponse(response);
+        this.startRuntime(socket, true);
       });
   }
 
