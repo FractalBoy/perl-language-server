@@ -4,18 +4,18 @@ import {
   InitializedEvent,
   StoppedEvent,
   TerminatedEvent,
-  Thread,
-  ThreadEvent,
 } from '@vscode/debugadapter';
 import { DebugProtocol } from '@vscode/debugprotocol';
 import * as net from 'net';
 import * as os from 'os';
 import { PerlRuntime } from './perlRuntime';
+import { ProxyRuntime } from './proxyRuntime';
 
 export class PerlDebugSession extends DebugSession {
   private server?: net.Server;
-  private runtimes: Map<number, PerlRuntime>;
-  private mainPid?: number;
+  private runtime?: PerlRuntime;
+  private pid?: number;
+  private numRunning: number;
 
   constructor() {
     super();
@@ -23,7 +23,7 @@ export class PerlDebugSession extends DebugSession {
     this.setDebuggerLinesStartAt1(true);
     this.setDebuggerColumnsStartAt1(true);
 
-    this.runtimes = new Map();
+    this.numRunning = 0;
   }
 
   protected override initializeRequest(
@@ -55,29 +55,43 @@ export class PerlDebugSession extends DebugSession {
   ): void {
     this.server = net
       .createServer(async (socket) => {
-        const runtime = new PerlRuntime(socket);
-        await runtime.setStartupOptions();
-        const pid = await runtime.getPid();
+        this.numRunning++;
 
-        socket.on('close', () => {
-          this.runtimes.delete(pid);
+        if (this.runtime) {
+          const proxy = new ProxyRuntime(socket);
+          proxy.listen().then((port) => {
+            this.sendRequest(
+              'startDebugging',
+              {
+                configuration: { request: 'launch', port, __pipe: true },
+              },
+              30000,
+              () => {}
+            );
+          });
 
-          if (pid === this.mainPid) {
-            this.mainPid = this.runtimes.keys().next().value;
-          }
-
-          this.sendEvent(new ThreadEvent('exited', pid));
-        });
-
-        if (this.runtimes.size) {
-          this.sendEvent(new ThreadEvent('started', pid));
+          socket.on('close', () => {
+            this.numRunning--;
+            if (this.numRunning == 0) {
+              this.sendEvent(new TerminatedEvent());
+            }
+          });
         } else {
-          this.mainPid = pid;
+          this.runtime = new PerlRuntime(socket);
+          await this.runtime.setStartupOptions();
+          this.pid = await this.runtime.getPid();
           this.sendEvent(new InitializedEvent());
-        }
+          this.sendEvent(new StoppedEvent('entry', this.pid));
 
-        this.runtimes.set(pid, runtime);
-        this.sendEvent(new StoppedEvent('entry', pid));
+          socket.on('close', (hadError) => {
+            this.numRunning--;
+            this.sendEvent(new ExitedEvent(hadError ? 1 : 0));
+
+            if (this.numRunning == 0) {
+              this.sendEvent(new TerminatedEvent());
+            }
+          });
+        }
       })
       .on('error', (e) => {
         response.message = e.message;
@@ -96,35 +110,70 @@ export class PerlDebugSession extends DebugSession {
     args: DebugProtocol.LaunchRequestArguments,
     request?: DebugProtocol.Request | undefined
   ): void {
-    this.server = net
-      .createServer(async (socket) => {
-        const runtime = new PerlRuntime(socket);
-        await runtime.setStartupOptions();
-        const pid = await runtime.getPid();
+    if (request?.arguments.__pipe) {
+      const socket = net
+        .createConnection({
+          port: request?.arguments.port,
+          host: 'localhost',
+        })
+        .on('connect', async () => {
+          this.runtime = new PerlRuntime(socket);
+          this.pid = await this.runtime.getPid();
 
-        socket.on('close', (hadError) => {
-          this.runtimes.delete(pid);
-          this.sendEvent(new ThreadEvent('exited', pid));
-
-          if (pid === this.mainPid) {
-            this.mainPid = this.runtimes.keys().next().value;
-          }
-
-          if (!this.runtimes.size) {
-            this.sendEvent(new TerminatedEvent());
+          socket.on('close', (hadError) => {
             this.sendEvent(new ExitedEvent(hadError ? 1 : 0));
-          }
+            this.sendEvent(new TerminatedEvent());
+          });
+
+          response.success = true;
+          this.sendResponse(response);
+          this.sendEvent(new InitializedEvent());
+          this.sendEvent(new StoppedEvent('entry', this.pid));
         });
 
-        if (this.runtimes.size) {
-          this.sendEvent(new ThreadEvent('started', pid));
-        } else {
-          this.mainPid = pid;
-          this.sendEvent(new InitializedEvent());
-        }
+      return;
+    }
 
-        this.runtimes.set(pid, runtime);
-        this.sendEvent(new StoppedEvent('entry', pid));
+    this.server = net
+      .createServer(async (socket) => {
+        this.numRunning++;
+
+        if (this.runtime) {
+          const proxyRuntime = new ProxyRuntime(socket);
+          proxyRuntime.listen().then((port) => {
+            this.sendRequest(
+              'startDebugging',
+              { configuration: { port, __pipe: true }, request: 'launch' },
+              30000,
+              (response) => {
+                console.log(response);
+              }
+            );
+          });
+
+          socket.on('close', () => {
+            this.numRunning--;
+            if (this.numRunning == 0) {
+              this.sendEvent(new TerminatedEvent());
+            }
+          });
+        } else {
+          this.runtime = new PerlRuntime(socket);
+
+          await this.runtime.setStartupOptions();
+          this.pid = await this.runtime.getPid();
+          this.sendEvent(new InitializedEvent());
+          this.sendEvent(new StoppedEvent('entry', this.pid));
+
+          socket.on('close', (hadError) => {
+            this.numRunning--;
+            this.sendEvent(new ExitedEvent(hadError ? 1 : 0));
+
+            if (this.numRunning == 0) {
+              this.sendEvent(new TerminatedEvent());
+            }
+          });
+        }
       })
       .on('error', (e) => {
         response.message = e.message;
@@ -214,15 +263,7 @@ export class PerlDebugSession extends DebugSession {
     args: DebugProtocol.StackTraceArguments,
     request?: DebugProtocol.Request | undefined
   ): void {
-    const runtime = this.runtimes.get(args.threadId);
-
-    if (!runtime) {
-      response.success = false;
-      response.message = `Thread ${args.threadId} not found.`;
-      return;
-    }
-
-    runtime.getStackTrace().then((trace) => {
+    this.runtime?.getStackTrace().then((trace) => {
       response.body = { stackFrames: trace };
       response.success = true;
       this.sendResponse(response);
@@ -233,24 +274,16 @@ export class PerlDebugSession extends DebugSession {
     response: DebugProtocol.ThreadsResponse,
     request?: DebugProtocol.Request | undefined
   ): void {
-    if (!this.runtimes.size) {
-      this.sendResponse(response);
-      return;
-    }
-
-    const promises: Promise<Thread>[] = [];
-
-    for (const [pid, runtime] of this.runtimes) {
-      promises.push(
-        runtime.getName().then((name) => ({
-          id: pid,
-          name,
-        }))
-      );
-    }
-
-    Promise.all(promises).then((threads) => {
-      response.body = { threads };
+    this.runtime?.getName().then((name) => {
+      response.success = true;
+      response.body = {
+        threads: [
+          {
+            id: this.pid!,
+            name,
+          },
+        ],
+      };
       this.sendResponse(response);
     });
   }
@@ -266,29 +299,12 @@ export class PerlDebugSession extends DebugSession {
       | DebugProtocol.NextArguments
       | DebugProtocol.StepInArguments
       | DebugProtocol.StepOutArguments,
-    cb: (runtime: PerlRuntime) => Promise<any>,
+    cb: () => Promise<any>,
     stoppedReason: 'breakpoint' | 'step'
   ) {
-    const runtimes = [];
-
-    if (args.singleThread) {
-      if (this.runtimes.has(args.threadId)) {
-        runtimes.push(this.runtimes.get(args.threadId)!);
-      } else {
-        response.success = false;
-        response.message = `Thread ${args.threadId} not found.`;
-        this.sendResponse(response);
-        return;
-      }
-    } else {
-      runtimes.push(...this.runtimes.values());
-    }
-
-    for (const runtime of runtimes) {
-      cb(runtime).then(() => {
-        this.sendEvent(new StoppedEvent(stoppedReason, args.threadId));
-      });
-    }
+    cb().then(() => {
+      this.sendEvent(new StoppedEvent(stoppedReason, args.threadId));
+    });
 
     response.success = true;
     this.sendResponse(response);
@@ -302,7 +318,7 @@ export class PerlDebugSession extends DebugSession {
     this.flowControlRequest(
       response,
       args,
-      (runtime) => runtime.continue(),
+      () => this.runtime?.continue()!,
       'breakpoint'
     );
   }
@@ -315,7 +331,7 @@ export class PerlDebugSession extends DebugSession {
     this.flowControlRequest(
       response,
       args,
-      (runtime) => runtime.next(),
+      () => this.runtime?.next()!,
       'step'
     );
   }
@@ -328,7 +344,7 @@ export class PerlDebugSession extends DebugSession {
     this.flowControlRequest(
       response,
       args,
-      (runtime) => runtime.stepInto(),
+      () => this.runtime?.stepInto()!,
       'step'
     );
   }
@@ -341,7 +357,7 @@ export class PerlDebugSession extends DebugSession {
     this.flowControlRequest(
       response,
       args,
-      (runtime) => runtime.stepOut(),
+      () => this.runtime?.stepOut()!,
       'step'
     );
   }
@@ -356,13 +372,7 @@ export class PerlDebugSession extends DebugSession {
       return;
     }
 
-    const promises = [];
-
-    for (const runtime of this.runtimes.values()) {
-      promises.push(runtime.getSource(args.source?.path));
-    }
-
-    Promise.race(promises).then((content) => {
+    this.runtime?.getSource(args.source?.path).then((content) => {
       response.success = true;
       response.body = { content };
       this.sendResponse(response);
@@ -392,9 +402,8 @@ export class PerlDebugSession extends DebugSession {
     args: DebugProtocol.BreakpointLocationsArguments,
     request?: DebugProtocol.Request | undefined
   ): void {
-    const runtime = this.runtimes.get(this.mainPid!)!;
-    runtime
-      .getBreakpointLocations(args.source.path!, args.line, args.endLine)
+    this.runtime
+      ?.getBreakpointLocations(args.source.path!, args.line, args.endLine)
       .then((breakpoints) => {
         response.success = true;
         response.body = { breakpoints };
@@ -407,9 +416,7 @@ export class PerlDebugSession extends DebugSession {
     args: DebugProtocol.DisconnectArguments,
     request?: DebugProtocol.Request | undefined
   ): void {
-    for (const runtime of this.runtimes.values()) {
-      runtime.terminate();
-    }
+    this.runtime?.terminate();
 
     this.server?.close(() => {
       response.success = true;
@@ -422,16 +429,15 @@ export class PerlDebugSession extends DebugSession {
     args: DebugProtocol.EvaluateArguments,
     request?: DebugProtocol.Request | undefined
   ): void {
-    const runtime = this.runtimes.get(this.mainPid!)!;
     let promise;
 
     if (args.context === 'repl') {
-      promise = runtime.runCommand(args.expression);
+      promise = this.runtime?.runCommand(args.expression);
     } else {
-      promise = runtime.evaluateVariable(args.expression);
+      promise = this.runtime?.evaluateVariable(args.expression);
     }
 
-    promise.then((result) => {
+    promise?.then((result) => {
       response.success = true;
       response.body = {
         result,
@@ -446,9 +452,7 @@ export class PerlDebugSession extends DebugSession {
     args: DebugProtocol.SetBreakpointsArguments
   ): Promise<DebugProtocol.SetBreakpointsResponse> {
     response.success = true;
-    for (const runtime of this.runtimes.values()) {
-      await runtime.clearAllBreakpoints();
-    }
+    await this.runtime?.clearAllBreakpoints();
 
     if (
       args.source.path === undefined ||
@@ -461,23 +465,12 @@ export class PerlDebugSession extends DebugSession {
     response.body = { breakpoints: [] };
 
     for (const breakpoint of args.breakpoints) {
-      let breakpointSet = true;
-
-      for (const runtime of this.runtimes.values()) {
-        if (
-          !(await runtime.setBreakpoint(
-            args.source.path,
-            breakpoint.line,
-            breakpoint.condition
-          ))
-        ) {
-          breakpointSet = false;
-          break;
-        }
-      }
-
       response.body.breakpoints.push({
-        verified: breakpointSet,
+        verified: await this.runtime?.setBreakpoint(
+          args.source.path,
+          breakpoint.line,
+          breakpoint.condition
+        )!,
         line: breakpoint.line,
         source: args.source,
       });
@@ -491,21 +484,15 @@ export class PerlDebugSession extends DebugSession {
     args: DebugProtocol.SetFunctionBreakpointsArguments
   ): Promise<DebugProtocol.SetFunctionBreakpointsResponse> {
     response.success = true;
-    for (const runtime of this.runtimes.values()) {
-      await runtime.clearAllFunctionBreakpoints();
-    }
+    await this.runtime?.clearAllFunctionBreakpoints();
 
     response.body = { breakpoints: [] };
 
     for (const breakpoint of args.breakpoints) {
-      let location;
-
-      for (const runtime of this.runtimes.values()) {
-        location = await runtime.setFunctionBreakpoint(
-          breakpoint.name,
-          breakpoint.condition
-        );
-      }
+      const location = await this.runtime?.setFunctionBreakpoint(
+        breakpoint.name,
+        breakpoint.condition
+      );
 
       response.body.breakpoints.push({
         verified: location === undefined ? false : true,

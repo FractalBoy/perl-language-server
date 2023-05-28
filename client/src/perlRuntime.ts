@@ -87,7 +87,7 @@ export class PerlRuntime extends EventEmitter {
   }
 
   terminate() {
-    (this.socket as any).resetAndDestroy();
+    this.socket.destroy();
   }
 
   async continue(): Promise<string> {
