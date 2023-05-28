@@ -184,7 +184,9 @@ export class PerlDebugSession extends DebugSession {
     }
 
     const env = envParts.join(' ');
-    return `${env} ${request.arguments.perl}${perlArgs} -d ${request.arguments.program}${programArgs}`;
+    return `${env} ${request.arguments.perl}${perlArgs} ${
+      request.arguments.threads ? '-dt' : '-d'
+    } ${request.arguments.program}${programArgs}`;
   }
 
   private buildLocalCommand(request: DebugProtocol.Request): string[] {
