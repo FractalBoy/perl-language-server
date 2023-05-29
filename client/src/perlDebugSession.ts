@@ -16,6 +16,8 @@ export class PerlDebugSession extends DebugSession {
   private runtime?: PerlRuntime;
   private thread: number;
   private numRunning: number;
+  private stopOnEntry: boolean;
+  private sourcePathOverrides: { [regex: string]: string };
 
   constructor() {
     super();
@@ -29,6 +31,8 @@ export class PerlDebugSession extends DebugSession {
 
     this.numRunning = 0;
     this.thread = 0;
+    this.stopOnEntry = true;
+    this.sourcePathOverrides = {};
   }
 
   protected override initializeRequest(
@@ -80,7 +84,10 @@ export class PerlDebugSession extends DebugSession {
     type: 'launch' | 'attach',
     cb: () => void
   ) {
+    this.sourcePathOverrides = request?.arguments.sourcePathOverrides ?? {};
+
     if (request?.arguments.__proxy) {
+      this.stopOnEntry = request.arguments.stopOnEntry;
       this.connectToProxy(response, request);
       return;
     }
@@ -92,6 +99,7 @@ export class PerlDebugSession extends DebugSession {
         if (this.runtime) {
           this.startProxy(socket, type);
         } else {
+          this.stopOnEntry = request?.arguments.stopOnEntry ?? true;
           this.startRuntime(socket);
         }
       })
@@ -215,7 +223,15 @@ export class PerlDebugSession extends DebugSession {
 
     proxy.listen().then((port) => {
       this.startDebuggingRequest(
-        { configuration: { port, __proxy: true }, request: type },
+        {
+          configuration: {
+            port,
+            stopOnEntry: this.stopOnEntry,
+            sourcePathOverrides: this.sourcePathOverrides,
+            __proxy: true,
+          },
+          request: type,
+        },
         30000,
         () => {}
       );
@@ -248,6 +264,7 @@ export class PerlDebugSession extends DebugSession {
         host: 'localhost',
       })
       .on('connect', async () => {
+        this.stopOnEntry = request.arguments.stopOnEntry ?? true;
         this.startRuntime(socket, true);
       });
   }
@@ -264,7 +281,6 @@ export class PerlDebugSession extends DebugSession {
     }
 
     this.sendEvent(new InitializedEvent());
-    this.sendEvent(new StoppedEvent('entry', this.thread));
 
     // When this socket closes send ExitedEvent, and TerminatedEvent
     // if no child processes are still running.
@@ -278,6 +294,23 @@ export class PerlDebugSession extends DebugSession {
         this.sendEvent(new TerminatedEvent());
       }
     });
+  }
+
+  protected override configurationDoneRequest(
+    response: DebugProtocol.ConfigurationDoneResponse,
+    args: DebugProtocol.ConfigurationDoneArguments,
+    request?: DebugProtocol.Request
+  ): void {
+    if (this.stopOnEntry) {
+      this.sendEvent(new StoppedEvent('entry', this.thread));
+    } else {
+      this.runtime?.continue().then(() => {
+        this.sendEvent(new StoppedEvent('breakpoint', this.thread));
+      });
+    }
+
+    response.success = true;
+    this.sendResponse(response);
   }
 
   protected override stackTraceRequest(
@@ -399,6 +432,13 @@ export class PerlDebugSession extends DebugSession {
     args: DebugProtocol.SetBreakpointsArguments,
     request?: DebugProtocol.Request | undefined
   ): void {
+    for (const regex of Object.keys(this.sourcePathOverrides)) {
+      args.source.path = args.source.path?.replace(
+        new RegExp(regex),
+        this.sourcePathOverrides[regex]
+      );
+    }
+
     this.setBreakpoints(response, args).then((resp) => this.sendResponse(resp));
   }
 

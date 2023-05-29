@@ -152,6 +152,8 @@ export class PerlRuntime extends EventEmitter {
       if (/Can't locate/.test(requireResult)) {
         return;
       }
+    } else {
+      name = `main::${name}`;
     }
 
     let command = `b ${name}`;

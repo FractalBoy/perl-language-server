@@ -216,6 +216,11 @@
                 "type": "boolean",
                 "description": "Whether threads will be used in debugged program",
                 "default": false
+              },
+              "sourcePathOverrides": {
+                "type": "object",
+                "description": "Mapping from source code paths to the paths of executing code",
+                "default": {}
               }
             }
           },
@@ -233,6 +238,11 @@
                 "type": "boolean",
                 "description": "Stop the debugger immediately after launch",
                 "default": true
+              },
+              "sourcePathOverrides": {
+                "type": "object",
+                "description": "Mapping from source code paths to the paths of executing code",
+                "default": {}
               }
             }
           }
