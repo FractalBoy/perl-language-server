@@ -1,6 +1,6 @@
 import { EventEmitter } from 'stream';
 import * as net from 'net';
-import { StackFrame, Thread } from '@vscode/debugadapter';
+import { StackFrame, Thread, Variable } from '@vscode/debugadapter';
 
 interface PerlBreakpoint {
   path: string;
@@ -137,6 +137,41 @@ export class PerlRuntime extends EventEmitter {
       path,
     });
     return true;
+  }
+
+  async getVariables(): Promise<Variable[]> {
+    // Rather than relying on PadWalker being installed, we can use B cleverly to
+    // figure out which variables are in scope.
+
+    const command =
+      `require B;require B::Concise;` +
+      // If we're in main, then $DB::sub is empty. $DB::sub can be a string or reference,
+      // so we use \&{$DB::sub} to always obtain a reference.
+      `my $cv = $DB::sub ? B::svref_2object(\\&{$DB::sub}) : B::main_cv();` +
+      `my $op = $DB::sub ? $cv->ROOT : B::main_root();` +
+      `my $line = $DB::line;` +
+      `my $cop_seq;` +
+      // We use B::Concise::walk_topdown to explore the entire op tree, looking for the COP on the
+      // current line, and get the cop_seq from that line.
+      `B::Concise::walk_topdown($op, sub { $cop_seq = $_[0]->cop_seq if ($_[0]->isa('B::COP') and $_[0]->line == $line) }, 0);` +
+      // Now that we have the cop_seq for the current line, look at the PADLIST for the current CV
+      // and filter out just those that have the cop_seq in the appropriate range of the variable scope.
+      `print {$DB::OUT} join "\\n", map { $_->PV } grep { $_->isa('B::PADNAME') and $_->COP_SEQ_RANGE_LOW < $cop_seq and $_->COP_SEQ_RANGE_HIGH >= $cop_seq } $cv->PADLIST->NAMES->ARRAY`;
+
+    const variableNames = (await this.runCommand(command))
+      .split('\n')
+      .filter((v) => v.length);
+    const variables: Variable[] = [];
+
+    for (const variable of variableNames) {
+      variables.push({
+        name: variable,
+        value: await this.evaluateVariable(variable),
+        variablesReference: 0,
+      });
+    }
+
+    return variables;
   }
 
   async setFunctionBreakpoint(
@@ -330,16 +365,6 @@ export class PerlRuntime extends EventEmitter {
       variable = `%${variable}`;
     }
 
-    if (variable.startsWith('$')) {
-      const ref = await this.runCommand(`p ref ${variable}`);
-
-      if (ref.trim().length) {
-        return await this.runCommand(`x ${variable}`);
-      } else {
-        return await this.runCommand(`p ${variable}`);
-      }
-    }
-
     if (
       variable.startsWith('@') ||
       variable.startsWith('%') ||
@@ -349,6 +374,9 @@ export class PerlRuntime extends EventEmitter {
       variable = `\\${variable}`;
     }
 
-    return await this.runCommand(`x ${variable}`);
+    return await this.runCommand(
+      `ref ${variable} ? DB::dumpit($DB::OUT, ${variable}) : ` +
+        `(defined ${variable} ? print {$DB::OUT} ${variable} : print {$DB::OUT} 'undef')`
+    );
   }
 }

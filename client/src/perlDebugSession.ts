@@ -510,6 +510,30 @@ export class PerlDebugSession extends DebugSession {
     });
   }
 
+  protected override variablesRequest(
+    response: DebugProtocol.VariablesResponse,
+    args: DebugProtocol.VariablesArguments,
+    request?: DebugProtocol.Request | undefined
+  ): void {
+    this.runtime?.getVariables().then((variables) => {
+      response.success = true;
+      response.body = { variables };
+      this.sendResponse(response);
+    });
+  }
+
+  protected override scopesRequest(
+    response: DebugProtocol.ScopesResponse,
+    args: DebugProtocol.ScopesArguments,
+    request?: DebugProtocol.Request | undefined
+  ): void {
+    response.success = true;
+    response.body = {
+      scopes: [{ name: 'local', variablesReference: 1, expensive: false }],
+    };
+    this.sendResponse(response);
+  }
+
   private async setBreakpoints(
     response: DebugProtocol.SetBreakpointsResponse,
     args: DebugProtocol.SetBreakpointsArguments
