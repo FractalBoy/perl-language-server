@@ -2,6 +2,7 @@ import {
   DebugSession,
   ExitedEvent,
   InitializedEvent,
+  OutputEvent,
   StoppedEvent,
   TerminatedEvent,
 } from '@vscode/debugadapter';
@@ -17,7 +18,6 @@ export class PerlDebugSession extends DebugSession {
   private thread: number;
   private numRunning: number;
   private stopOnEntry: boolean;
-  private sourcePathOverrides: { [regex: string]: string };
 
   constructor() {
     super();
@@ -32,7 +32,6 @@ export class PerlDebugSession extends DebugSession {
     this.numRunning = 0;
     this.thread = 0;
     this.stopOnEntry = true;
-    this.sourcePathOverrides = {};
   }
 
   protected override initializeRequest(
@@ -50,7 +49,6 @@ export class PerlDebugSession extends DebugSession {
     response.body.supportsTerminateRequest = true;
     response.body.supportTerminateDebuggee = true;
     response.body.supportsEvaluateForHovers = true;
-    response.body.supportsSingleThreadExecutionRequests = true;
     response.body.supportsBreakpointLocationsRequest = true;
 
     response.success = true;
@@ -84,8 +82,6 @@ export class PerlDebugSession extends DebugSession {
     type: 'launch' | 'attach',
     cb: () => void
   ) {
-    this.sourcePathOverrides = request?.arguments.sourcePathOverrides ?? {};
-
     if (request?.arguments.__proxy) {
       this.stopOnEntry = request.arguments.stopOnEntry;
       this.connectToProxy(response, request);
@@ -195,16 +191,16 @@ export class PerlDebugSession extends DebugSession {
     }
 
     const env = envParts.join(' ');
-    return `${env} ${request.arguments.perl}${perlArgs} ${
+    return `${env} ${request.arguments.perl} ${
       request.arguments.threads ? '-dt' : '-d'
-    } ${request.arguments.program}${programArgs}`;
+    }${perlArgs} ${request.arguments.program}${programArgs}`;
   }
 
   private buildLocalCommand(request: DebugProtocol.Request): string[] {
     return [
       request.arguments.perl,
-      ...(request.arguments.perlArgs || []),
       request.arguments.threads ? '-dt' : '-d',
+      ...(request.arguments.perlArgs || []),
       request.arguments.program,
       ...(request.arguments.args || []),
     ];
@@ -227,7 +223,6 @@ export class PerlDebugSession extends DebugSession {
           configuration: {
             port,
             stopOnEntry: this.stopOnEntry,
-            sourcePathOverrides: this.sourcePathOverrides,
             __proxy: true,
           },
           request: type,
@@ -272,9 +267,20 @@ export class PerlDebugSession extends DebugSession {
   private async startRuntime(socket: net.Socket, child?: boolean) {
     this.runtime = new PerlRuntime(socket);
 
+    if (!(await this.runtime.padWalkerInstalled())) {
+      this.sendEvent(
+        new OutputEvent(
+          'PadWalker not installed. Debugger will be unable to list variables.',
+          'important'
+        )
+      );
+    }
+
     this.runtime.on('thread', (thread) => {
       this.thread = thread;
     });
+
+    await this.runtime.startupTasks();
 
     if (!child) {
       await this.runtime.setStartupOptions();
@@ -432,13 +438,6 @@ export class PerlDebugSession extends DebugSession {
     args: DebugProtocol.SetBreakpointsArguments,
     request?: DebugProtocol.Request | undefined
   ): void {
-    for (const regex of Object.keys(this.sourcePathOverrides)) {
-      args.source.path = args.source.path?.replace(
-        new RegExp(regex),
-        this.sourcePathOverrides[regex]
-      );
-    }
-
     this.setBreakpoints(response, args).then((resp) => this.sendResponse(resp));
   }
 
@@ -515,7 +514,7 @@ export class PerlDebugSession extends DebugSession {
     args: DebugProtocol.VariablesArguments,
     request?: DebugProtocol.Request | undefined
   ): void {
-    this.runtime?.getVariables().then((variables) => {
+    this.runtime?.getVariables(args.variablesReference).then((variables) => {
       response.success = true;
       response.body = { variables };
       this.sendResponse(response);
@@ -529,7 +528,10 @@ export class PerlDebugSession extends DebugSession {
   ): void {
     response.success = true;
     response.body = {
-      scopes: [{ name: 'local', variablesReference: 1, expensive: false }],
+      scopes: [
+        { name: 'Lexical', variablesReference: 1, expensive: false },
+        { name: 'Package', variablesReference: 2, expensive: false },
+      ],
     };
     this.sendResponse(response);
   }
@@ -581,14 +583,16 @@ export class PerlDebugSession extends DebugSession {
         breakpoint.condition
       );
 
-      response.body.breakpoints.push({
-        verified: location === undefined ? false : true,
-        line: location?.line,
-        source: {
-          path: location?.path,
-          name: location?.path,
-        },
-      });
+      if (location !== undefined) {
+        response.body.breakpoints.push({
+          verified: true,
+          line: location?.line,
+          source: {
+            path: location?.path,
+            name: location?.path,
+          },
+        });
+      }
     }
 
     return response;

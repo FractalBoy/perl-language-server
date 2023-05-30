@@ -1,6 +1,9 @@
 import { EventEmitter } from 'stream';
 import * as net from 'net';
 import { StackFrame, Thread, Variable } from '@vscode/debugadapter';
+import { DebugProtocol } from '@vscode/debugprotocol';
+import * as crypto from 'crypto';
+import { Uri } from 'vscode';
 
 interface PerlBreakpoint {
   path: string;
@@ -22,6 +25,9 @@ export class PerlRuntime extends EventEmitter {
   private breakpoints: PerlBreakpoint[];
   private functionBreakpoints: PerlFunctionBreakpoint[];
   private runningCommand?: Command;
+  private mainScript?: string;
+  private dollar0?: string;
+  private _padWalkerInstalled?: boolean;
 
   constructor(socket: net.Socket) {
     super();
@@ -32,7 +38,7 @@ export class PerlRuntime extends EventEmitter {
 
     let buffer = '';
     const regex =
-      /^.*?(?:\[pid=(?:\d+->)+\d+\]\s*)?(?:\[\d+\]\s*)?DB<?<\d+>>? (?<result>.*?)(?=\n? {0,2}(?:\[pid=(?:\d+->)+\d+\]\s*)?(?:\[(?<thread>\d+)\]\s*)?DB<?<\d+>>?)/s;
+      /^.*?(?:\[pid=(?:\d+->)+\d+\]\s*)?(?:\[\d+\]\s*)?DB<?<\d+>>? (?<result>.*?)(?<prompt>\n? {0,2}(?:\[pid=(?:\d+->)+\d+\]\s*)?(?:\[(?<thread>\d+)\]\s*)?DB<?<\d+>>?\s*)/s;
 
     this.socket.on('data', (data) => {
       buffer += data.toString();
@@ -45,7 +51,7 @@ export class PerlRuntime extends EventEmitter {
         }
 
         this.emit(this.runningCommand?.sym!, match.groups['result']);
-        buffer = buffer.replace(regex, '');
+        buffer = match.groups.prompt;
 
         if (this.runningCommand?.nextCommand) {
           this.runningCommand = this.runningCommand.nextCommand;
@@ -67,11 +73,19 @@ export class PerlRuntime extends EventEmitter {
     ]);
   }
 
+  async startupTasks(): Promise<void> {
+    this.dollar0 = await this.runCommand('p $0');
+    this.mainScript = await this.runCommand(
+      'use FindBin; use File::Spec; print {$DB::OUT} File::Spec->catfile($FindBin::RealBin, $FindBin::RealScript)'
+    );
+  }
+
   async getSource(path: string): Promise<string> {
     return await Promise.all([
       this.runCommand(`f ${path}`),
       // Only grab starting at index 1.
       // Only the file being debugged will have BEGIN { require 'perl5db.pl' } at index 0.
+      // Remove whitespace in shebang line that can prevent VSCode from identifying the file as a perl file.
       this.runCommand("p join '', @DB::dbline[1 .. $#DB::dbline]"),
       this.runCommand('.'),
     ]).then(([_file, source, _curr]) => source);
@@ -120,7 +134,8 @@ export class PerlRuntime extends EventEmitter {
       }
     }
 
-    let command = `b ${path}:${line}`;
+    const realPath = path === this.mainScript ? this.dollar0 : path;
+    let command = `b ${realPath}:${line}`;
 
     if (condition !== undefined) {
       command += ` ${condition}`;
@@ -139,34 +154,24 @@ export class PerlRuntime extends EventEmitter {
     return true;
   }
 
-  async getVariables(): Promise<Variable[]> {
-    // Rather than relying on PadWalker being installed, we can use B cleverly to
-    // figure out which variables are in scope.
+  async getVariables(scope: number): Promise<Variable[]> {
+    if (!this.padWalkerInstalled()) {
+      return [];
+    }
 
-    const command =
-      `require B;require B::Concise;` +
-      // If we're in main, then $DB::sub is empty. $DB::sub can be a string or reference,
-      // so we use \&{$DB::sub} to always obtain a reference.
-      `my $cv = $DB::sub ? B::svref_2object(\\&{$DB::sub}) : B::main_cv();` +
-      `my $op = $DB::sub ? $cv->ROOT : B::main_root();` +
-      `my $line = $DB::line;` +
-      `my $cop_seq;` +
-      // We use B::Concise::walk_topdown to explore the entire op tree, looking for the COP on the
-      // current line, and get the cop_seq from that line.
-      `B::Concise::walk_topdown($op, sub { $cop_seq = $_[0]->cop_seq if ($_[0]->isa('B::COP') and $_[0]->line == $line) }, 0);` +
-      // Now that we have the cop_seq for the current line, look at the PADLIST for the current CV
-      // and filter out just those that have the cop_seq in the appropriate range of the variable scope.
-      `print {$DB::OUT} join "\\n", map { $_->PV } grep { $_->isa('B::PADNAME') and $_->COP_SEQ_RANGE_LOW < $cop_seq and $_->COP_SEQ_RANGE_HIGH >= $cop_seq } $cv->PADLIST->NAMES->ARRAY`;
+    const command = scope === 1 ? 'my' : 'our';
+    const variableNames = await this.runCommand(
+      `p join "\\n", keys %{PadWalker::peek_${command}(2)}`
+    );
 
-    const variableNames = (await this.runCommand(command))
-      .split('\n')
-      .filter((v) => v.length);
-    const variables: Variable[] = [];
+    const variables = [];
 
-    for (const variable of variableNames) {
+    for (const variableName of variableNames.split('\n')) {
+      if (!variableName.length) continue;
+
       variables.push({
-        name: variable,
-        value: await this.evaluateVariable(variable),
+        name: variableName,
+        value: await this.evaluateVariable(variableName),
         variablesReference: 0,
       });
     }
@@ -290,7 +295,7 @@ export class PerlRuntime extends EventEmitter {
     });
   }
 
-  async getStackTrace(): Promise<StackFrame[]> {
+  async getStackTrace(): Promise<DebugProtocol.StackFrame[]> {
     const trace = [];
     const stack = await this.runCommand('T');
 
@@ -304,13 +309,18 @@ export class PerlRuntime extends EventEmitter {
         continue;
       }
 
+      const path =
+        match.groups?.file === this.dollar0
+          ? this.mainScript!
+          : match.groups?.file!;
+
       trace.push(
         new StackFrame(
           index,
           match.groups?.sub!,
           {
-            path: match.groups?.file!,
-            name: match.groups?.file!,
+            path,
+            name: path,
             sourceReference: 0,
           },
           Number(match.groups?.line!)
@@ -378,5 +388,16 @@ export class PerlRuntime extends EventEmitter {
       `ref ${variable} ? DB::dumpit($DB::OUT, ${variable}) : ` +
         `(defined ${variable} ? print {$DB::OUT} ${variable} : print {$DB::OUT} 'undef')`
     );
+  }
+
+  public async padWalkerInstalled(): Promise<boolean> {
+    if (this._padWalkerInstalled !== undefined) {
+      return this._padWalkerInstalled;
+    }
+
+    const output = await this.runCommand('y');
+    this._padWalkerInstalled = !/PadWalker module not found/.test(output);
+
+    return this._padWalkerInstalled;
   }
 }
