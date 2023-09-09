@@ -8,6 +8,8 @@ import {
   ServerOptions,
 } from 'vscode-languageclient/node';
 
+let client: LanguageClient;
+
 // this method is called when your extension is activated
 // your extension is activated the very first time the command is executed
 export function activate(context: vscode.ExtensionContext) {
@@ -26,10 +28,19 @@ export function activate(context: vscode.ExtensionContext) {
     documentSelector: [{ scheme: 'file', language: 'perl' }],
   };
 
-  const disposable = new LanguageClient(
+  client = new LanguageClient(
     'pls',
     'Perl Language Server (PLS)',
     serverOptions,
     clientOptions
-  ).start();
+  );
+
+  client.start();
+}
+
+export function deactivate(): Thenable<void> | undefined {
+  if (!client) {
+    return undefined;
+  }
+  return client.stop();
 }

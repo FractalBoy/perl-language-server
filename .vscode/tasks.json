@@ -1,0 +1,28 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "type": "npm",
+            "script": "watch",
+            "path": "client",
+            "group": "build",
+            "problemMatcher": [
+                {
+                    "base": "$ts-webpack-watch",
+                    "background": {
+                        "activeOnStart": true,
+                        "beginsPattern": {
+                            "regexp": "."
+                        },
+                        "endsPattern": {
+                            "regexp": "webpack [\\d.]+ compiled"
+                        }
+                    }
+                }
+            ],
+            "isBackground": true,
+            "label": "npm: watch - client",
+            "detail": "webpack --mode development --watch"
+        }
+    ]
+}
