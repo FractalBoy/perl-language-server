@@ -69,7 +69,7 @@ sub handle_response
     my $index = PLS::Parser::Index->new();
     my @inc;
 
-    # Replace $ROOT_PATH with actual workspace paths in inc
+    # Replace $ROOT_PATH/${workspaceFolder} with actual workspace paths in inc
     if (exists $config->{inc} and ref $config->{inc} eq 'ARRAY')
     {
         foreach my $inc (@{$config->{inc}})
@@ -77,8 +77,9 @@ sub handle_response
             foreach my $folder (@{$index->workspace_folders})
             {
                 my $interpolated = $inc =~ s/\$ROOT_PATH/$folder/gr;
+                $interpolated =~ s/\$\{workspaceFolder\}/$folder/g;
                 push @inc, $interpolated;
-            }
+            } ## end foreach my $folder (@{$index...})
         } ## end foreach my $inc (@{$config->...})
 
         $config->{inc} = [List::Util::uniq sort @inc];
@@ -93,6 +94,20 @@ sub handle_response
     {
         PLS::Parser::Pod->set_perl_args($config->{syntax}{args});
     }
+
+    if (ref $config->{perlcritic} eq 'HASH' and length $config->{perlcritic}{perlcriticrc})
+    {
+        my $workspace_folder = $index->workspace_folders->[0];
+        $config->{perlcritic}{perlcriticrc} =~ s/\$ROOT_PATH/$workspace_folder/g;
+        $config->{perlcritic}{perlcriticrc} =~ s/\$\{workspaceFolder\}/$workspace_folder/g;
+    } ## end if (ref $config->{perlcritic...})
+
+    if (ref $config->{perltidy} eq 'HASH' and length $config->{perltidy}{perltidyrc})
+    {
+        my $workspace_folder = $index->workspace_folders->[0];
+        $config->{perltidy}{perltidyrc} =~ s/\$ROOT_PATH/$workspace_folder/g;
+        $config->{perltidy}{perltidyrc} =~ s/\$\{workspaceFolder\}/$workspace_folder/g;
+    } ## end if (ref $config->{perltidy...})
 
     $PLS::Server::State::CONFIG = $config;
 

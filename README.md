@@ -106,8 +106,8 @@ path, which may not be the same one that your terminal uses.
 * Add any additional arguments needed to execute `pls` to the `pls.args` setting.
 For example, if you run `pls` in a docker container, `pls.cmd` would be `docker`, and
 `pls.args` would be `["run", "--rm", "-i", "<image name>", "pls"]`.
-* Optionally, change the current working directory to run PLS in by modifying the `pls.cwd` setting. If you use `$ROOT_PATH` here, it will be replaced by the first or only workspace folder.
-* Add paths to `@INC` by modifying the `pls.inc` setting. You can use the `$ROOT_PATH` mnemonic to stand in for your project's root directory, for example `$ROOT_PATH/lib`. If you are using multiple workspace folders and use `$ROOT_PATH`, the path will be multiplied by the number of workspace folders, and will be replaced that many times.
+* Optionally, change the current working directory to run PLS in by modifying the `pls.cwd` setting. If you use `${workspaceFolder}` here, it will be replaced by the first or only workspace folder.
+* Add paths to `@INC` by modifying the `pls.inc` setting. You can use the `${workspaceFolder}` mnemonic to stand in for your project's root directory, for example `${workspaceFolder}/lib`. If you are using multiple workspace folders and use `${workspaceFolder}`, the path will be multiplied by the number of workspace folders, and will be replaced that many times.
 * Configure the path to your `.perltidyrc` file using the `pls.perltidy.perltidyrc` setting. The default is `~/.perltidyrc` if not configured.
 * Configure the path to your `.perlcriticrc` file using the `pls.perlcritic.perlcriticrc` setting. The default is `~/.perlcriticrc` if not configured.
 * Disable `perlcritic` checking entirely by setting `pls.perlcritic.enabled` to

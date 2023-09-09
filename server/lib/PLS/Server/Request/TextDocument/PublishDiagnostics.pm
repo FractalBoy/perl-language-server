@@ -16,6 +16,7 @@ use IO::Async::Loop;
 use IO::Async::Process;
 use Path::Tiny;
 use Perl::Critic;
+use Scalar::Util qw(reftype);
 use PPI;
 use URI;
 
@@ -117,12 +118,12 @@ sub get_compilation_errors
         $path = $temp->filename;
         $future->on_done(sub { unlink $temp });
 
-        my $source_text = Encode::encode_utf8($$source);
+        my $source_text = Encode::encode_utf8(${$source});
 
         print {$temp} $source_text;
         close $temp;
 
-        open $fh, '<', \$source_text;
+        open $fh, '<', \$source_text or return [];
     } ## end if (ref $source eq 'SCALAR'...)
     else
     {
@@ -219,7 +220,7 @@ sub get_compilation_errors
             on_read => sub {
                 my ($stream, $buffref, $eof) = @_;
 
-                while ($$buffref =~ s/^(.*)\n//)
+                while (${$buffref} =~ s/^(.*)\n//)
                 {
                     my $line = $1;
 
@@ -242,7 +243,7 @@ sub get_compilation_errors
                             {
                                 $area .= "\n";
 
-                                while ($$buffref =~ s/^(.*\n)//)
+                                while (${$buffref} =~ s/^(.*\n)//)
                                 {
                                     $area .= $1;
                                     last if ($1 =~ /"$/);
@@ -264,7 +265,7 @@ sub get_compilation_errors
                           };
                     } ## end if (my ($error, $file,...))
 
-                } ## end while ($$buffref =~ s/^(.*)\n//...)
+                } ## end while (${$buffref} =~ s/^(.*)\n//...)
 
                 return 0;
             }
@@ -275,7 +276,7 @@ sub get_compilation_errors
 
                 # Discard STDOUT, otherwise it might interfere with the server execution.
                 # This can happen if there is a BEGIN block that prints to STDOUT.
-                $$buffref = '';
+                ${$buffref} = '';
                 return 0;
             }
         },
@@ -293,15 +294,21 @@ sub get_perlcritic_errors
 {
     my ($source, $path) = @_;
 
-    my ($profile) = glob $PLS::Server::State::CONFIG->{perlcritic}{perlcriticrc};
+    my ($profile)    = glob $PLS::Server::State::CONFIG->{perlcritic}{perlcriticrc};
+    my ($perltidyrc) = glob $PLS::Server::State::CONFIG->{perltidy}{perltidyrc};
     undef $profile if (not length $profile or not -f $profile or not -r $profile);
 
-    return $perlcritic_function->call(args => [$profile, $source, $path]);
+    return $perlcritic_function->call(args => [$profile, $perltidyrc, $source, $path]);
 } ## end sub get_perlcritic_errors
 
 sub run_perlcritic
 {
-    my ($profile, $source, $path) = @_;
+    my ($profile, $perltidyrc, $source, $path) = @_;
+
+    if (length $perltidyrc and -f $perltidyrc and -r $perltidyrc)
+    {
+        $profile = resolve_perlcriticrc($profile, $perltidyrc);
+    }
 
     my $critic = Perl::Critic->new(-profile => $profile);
     my %args;
@@ -324,10 +331,10 @@ sub run_perlcritic
     {
         my $severity = $severity_map{$violation->severity};
 
-        my $doc = URI->new();
-        $doc->scheme('https');
-        $doc->authority('metacpan.org');
-        $doc->path('pod/' . $violation->policy);
+        my $uri = URI->new();
+        $uri->scheme('https');
+        $uri->authority('metacpan.org');
+        $uri->path('pod/' . $violation->policy);
 
         push @diagnostics,
           {
@@ -337,7 +344,7 @@ sub run_perlcritic
                      },
             message         => $violation->description,
             code            => $violation->policy,
-            codeDescription => {href => $doc->as_string},
+            codeDescription => {href => $uri->as_string},
             severity        => $severity,
             source          => 'perlcritic'
           };
@@ -345,6 +352,39 @@ sub run_perlcritic
 
     return @diagnostics;
 } ## end sub run_perlcritic
+
+sub resolve_perlcriticrc
+{
+    my ($profile, $perltidyrc) = @_;
+
+    # Should be required for Perl::Critic, but just in case...
+    return unless (eval { require Config::Tiny; 1 });
+
+    my $profile_hash = Config::Tiny->read($profile);
+    return $profile if (reftype $profile_hash ne 'HASH');
+
+    # Convert Config::Tiny to raw HASH.
+    $profile_hash = {%{$profile_hash}};
+
+    # Point the perltidyrc setting at the same one that is configured,
+    # if using this policy.
+    my $key = List::Util::first { /RequireTidyCode/ } keys %{$profile_hash};
+    $key = 'CodeLayout::RequireTidyCode' unless (length $key);
+    return $profile if ($key =~ /^-/);
+
+    $profile_hash->{$key} = {} if (ref $profile_hash->{$key} ne 'HASH');
+
+    # Only set the perltidyrc if it isn't already set.
+    return $profile if (length $profile_hash->{$key}{perltidyrc});
+
+    $profile_hash->{$key}{perltidyrc} = $perltidyrc;
+
+    # cf. Perl::Critic::UserProfile::_fix_defaults_key
+    my $defaults = delete $profile_hash->{_};
+    $profile_hash->{__defaults__} = $defaults if $defaults;
+
+    return $profile_hash;
+} ## end sub resolve_perlcriticrc
 
 sub get_line_lengths
 {
@@ -375,8 +415,8 @@ sub run_podchecker
     return unless (eval { require Pod::Checker; 1 });
 
     my $errors = '';
-    open my $ofh, '>', \$errors;
-    open my $ifh, '<', $source;
+    open my $ofh, '>', \$errors or return;
+    open my $ifh, '<', $source  or return;
 
     my $line_lengths = get_line_lengths($ifh);
     seek $ifh, 0, Fcntl::SEEK_SET;

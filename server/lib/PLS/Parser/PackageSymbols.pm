@@ -120,6 +120,7 @@ sub _get_setup
     my ($workspace_folder) = @{PLS::Parser::Index->new->workspace_folders};
     my $cwd = $config->{cwd} // '';
     $cwd =~ s/\$ROOT_PATH/$workspace_folder/;
+    $cwd =~ s/\$\{workspaceFolder\}/$workspace_folder/;
     my @setup;
     push @setup, (chdir => $cwd) if (length $cwd and -d $cwd);
 

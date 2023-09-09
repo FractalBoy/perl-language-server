@@ -497,7 +497,7 @@ sub get_packages
 
     my $file = URI->new($uri)->file;
     $file = readlink $file if (-l $file);
-    $uri = URI::file->new($file)->as_string();
+    $uri  = URI::file->new($file)->as_string();
 
     while ($$text =~ /$rx/g)
     {
@@ -538,7 +538,7 @@ sub get_subroutines
 
     my $file = URI->new($uri)->file;
     $file = readlink $file if (-l $file);
-    $uri = URI::file->new($file)->as_string();
+    $uri  = URI::file->new($file)->as_string();
 
     # Stolen mostly from PPR definition for PerlSubroutineDeclaration
     state $sub_rx = qr/

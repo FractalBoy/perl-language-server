@@ -1,0 +1,10 @@
+{
+    "pls.inc": [
+        "${workspaceFolder}/server/lib"
+    ],
+    "pls.perltidy.perltidyrc": "${workspaceFolder}/.vscode/.perltidyrc",
+    "pls.perlcritic.perlcriticrc": "${workspaceFolder}/.vscode/.perlcriticrc",
+    "[perl]": {
+        "editor.defaultFormatter": "FractalBoy.pls"
+    },
+}
