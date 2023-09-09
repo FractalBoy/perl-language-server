@@ -294,8 +294,8 @@ sub get_perlcritic_errors
 {
     my ($source, $path) = @_;
 
-    my ($profile)    = glob $PLS::Server::State::CONFIG->{perlcritic}{perlcriticrc};
-    my ($perltidyrc) = glob $PLS::Server::State::CONFIG->{perltidy}{perltidyrc};
+    my $profile    = glob $PLS::Server::State::CONFIG->{perlcritic}{perlcriticrc};
+    my $perltidyrc = glob $PLS::Server::State::CONFIG->{perltidy}{perltidyrc};
     undef $profile if (not length $profile or not -f $profile or not -r $profile);
 
     return $perlcritic_function->call(args => [$profile, $perltidyrc, $source, $path]);
