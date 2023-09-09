@@ -13,8 +13,6 @@ WriteMakefile(
               PREREQ_PM        => {
                             'IO::Async'     => 0.79,
                             'Future'        => 0.47,
-                            'Future::Utils' => 0.47,
-                            'Future::Queue' => 0.47,
                             'Path::Tiny'    => 0.114,
                             'Perl::Critic'  => 1.140,
                             'Perl::Tidy'    => 20210402,
@@ -35,7 +33,14 @@ WriteMakefile(
                                                               url  => 'https://github.com/FractalBoy/perl-language-server.git',
                                                               web  => 'https://github.com/FractalBoy/perl-language-server',
                                                              },
-                                              }
+                                              },
+                                 prereqs => {
+                                             runtime => {
+                                                         recommends => {
+                                                                        'Pod::Checker' => 0
+                                                                       }
+                                                        }
+                                            }
                                 }
                  )
                : ()
