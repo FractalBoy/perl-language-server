@@ -208,3 +208,9 @@ Revision history for perl module PLS
    - Works around https://github.com/Perl/perl5/issues/20615
  - Server no longer checks to see if the client process is still running, to allow
    for running PLS in a container - thank you @mbudde (https://github.com/mbudde)!
+
+0.906 TBD
+
+ - Now accepts ${workspaceFolder} to refer to the root of the workspace. $ROOT_PATH is deprecated, but still works.
+ - ${workspaceFolder} can now be used with pls.perlcritic.perlcriticrc and pls.perlcritic.perltidyrc
+ - If the RequireTidyCode perlcritic policy is enabled and perltidyrc is not configured in the perlcriticrc, PLS will point it to the same perltidyrc that it uses for tidying.

@@ -36,3 +36,8 @@ All notable changes to the "pls" extension will be documented in this file.
 
 ## [0.0.17] - 2023-01-21
 - Added `pls.podchecker.enabled` setting, to disable and re-enable podchecker.
+
+## [0.0.18] - TBD
+- Now using npm instead of yarn
+- Bumped vscode-languageclient version to 8.1.0.
+- Bumped typescript version to 5.2.2.
