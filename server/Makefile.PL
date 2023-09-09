@@ -37,7 +37,8 @@ WriteMakefile(
                                  prereqs => {
                                              runtime => {
                                                          recommends => {
-                                                                        'Pod::Checker' => 0
+                                                                        'Pod::Checker' => 0,
+                                                                        'Config::Tiny' => 0
                                                                        }
                                                         }
                                             }
