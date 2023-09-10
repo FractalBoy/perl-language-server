@@ -128,7 +128,6 @@ sub index_files
             my @futures;
 
             require PLS::Parser::Document;
-            my %open_files = map { $_ => 1 } PLS::Parser::Document->open_files();
 
             foreach my $uri (@{$uris})
             {
