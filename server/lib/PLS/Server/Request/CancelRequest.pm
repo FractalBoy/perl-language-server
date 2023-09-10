@@ -5,8 +5,6 @@ use warnings;
 
 use parent 'PLS::Server::Request';
 
-use Scalar::Util qw(blessed);
-
 =head1 NAME
 
 PLS::Server::Request::CancelRequest
@@ -23,7 +21,7 @@ sub service
     my ($self, $server) = @_;
 
     my $id = $self->{params}{id};
-    $server->{cancelled}{$id} = 1;
+    $server->cancel_request($id);
 
     return;
 } ## end sub service

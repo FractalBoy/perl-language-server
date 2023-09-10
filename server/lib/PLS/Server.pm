@@ -177,7 +177,6 @@ sub handle_client_request
 
             if ($self->{cancelled}{$request->{id}})
             {
-                $self->send_message(PLS::Server::Response::Cancelled->new(id => $request->{id}));
                 delete $self->{cancelled}{$request->{id}};
             }
             else
@@ -229,6 +228,16 @@ sub handle_server_response
     $self->send_message($response);
     return;
 } ## end sub handle_server_response
+
+sub cancel_request
+{
+    my ($self, $id) = @_;
+
+    $self->{cancelled}{$id} = 1;
+    $self->send_message(PLS::Server::Response::Cancelled->new(id => $id));
+
+    return;
+} ## end sub cancel_request
 
 sub stop
 {

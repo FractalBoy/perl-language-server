@@ -115,7 +115,7 @@ sub get_compilation_errors
         $temp = eval { File::Temp->new(CLEANUP => 0, TEMPLATE => '.pls-tmp-XXXXXXXXXX', DIR => $dir) };
         $temp = eval { File::Temp->new(CLEANUP => 0) } if (ref $temp ne 'File::Temp');
         $path = $temp->filename;
-        $future->on_done(sub { unlink $temp });
+        $future->on_ready(sub { unlink $temp });
 
         my $source_text = Encode::encode_utf8($$source);
 
@@ -208,7 +208,7 @@ sub get_compilation_errors
         }
 
         @loadfile = (-e => $code);
-    } ## end else [ if (not length $suffix...)]
+    } ## end else[ if (not length $suffix...)]
 
     my @diagnostics;
 

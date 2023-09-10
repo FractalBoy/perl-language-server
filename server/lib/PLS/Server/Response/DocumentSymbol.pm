@@ -60,7 +60,7 @@ sub on_expire
 
     my $version = PLS::Parser::Document::uri_version($uri);
 
-    return PLS::Parser::DocumentSymbols->get_all_document_symbols_async($uri)->on_done(
+    return PLS::Parser::DocumentSymbols->get_all_document_symbols_async($uri)->then(
         sub {
             my ($symbols) = @_;
 
@@ -74,12 +74,11 @@ sub on_expire
 
             $self->{result} = $symbols;
             $future->done($self);
-        }
-      )->on_fail(
+        },
         sub {
             $future->done($self);
         }
-      );
+    );
 } ## end sub on_expire
 
 1;

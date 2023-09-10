@@ -3,7 +3,7 @@ package PLS::Server::Response::Cancelled;
 use strict;
 use warnings;
 
-use parent q(PLS::Server::Response);
+use parent 'PLS::Server::Response';
 
 =head1 NAME
 
