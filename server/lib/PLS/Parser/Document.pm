@@ -438,24 +438,22 @@ sub find_pod
         } ## end if (($package, $import...))
         if (($package, $subroutine) = $element->class_method_package_and_name())
         {
-            my $pod =
-              PLS::Parser::Pod::ClassMethod->new(
-                                                 index      => $self->{index},
-                                                 element    => $element,
-                                                 packages   => [$package],
-                                                 subroutine => $subroutine
-                                                );
+            my $pod = PLS::Parser::Pod::ClassMethod->new(
+                                                         index      => $self->{index},
+                                                         element    => $element,
+                                                         packages   => [$package],
+                                                         subroutine => $subroutine
+                                                        );
             my $ok = $pod->find();
             return (1, $pod) if $ok;
         } ## end if (($package, $subroutine...))
         if ($subroutine = $element->method_name())
         {
-            my $pod =
-              PLS::Parser::Pod::Method->new(
-                                            index      => $self->{index},
-                                            element    => $element,
-                                            subroutine => $subroutine
-                                           );
+            my $pod = PLS::Parser::Pod::Method->new(
+                                                    index      => $self->{index},
+                                                    element    => $element,
+                                                    subroutine => $subroutine
+                                                   );
             my $ok = $pod->find();
             return (1, $pod) if $ok;
         } ## end if ($subroutine = $element...)
@@ -463,26 +461,24 @@ sub find_pod
         {
             my @packages = length $package ? ($package) : ();
 
-            my $pod =
-              PLS::Parser::Pod::Subroutine->new(
-                                                uri              => $uri,
-                                                index            => $self->{index},
-                                                element          => $element,
-                                                packages         => \@packages,
-                                                subroutine       => $subroutine,
-                                                include_builtins => 1
-                                               );
+            my $pod = PLS::Parser::Pod::Subroutine->new(
+                                                        uri              => $uri,
+                                                        index            => $self->{index},
+                                                        element          => $element,
+                                                        packages         => \@packages,
+                                                        subroutine       => $subroutine,
+                                                        include_builtins => 1
+                                                       );
             my $ok = $pod->find();
             return (1, $pod) if $ok;
         } ## end if (($package, $subroutine...))
         if ($variable = $element->variable_name())
         {
-            my $pod =
-              PLS::Parser::Pod::Variable->new(
-                                              index    => $self->{index},
-                                              element  => $element,
-                                              variable => $variable
-                                             );
+            my $pod = PLS::Parser::Pod::Variable->new(
+                                                      index    => $self->{index},
+                                                      element  => $element,
+                                                      variable => $variable
+                                                     );
             my $ok = $pod->find();
             return (1, $pod) if $ok;
         } ## end if ($variable = $element...)
@@ -521,9 +517,8 @@ sub find_elements_at_location
     );
 
     my @matches = $find->in($self->{document});
-    @matches =
-      sort { (abs $column_number - $a->column_number) <=> (abs $column_number - $b->column_number) } @matches;
-    @matches = map { PLS::Parser::Element->new(document => $self->{document}, element => $_, file => $self->{path}) } @matches;
+    @matches = sort { (abs $column_number - $a->column_number) <=> (abs $column_number - $b->column_number) } @matches;
+    @matches = map  { PLS::Parser::Element->new(document => $self->{document}, element => $_, file => $self->{path}) } @matches;
     return @matches;
 } ## end sub find_elements_at_location
 
@@ -655,6 +650,7 @@ sub go_to_variable_definition
                     {
                         if (blessed($child->snext_sibling) and $child->snext_sibling->isa('PPI::Token::Symbol') and $child->snext_sibling->symbol eq $variable)
                         {
+
                             #$declaration = $child->snext_sibling;
                             $declaration = $cursor;
                             last OUTER;
@@ -1150,6 +1146,7 @@ sub format_range
 
     if (ref $range eq 'HASH')
     {
+
         # if we've selected up until the first character of the next line,
         # just format up to the line before that
         $range->{end}{line}-- if ($range->{end}{character} == 0);
@@ -1185,7 +1182,7 @@ sub format_range
 
     my $formatted = '';
     my $stderr    = '';
-    my $argv      = '-se';
+    my $argv      = '-se -nst';
     if (length $args{formatting_options}{tabSize})
     {
         $argv .= $args{formatting_options}{insertSpaces} ? ' -i=' : ' -et=';
@@ -1392,9 +1389,8 @@ sub find_word_under_cursor
     my ($self, $line, $character) = @_;
 
     my @elements = $self->find_elements_at_location($line, $character);
-    @elements = map { $_->tokens } @elements;
-    @elements =
-      sort { (abs $character - $a->lsp_column_number) <=> (abs $character - $b->lsp_column_number) } @elements;
+    @elements = map  { $_->tokens } @elements;
+    @elements = sort { (abs $character - $a->lsp_column_number) <=> (abs $character - $b->lsp_column_number) } @elements;
     my @in_range  = grep { $_->lsp_column_number <= $character and $_->lsp_column_number + length($_->content) >= $character } @elements;
     my $predicate = sub {
              $_->type eq 'PPI::Token::Word'
@@ -1496,6 +1492,7 @@ sub find_word_under_cursor
 
     if (not blessed($element) or not $element->isa('PLS::Parser::Element'))
     {
+
         # Let's see if PPI thinks that we're typing the start of a Regexp operator.
         my $regexp = first { $_->element->isa('PPI::Token::Regexp') } @elements;
         if (
@@ -1511,6 +1508,7 @@ sub find_word_under_cursor
 
     if (not blessed($element) or not $element->isa('PLS::Parser::Element'))
     {
+
         # Let's see if PPI thinks that we're typing the start of a quote operator.
         my $literal     = first { $_->type eq 'PPI::Token::Quote::Literal' } @elements;
         my $interpolate = first { $_->type eq 'PPI::Token::Quote::Interpolate' } @elements;
@@ -1907,7 +1905,7 @@ sub _pad_imports
     my @imports = @_;
 
     # Newlines between the imports
-    @imports = map { $_, PPI::Token::Whitespace->new("\n") } @imports;
+    @imports = map { ($_, PPI::Token::Whitespace->new("\n")) } @imports;
 
     # An extra newline at the end of the section
     push @imports, PPI::Token::Whitespace->new("\n");
