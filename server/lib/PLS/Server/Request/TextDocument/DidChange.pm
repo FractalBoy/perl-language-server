@@ -51,12 +51,12 @@ sub service
         $timers{$uri} = IO::Async::Timer::Countdown->new(
             delay     => 2,
             on_expire => sub {
+                delete $timers{$uri};
+
                 $server->send_server_request(PLS::Server::Request::TextDocument::PublishDiagnostics->new(uri => $uri));
 
                 my $index = PLS::Parser::Index->new();
                 $index->index_files($uri)->get();
-
-                delete $timers{$uri};
             },
             remove_on_expire => 1
         );
@@ -64,7 +64,7 @@ sub service
         my $loop = IO::Async::Loop->new();
         $loop->add($timers{$uri});
         $timers{$uri}->start();
-    } ## end else [ if (ref $timers{$uri} ...)]
+    } ## end else[ if (ref $timers{$uri} ...)]
 
     return;
 } ## end sub service
