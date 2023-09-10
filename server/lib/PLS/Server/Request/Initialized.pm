@@ -61,7 +61,7 @@ sub service
     $server->send_server_request(PLS::Server::Request::Client::RegisterCapability->new(\@capabilities));
 
     # Now is a good time to start indexing files.
-    $self->index_files($index, $server);
+    $self->index_files($index, $server)->get();
 
     return;
 } ## end sub service
@@ -72,24 +72,18 @@ sub index_files
 
     if ($PLS::Server::State::CLIENT_CAPABILITIES->{window}{workDoneProgress})
     {
-        $self->index_files_with_progress($index, $server);
-    }
-    else
-    {
-        $self->index_files_without_progress($index);
+        return $self->index_files_with_progress($index, $server);
     }
 
-    return;
+    return $self->index_files_without_progress($index);
 } ## end sub index_files
 
 sub index_files_without_progress
 {
     my (undef, $index) = @_;
 
-    $index->index_files()->then(sub { Future->wait_all(@_) })->retain();
-
-    return;
-} ## end sub index_files_without_progress
+    return $index->index_files();
+}
 
 sub index_files_with_progress
 {
@@ -108,16 +102,15 @@ sub index_files_with_progress
                                                                     )
                                 );
 
-    $index->index_files()->then(
+    return $index->index_files()->then(
         sub {
             my @futures = @_;
 
             my $done  = 0;
             my $total = scalar @futures;
 
-            foreach my $future (@futures)
-            {
-                $future->then(
+            @futures = map {
+                $_->then(
                     sub {
                         my ($file) = @_;
 
@@ -133,8 +126,8 @@ sub index_files_with_progress
                                                                                         )
                                                     );
                     }
-                )->retain();
-            } ## end foreach my $future (@futures...)
+                )
+            } @futures;
 
             return Future->wait_all(@futures)->then(
                 sub {
@@ -149,9 +142,7 @@ sub index_files_with_progress
                 }
             );
         }
-    )->retain();
-
-    return;
+    );
 } ## end sub index_files_with_progress
 
 1;

@@ -127,8 +127,8 @@ sub index_files
 
             my @futures;
 
-            my %open_files = map { $_ => 1 } PLS::Parser::Document->open_files();
             require PLS::Parser::Document;
+            my %open_files = map { $_ => 1 } PLS::Parser::Document->open_files();
 
             foreach my $uri (@{$uris})
             {
@@ -176,9 +176,9 @@ sub index_files
                 );
             } ## end foreach my $uri (@{$uris})
 
-            return Future->done(@futures);
+            return Future->wait_all(@futures);
         }
-    )->retain();
+    );
 } ## end sub index_files
 
 sub get_all_perl_files_async
@@ -222,15 +222,13 @@ sub index_workspace
 
     push @{$self->workspace_folders}, $path;
 
-    $self->get_all_perl_files_async($path)->then(
+    return $self->get_all_perl_files_async($path)->then(
         sub {
             my ($workspace_uris) = @_;
 
             return $self->index_files(@{$workspace_uris});
         }
-    )->then(sub { Future->wait_all(@_) })->retain();
-
-    return;
+    );
 } ## end sub index_workspace
 
 sub cleanup_file
@@ -497,7 +495,7 @@ sub get_packages
 
     my $file = URI->new($uri)->file;
     $file = readlink $file if (-l $file);
-    $uri = URI::file->new($file)->as_string();
+    $uri  = URI::file->new($file)->as_string();
 
     while ($$text =~ /$rx/g)
     {
@@ -538,7 +536,7 @@ sub get_subroutines
 
     my $file = URI->new($uri)->file;
     $file = readlink $file if (-l $file);
-    $uri = URI::file->new($file)->as_string();
+    $uri  = URI::file->new($file)->as_string();
 
     # Stolen mostly from PPR definition for PerlSubroutineDeclaration
     state $sub_rx = qr/

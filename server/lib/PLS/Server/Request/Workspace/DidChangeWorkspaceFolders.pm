@@ -35,11 +35,15 @@ sub service
         $index->deindex_workspace($path);
     }
 
+    my @futures;
+
     foreach my $folder (@{$added})
     {
         my $path = URI->new($folder->{uri})->file;
-        $index->index_workspace($path);
+        push @futures, $index->index_workspace($path);
     }
+
+    Future->wait_all(@futures)->get();
 
     return;
 } ## end sub service

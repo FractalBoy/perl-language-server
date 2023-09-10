@@ -33,14 +33,15 @@ sub new
     my $uri = $request->{params}{textDocument}{uri};
 
     # Delay document symbols by a couple of seconds to allow cancelling before processing starts.
-    my $future = Future->new();
+    my $loop   = IO::Async::Loop->new();
+    my $future = $loop->new_future();
     my $timer = IO::Async::Timer::Countdown->new(
                                                  delay            => 2,
-                                                 on_expire        => sub { $self->on_expire($uri, $future) },
+                                                 on_expire        => sub { $self->on_expire($uri, $future)->get() },
                                                  remove_on_expire => 1
                                                 );
 
-    IO::Async::Loop->new->add($timer->start());
+    $loop->add($timer->start());
 
     # When the future is canceled, make sure to stop the timer so that it never actually starts generating document symbols.
     $future->on_cancel(
@@ -59,7 +60,7 @@ sub on_expire
 
     my $version = PLS::Parser::Document::uri_version($uri);
 
-    PLS::Parser::DocumentSymbols->get_all_document_symbols_async($uri)->on_done(
+    return PLS::Parser::DocumentSymbols->get_all_document_symbols_async($uri)->on_done(
         sub {
             my ($symbols) = @_;
 
@@ -78,7 +79,7 @@ sub on_expire
         sub {
             $future->done($self);
         }
-    )->retain();
+      );
 } ## end sub on_expire
 
 1;

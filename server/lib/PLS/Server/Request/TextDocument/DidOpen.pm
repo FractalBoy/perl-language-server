@@ -32,7 +32,7 @@ sub service
     # Warm up the cache for imported package symbols
     my $text    = PLS::Parser::Document->text_from_uri($text_document->{uri});
     my $imports = PLS::Parser::Document->get_imports($text);
-    PLS::Parser::PackageSymbols::get_imported_package_symbols($PLS::Server::State::CONFIG, @{$imports})->retain();
+    PLS::Parser::PackageSymbols::get_imported_package_symbols($PLS::Server::State::CONFIG, @{$imports})->get();
 
     return;
 } ## end sub service
