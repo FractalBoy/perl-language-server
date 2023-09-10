@@ -17,10 +17,10 @@ sub new
     pipe my $server_read_fh, my $client_write_fh;
     pipe my $client_err_fh,  my $server_err_fh;
 
-    # $client_read_fh->autoflush();
-    # $client_write_fh->autoflush();
-    # $server_read_fh->autoflush();
-    # $server_write_fh->autoflush();
+    $client_read_fh->autoflush();
+    $client_write_fh->autoflush();
+    $server_read_fh->autoflush();
+    $server_write_fh->autoflush();
 
     my $pid = fork;
 
@@ -28,6 +28,7 @@ sub new
     {
         close $server_read_fh;
         close $server_write_fh;
+        close $server_err_fh;
 
         my $self = {
                     pid       => $pid,
@@ -48,8 +49,8 @@ sub new
 
         open STDOUT, '>&', $server_write_fh;
         open STDIN,  '>&', $server_read_fh;
-
         open STDERR, '>&', $server_err_fh;
+
         my $server = PLS::Server->new();
         exit $server->run();
     } ## end else[ if ($pid)]
@@ -121,7 +122,14 @@ sub send_raw_message
 {
     my ($self, $message) = @_;
 
-    syswrite $self->{write_fh}, $message;
+    if (IO::Select->new($self->{write_fh})->can_write(10))
+    {
+        syswrite $self->{write_fh}, $message;
+    }
+    else
+    {
+        die "failed write: $!";
+    }
 
     return;
 } ## end sub send_raw_message

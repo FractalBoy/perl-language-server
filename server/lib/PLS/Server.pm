@@ -55,37 +55,29 @@ sub run
     $self->{stream} = IO::Async::Stream->new_for_stdio(
         autoflush => 0,
         on_read   => sub {
-            my $size = 0;
+            my ($stream, $buffref, $eof) = @_;
 
-            return sub {
-                my ($stream, $buffref, $eof) = @_;
+            exit if $eof;
 
-                exit if $eof;
+            while (${$buffref} =~ s/^(.*?)\r\n\r\n//gs)
+            {
+                my %headers = map { split /: / } grep { length } split /\r\n/, $1;
+                my $size    = $headers{'Content-Length'};
+                die 'No Content-Length header provided' unless $size;
 
-                unless ($size)
-                {
-                    return 0 unless ($$buffref =~ s/^(.*?)\r\n\r\n//s);
-                    my $headers = $1;
+                return 1 if (length(${$buffref}) < $size);
 
-                    my %headers = map { split /: / } grep { length } split /\r\n/, $headers;
-                    $size = $headers{'Content-Length'};
-                    die 'no Content-Length header provided' unless $size;
-                } ## end unless ($size)
-
-                return 0 if (length($$buffref) < $size);
-
-                my $json = substr $$buffref, 0, $size, '';
-                $size = 0;
-
+                my $json    = substr ${$buffref}, 0, $size, '';
                 my $content = decode_json $json;
-
                 $self->handle_client_message($content);
-                return 1;
-            };
+            } ## end while (${$buffref} =~ s/^(.*?)\r\n\r\n//gs...)
+
+            return 0;
         }
     );
 
     $self->{loop}->add($self->{stream});
+
     $self->{loop}->add(
                        IO::Async::Signal->new(name       => 'TERM',
                                               on_receipt => sub { $self->stop(0) })
@@ -234,8 +226,8 @@ sub cancel_request
     my ($self, $id) = @_;
 
     return unless $self->{pending_client_requests}{$id};
-
     delete $self->{pending_client_requests}{$id};
+
     $self->send_message(PLS::Server::Response::Cancelled->new(id => $id));
 
     return;
