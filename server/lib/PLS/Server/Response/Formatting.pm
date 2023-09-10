@@ -28,6 +28,9 @@ my $function = IO::Async::Function->new(
     code => sub {
         my ($self, $request, $text, $perltidyrc) = @_;
 
+        # Artificially slow down formatting so that we can cancel in testing
+        sleep 10 if $request->{params}{_testing};
+
         my ($ok, $formatted) = PLS::Parser::Document->format(text => $text, formatting_options => $request->{params}{options}, perltidyrc => $perltidyrc);
         return $ok, $formatted;
     }

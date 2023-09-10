@@ -261,12 +261,17 @@ subtest 'cancel request' => sub {
     my $cancel = slurp('cancel.json');
     $format->{params}{textDocument}{uri} = $uri;
 
+    # setting _testing makes formatting artificially slower
+    $format->{params}{_testing} = JSON::PP::true;
+
     $cancel->{params}{id} = $format->{id};
 
     # request formatting and then cancel immediately.
     # should receive a response that the request was canceled.
     $comm->send_message($format);
+    sleep 1;    # not sure why this sleep is needed but the test fails without it
     $comm->send_message($cancel);
+
     my $response = $comm->recv_message();
 
     ok(valid_response($response), 'valid response');

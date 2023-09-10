@@ -170,7 +170,7 @@ sub index_files
 
                         } ## end foreach my $ref (keys %{$subs...})
 
-                        return Future->done($file);
+                        return $file;
                     }
                 );
             } ## end foreach my $uri (@{$uris})

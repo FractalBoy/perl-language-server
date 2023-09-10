@@ -87,15 +87,15 @@ sub new
             # Since the only way we got here is if the document is open, we
             # should return nothing, since any diagnostics we return will be from
             # when the document was still open.
-            return Future->done(undef) unless (length $current_version);
+            return unless (length $current_version);
 
             # If the document has been updated since the diagnostics were created,
             # send nothing back. The next update will re-trigger the diagnostics.
-            return Future->done(undef) if (length $version and $current_version > $version);
+            return if (length $version and $current_version > $version);
 
             @{$self->{params}{diagnostics}} = map { $_->result } @_;
 
-            return Future->done($self);
+            return $self;
         }
     );
 } ## end sub new

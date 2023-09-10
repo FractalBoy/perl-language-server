@@ -40,10 +40,11 @@ sub new
 
     return
       bless {
-             loop             => IO::Async::Loop->new(),
-             stream           => undef,
-             cancelled        => {},
-             pending_requests => {}
+             loop                    => IO::Async::Loop->new(),
+             stream                  => undef,
+             cancelled               => {},
+             pending_client_requests => {},
+             pending_server_requests => {}
             }, $class;
 } ## end sub new
 
@@ -163,6 +164,7 @@ sub handle_client_request
 {
     my ($self, $request) = @_;
 
+    $self->{pending_client_requests}{$request->{id}} = 1;
     my $response = $request->service($self);
 
     if (blessed($response))
@@ -173,16 +175,14 @@ sub handle_client_request
         }
         elsif ($response->isa('Future'))
         {
+            return unless $self->{pending_client_requests}{$request->{id}};
+
             $response = $response->get();
 
-            if ($self->{cancelled}{$request->{id}})
-            {
-                delete $self->{cancelled}{$request->{id}};
-            }
-            else
-            {
-                $self->send_message($response);
-            }
+            return unless $self->{pending_client_requests}{$request->{id}};
+            delete $self->{pending_client_requests}{$request->{id}};
+
+            $self->send_message($response);
         } ## end elsif ($response->isa('Future'...))
     } ## end if (blessed($response)...)
 
@@ -193,7 +193,7 @@ sub handle_client_response
 {
     my ($self, $response) = @_;
 
-    my $request = $self->{pending_requests}{$response->{id}};
+    my $request = $self->{pending_server_requests}{$response->{id}};
 
     if (blessed($request) and $request->isa('PLS::Server::Request'))
     {
@@ -214,7 +214,7 @@ sub handle_server_request
     else
     {
         $request->{id} = ++$self->{last_request_id};
-        $self->{pending_requests}{$request->{id}} = $request;
+        $self->{pending_server_requests}{$request->{id}} = $request;
     }
 
     $self->send_message($request);
@@ -233,7 +233,9 @@ sub cancel_request
 {
     my ($self, $id) = @_;
 
-    $self->{cancelled}{$id} = 1;
+    return unless $self->{pending_client_requests}{$id};
+
+    delete $self->{pending_client_requests}{$id};
     $self->send_message(PLS::Server::Response::Cancelled->new(id => $id));
 
     return;

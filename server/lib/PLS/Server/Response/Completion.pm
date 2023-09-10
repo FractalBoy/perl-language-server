@@ -82,7 +82,7 @@ sub new
             push @futures, get_imported_package_functions($document, $full_text) unless $arrow;
         } ## end if ($filter)
 
-    } ## end else [ if ($filter =~ /^[\$\@\%]/...)]
+    } ## end else[ if ($filter =~ /^[\$\@\%]/...)]
 
     push @results, @{Future->wait_all(@futures)->then(
             sub {
@@ -150,7 +150,7 @@ sub get_package_functions
         sub {
             my ($functions) = @_;
 
-            return Future->done([]) if (ref $functions ne 'HASH');
+            return [] if (ref $functions ne 'HASH');
 
             my $separator = $arrow ? '->' : '::';
             my @functions;
@@ -191,7 +191,7 @@ sub get_package_functions
                 } ## end foreach my $name (@{$functions...})
             } ## end foreach my $package_name (keys...)
 
-            return Future->done(\@functions);
+            return \@functions;
         }
     );
 } ## end sub get_package_functions
@@ -224,7 +224,7 @@ sub get_imported_package_functions
                     push @results, $result;
                 } ## end foreach my $subroutine (@{$imported_functions...})
             } ## end foreach my $package_name (keys...)
-            return Future->done(\@results);
+            return \@results;
         }
     );
 } ## end sub get_imported_package_functions
