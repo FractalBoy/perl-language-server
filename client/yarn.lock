@@ -1099,10 +1099,10 @@
   dependencies:
     "@types/node" "*"
 
-"@types/vscode@^1.50.0":
-  version "1.50.0"
-  resolved "https://registry.yarnpkg.com/@types/vscode/-/vscode-1.50.0.tgz#9f409d9dce22ebc11e2fcdd28fabd1917a961bb7"
-  integrity sha512-QnIeyi4L2DiD9M2bAQKRzT/EQvc80qP9UL6JD5TiLlNRL1khIDg4ej4mDSRbtFrDAsRntFI1RhMvdomUThMsqg==
+"@types/vscode@^1.84.0":
+  version "1.84.0"
+  resolved "https://registry.yarnpkg.com/@types/vscode/-/vscode-1.84.0.tgz#801e3a546a4c8ccb197b191ec9ff7b4f4da2dce0"
+  integrity sha512-lCGOSrhT3cL+foUEqc8G1PVZxoDbiMmxgnUZZTEnHF4mC47eKAUtBGAuMLY6o6Ua8PAuNCoKXbqPmJd1JYnQfg==
 
 "@typescript-eslint/eslint-plugin@^4.1.1":
   version "4.4.1"
