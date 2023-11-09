@@ -1,0 +1,9 @@
+{
+    "[javascript]": {
+        "editor.tabSize": 2
+    },
+    "[json]": {
+        "editor.tabSize": 2
+    },
+    "prettier.singleQuote": true
+}
