@@ -40,15 +40,13 @@ sub new
         if ($ok)
         {
             $self->{result} = $request->{params};
-            $self->{result}{documentation} =
-              {kind => 'markdown', value => ${$pod->{markdown}}};
-        } ## end if ($ok)
+            $self->{result}{documentation} = {kind => 'markdown', value => ${$pod->{markdown}}};
+        }
     } ## end if ($kind == 6)
     elsif ($kind == 7)
     {
-        my $pod = PLS::Parser::Pod::Package->new(index   => $index,
-                                                 package => $request->{params}{label});
-        my $ok = $pod->find();
+        my $pod = PLS::Parser::Pod::Package->new(index => $index, package => $request->{params}{label});
+        my $ok  = $pod->find();
 
         if ($ok)
         {
@@ -61,23 +59,15 @@ sub new
     {
         my ($package, $subroutine);
 
-        if ($request->{params}{label} =~ /->/
-            or ($request->{params}{sortText} // '') =~ /->/)
+        if ($request->{params}{label} =~ /->/ or ($request->{params}{sortText} // '') =~ /->/)
         {
-            my $label =
-                $request->{params}{label} =~ /->/
-              ? $request->{params}{label}
-              : $request->{params}{sortText};
+            my $label = $request->{params}{label} =~ /->/ ? $request->{params}{label} : $request->{params}{sortText};
             ($package, $subroutine) = split /->/, $label;
             $package = [$package];
         } ## end if ($request->{params}...)
-        elsif ($request->{params}{label} =~ /::/
-               or ($request->{params}{filterText} // '') =~ /::/)
+        elsif ($request->{params}{label} =~ /::/ or ($request->{params}{filterText} // '') =~ /::/)
         {
-            my $label =
-                $request->{params}{label} =~ /::/
-              ? $request->{params}{label}
-              : $request->{params}{filterText};
+            my $label = $request->{params}{label} =~ /::/ ? $request->{params}{label} : $request->{params}{filterText};
             my @parts = split /::/, $label;
             $subroutine = pop @parts;
             $package    = [join '::', @parts];
@@ -89,19 +79,14 @@ sub new
               if (ref $request->{params}{data} eq 'ARRAY');
         } ## end else[ if ($request->{params}...)]
 
-        my $pod = PLS::Parser::Pod::Subroutine->new(
-                                                    index      => $index,
-                                                    packages   => $package,
-                                                    subroutine => $subroutine
-                                                   );
-        my $ok = $pod->find();
+        my $pod = PLS::Parser::Pod::Subroutine->new(index => $index, packages => $package, subroutine => $subroutine);
+        my $ok  = $pod->find();
 
         if ($ok)
         {
             $self->{result} = $request->{params};
-            $self->{result}{documentation} =
-              {kind => 'markdown', value => ${$pod->{markdown}}};
-        } ## end if ($ok)
+            $self->{result}{documentation} = {kind => 'markdown', value => ${$pod->{markdown}}};
+        }
     } ## end elsif ($kind == 3 or $kind...)
     elsif ($kind == 14)
     {
@@ -111,9 +96,8 @@ sub new
         if ($ok)
         {
             $self->{result} = $request->{params};
-            $self->{result}{documentation} =
-              {kind => 'markdown', value => ${$pod->{markdown}}};
-        } ## end if ($ok)
+            $self->{result}{documentation} = {kind => 'markdown', value => ${$pod->{markdown}}};
+        }
     } ## end elsif ($kind == 14)
 
     return $self;

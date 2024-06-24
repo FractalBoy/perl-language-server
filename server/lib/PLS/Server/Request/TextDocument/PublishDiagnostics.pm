@@ -71,20 +71,16 @@ sub new
     $source = $text if (ref $text eq 'SCALAR');
     my $version                    = PLS::Parser::Document::uri_version($uri->as_string);
     my $client_has_version_support = $PLS::Server::State::CLIENT_CAPABILITIES->{textDocument}{publishDiagnostics}{versionSupport};
-    $self->{params}{version} = $version
-      if (length $version and $client_has_version_support);
+    $self->{params}{version} = $version if (length $version and $client_has_version_support);
 
     # If closing, return empty list of diagnostics.
     return Future->done($self) if $args{close};
 
     my @futures;
 
-    push @futures, get_compilation_errors($source, $dir, $uri->file, $suffix)
-      if ($PLS::Server::State::CONFIG->{syntax}{enabled});
-    push @futures, get_perlcritic_errors($source, $uri->file)
-      if ($PLS::Server::State::CONFIG->{perlcritic}{enabled});
-    push @futures, get_podchecker_errors($source)
-      if ($PLS::Server::State::CONFIG->{podchecker}{enabled});
+    push @futures, get_compilation_errors($source, $dir, $uri->file, $suffix) if ($PLS::Server::State::CONFIG->{syntax}{enabled});
+    push @futures, get_perlcritic_errors($source, $uri->file)                 if ($PLS::Server::State::CONFIG->{perlcritic}{enabled});
+    push @futures, get_podchecker_errors($source)                             if ($PLS::Server::State::CONFIG->{podchecker}{enabled});
 
     return Future->wait_all(@futures)->then(
         sub {
@@ -98,8 +94,7 @@ sub new
 
             # If the document has been updated since the diagnostics were created,
             # send nothing back. The next update will re-trigger the diagnostics.
-            return Future->done(undef)
-              if (length $version and $current_version > $version);
+            return Future->done(undef) if (length $version and $current_version > $version);
 
             @{$self->{params}{diagnostics}} = map { $_->result } @_;
 
@@ -120,9 +115,8 @@ sub get_compilation_errors
 
     if (ref $source eq 'SCALAR')
     {
-        $temp = eval { File::Temp->new(CLEANUP => 0, TEMPLATE => '.pls-tmp-XXXXXXXXXX', DIR => $dir); };
-        $temp = eval { File::Temp->new(CLEANUP => 0) }
-          if (ref $temp ne 'File::Temp');
+        $temp = eval { File::Temp->new(CLEANUP => 0, TEMPLATE => '.pls-tmp-XXXXXXXXXX', DIR => $dir) };
+        $temp = eval { File::Temp->new(CLEANUP => 0) } if (ref $temp ne 'File::Temp');
         $path = $temp->filename;
         $future->on_done(sub { unlink $temp });
 
@@ -150,13 +144,10 @@ sub get_compilation_errors
 
     my @loadfile;
 
-    if (   not length $suffix
-        or $suffix eq '.pl'
-        or $suffix eq '.t'
-        or $suffix eq '.plx')
+    if (not length $suffix or $suffix eq '.pl' or $suffix eq '.t' or $suffix eq '.plx')
     {
         @loadfile = (-c => $path);
-    } ## end if (not length $suffix...)
+    }
     elsif ($suffix eq '.pod')
     {
         $future->done();
@@ -244,10 +235,9 @@ sub get_compilation_errors
 
                         if ($file ne $path and $file ne $orig_path)
                         {
-                            $error .= " at $file line $line_num"
-                              if ($file ne '-e');
+                            $error .= " at $file line $line_num" if ($file ne '-e');
                             $line_num = 1;
-                        } ## end if ($file ne $path and...)
+                        }
 
                         if (length $area)
                         {
@@ -269,10 +259,7 @@ sub get_compilation_errors
                           {
                             range => {
                                       start => {line => $line_num - 1, character => 0},
-                                      end   => {
-                                              line      => $line_num - 1,
-                                              character => $line_lengths->[$line_num]
-                                             }
+                                      end   => {line => $line_num - 1, character => $line_lengths->[$line_num]}
                                      },
                             message  => $error,
                             severity => 1,
@@ -361,14 +348,8 @@ sub run_perlcritic
         push @diagnostics,
           {
             range => {
-                      start => {
-                                line      => $violation->line_number - 1,
-                                character => $violation->column_number - 1
-                               },
-                      end => {
-                              line      => $violation->line_number - 1,
-                              character => $violation->column_number + length($violation->source) - 1
-                             }
+                      start => {line => $violation->line_number - 1, character => $violation->column_number - 1},
+                      end   => {line => $violation->line_number - 1, character => $violation->column_number + length($violation->source) - 1}
                      },
             message         => $violation->description,
             code            => $violation->policy,
@@ -430,10 +411,7 @@ sub run_podchecker
               {
                 range => {
                           start => {line => $line_num - 1, character => 0},
-                          end   => {
-                                  line      => $line_num - 1,
-                                  character => $line_lengths->[$line_num]
-                                 }
+                          end   => {line => $line_num - 1, character => $line_lengths->[$line_num]}
                          },
                 message  => $error,
                 severity => $severity eq 'ERROR' ? 1 : 2,
