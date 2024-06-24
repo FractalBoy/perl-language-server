@@ -35,7 +35,7 @@ sub service
     $workspace_folders = [] if (ref $workspace_folders ne 'ARRAY');
     @{$workspace_folders} = map { $_->{uri} } @{$workspace_folders};
     push @{$workspace_folders}, $root_uri if (not scalar @{$workspace_folders} and length $root_uri);
-    @{$workspace_folders} = map { URI->new($_)->file } @{$workspace_folders};
+    @{$workspace_folders} = map { $_->file } grep { $_->can('file') } map { URI->new($_) } @{$workspace_folders};
 
     # Create and cache index object
     PLS::Parser::Index->new(workspace_folders => $workspace_folders);
