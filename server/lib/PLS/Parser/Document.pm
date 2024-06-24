@@ -203,7 +203,7 @@ sub search_elements_for_definition
 
                     my $external = $self->find_external_package($package);
                     return [$external] if (ref $external eq 'HASH');
-                } ## end else [ if (ref $self->{index}...)]
+                } ## end else[ if (ref $self->{index}...)]
             } ## end if ($match->cursor_on_package...)
 
             if (length $package)
@@ -220,7 +220,7 @@ sub search_elements_for_definition
                         my $found = first { $_->name eq $subroutine } @this_files_subroutines;
                         return {uri => $self->{uri}, range => $found->range} if (blessed($found) and $found->isa('PLS::Parser::Element'));
                     }
-                } ## end else [ if (ref $self->{index}...)]
+                } ## end else[ if (ref $self->{index}...)]
 
                 my $external = $self->find_external_subroutine($package, $subroutine);
                 return [$external] if (ref $external eq 'HASH');
@@ -292,7 +292,7 @@ sub search_elements_for_definition
                     my $external = $self->find_external_package($package);
                     return [$external] if (ref $external eq 'HASH');
                 }
-            } ## end else [ if (length $import) ]
+            } ## end else[ if (length $import)]
         } ## end if (my ($package, $import...))
         if (my $variable = $match->variable_name())
         {
@@ -322,7 +322,7 @@ sub search_elements_for_definition
 
             $external = $self->find_external_subroutine($package_name, $subroutine_name);
             return [$external] if (ref $external eq 'HASH');
-        } ## end else [ if (ref $self->{index}...)]
+        } ## end else[ if (ref $self->{index}...)]
 
     } ## end if (my $link = $self->...)
 
@@ -387,7 +387,7 @@ sub pod_link
             $link =~ s/^[^<]*\|//;
             $link =~ s/\/[^>]*$//;
             return $link;
-        } ## end while ($line =~ m{ ) (})
+        } ## end while ($line =~ m{ })
 
         last;
     } ## end while (my $line = <$fh>)
@@ -429,7 +429,7 @@ sub find_pod
                     $args{packages}   = [$package];
                     delete $args{package};
                     $class_name = 'PLS::Parser::Pod::Subroutine';
-                } ## end else [ if ($import =~ /^[\$\@\%]/...)]
+                } ## end else[ if ($import =~ /^[\$\@\%]/...)]
             } ## end if (length $import)
 
             my $pod = $class_name->new(%args);
@@ -678,7 +678,7 @@ sub go_to_variable_definition
                         last OUTER;
                     }
                 } ## end foreach my $child ($condition...)
-            } ## end else [ if ($cursor->type eq 'foreach'...)]
+            } ## end else[ if ($cursor->type eq 'foreach'...)]
         } ## end elsif ($cursor->isa('PPI::Statement::Compound'...))
 
         last if $cursor == $document;
@@ -877,7 +877,7 @@ sub get_constants
         );
 
         @matches = $find->in($self->{document});
-    } ## end else [ if (ref $element eq 'PPI::Statement::Include'...)]
+    } ## end else[ if (ref $element eq 'PPI::Statement::Include'...)]
 
     my @constants;
 
@@ -1181,7 +1181,7 @@ sub format_range
                           character => 0
                          }
                  };
-    } ## end else [ if (ref $range eq 'HASH'...)]
+    } ## end else[ if (ref $range eq 'HASH'...)]
 
     my $formatted = '';
     my $stderr    = '';
@@ -1191,7 +1191,25 @@ sub format_range
         $argv .= $args{formatting_options}{insertSpaces} ? ' -i=' : ' -et=';
         $argv .= $args{formatting_options}{tabSize};
     }
-    my ($perltidyrc) = glob $args{perltidyrc};
+
+    my $perltidyrc;
+
+    foreach my $workspace_folder (@{$args{workspace_folders}})
+    {
+        $perltidyrc = $args{perltidyrc} =~ s/\$ROOT_PATH/$workspace_folder/r;
+        ($perltidyrc) = glob $perltidyrc;
+
+        if (length $perltidyrc and -f $perltidyrc)
+        {
+            last;
+        }
+    } ## end foreach my $workspace_folder...
+
+    if (not length $perltidyrc)
+    {
+        ($perltidyrc) = glob $perltidyrc;
+    }
+
     undef $perltidyrc if (not length $perltidyrc or not -f $perltidyrc or not -r $perltidyrc);
     my $error = Perl::Tidy::perltidy(source => \$selection, destination => \$formatted, stderr => \$stderr, perltidyrc => $perltidyrc, argv => $argv);
 
@@ -1242,7 +1260,7 @@ sub format
 {
     my ($class, %args) = @_;
 
-    return $class->format_range(formatting_options => $args{formatting_options}, text => $args{text}, perltidyrc => $args{perltidyrc});
+    return $class->format_range(formatting_options => $args{formatting_options}, text => $args{text}, perltidyrc => $args{perltidyrc}, workspace_folders => $args{workspace_folders});
 }
 
 =head2 _ppi_location
@@ -1278,7 +1296,7 @@ sub text_from_uri
         open my $fh, '<', $file->file or return;
         my $text = do { local $/; <$fh> };
         return \$text;
-    } ## end else [ if (ref $FILES{$uri} eq...)]
+    } ## end else[ if (ref $FILES{$uri} eq...)]
 } ## end sub text_from_uri
 
 sub uri_version
@@ -1857,7 +1875,7 @@ sub sort_imports
             {
                 push @internal_modules, $child;
             }
-        } ## end else [ if ($child->pragma eq ...)]
+        } ## end else[ if ($child->pragma eq ...)]
 
         $child->remove;
     } ## end foreach my $child ($doc->children...)

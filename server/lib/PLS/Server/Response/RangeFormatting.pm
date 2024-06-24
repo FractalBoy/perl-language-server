@@ -26,9 +26,16 @@ after having been formatted.
 my $loop = IO::Async::Loop->new();
 my $function = IO::Async::Function->new(
     code => sub {
-        my ($self, $request, $text, $perltidyrc) = @_;
+        my ($self, $request, $text, $perltidyrc, $workspace_folders) = @_;
 
-        my ($ok, $formatted) = PLS::Parser::Document->format_range(text => $text, range => $request->{params}{range}, formatting_options => $request->{params}{options}, perltidyrc => $perltidyrc);
+        my ($ok, $formatted) =
+          PLS::Parser::Document->format_range(
+                                              text               => $text,
+                                              range              => $request->{params}{range},
+                                              formatting_options => $request->{params}{options},
+                                              perltidyrc         => $perltidyrc,
+                                              workspace_folders  => $workspace_folders
+                                             );
         return $ok, $formatted;
     }
 );
@@ -45,10 +52,11 @@ sub new
         delete $request->{params}{options}{insertFinalNewline};
     } ## end if (ref $request->{params...})
 
-    my $self = bless {id => $request->{id}}, $class;
-    my $text = PLS::Parser::Document->text_from_uri($request->{params}{textDocument}{uri});
+    my $self              = bless {id => $request->{id}}, $class;
+    my $text              = PLS::Parser::Document->text_from_uri($request->{params}{textDocument}{uri});
+    my $workspace_folders = PLS::Parser::Index->new->workspace_folders;
 
-    return $function->call(args => [$self, $request, $text, $PLS::Server::State::CONFIG->{perltidy}{perltidyrc}])->then(
+    return $function->call(args => [$self, $request, $text, $PLS::Server::State::CONFIG->{perltidy}{perltidyrc}, $workspace_folders])->then(
         sub {
             my ($ok, $formatted) = @_;
 
