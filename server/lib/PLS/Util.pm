@@ -19,7 +19,7 @@ Given a path, potentially with ${workspaceFolder} or $ROOT_PATH,
 returns a list of paths with those variables resolved to an actual workspace folder.
 Additionally, any needed globbing will be performed.
 
-The returned list will only contain files that exist.
+The returned list will only contain paths that exist.
 
 =head3 PARAMETERS
 
@@ -71,14 +71,14 @@ sub resolve_workspace_relative_path
 
         if ($no_glob)
         {
-            if (length $resolved and -f $resolved)
+            if (length $resolved and -e $resolved)
             {
                 push @resolved, $resolved;
             }
         } ## end if ($no_glob)
         else
         {
-            push @resolved, grep { length and -f } glob $resolved;
+            push @resolved, grep { length and -e } glob $resolved;
         }
     } ## end foreach my $workspace_folder...
 
