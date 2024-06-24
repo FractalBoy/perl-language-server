@@ -9,8 +9,6 @@ use IO::Async::Loop;
 use IO::Async::Process;
 
 use PLS::JSON;
-use PLS::Parser::Index;
-use PLS::Parser::Pod;
 
 =head1 NAME
 
@@ -52,6 +50,7 @@ sub _start_process
 {
     my ($config, $code) = @_;
 
+    require PLS::Parser::Pod;
     my $perl = PLS::Parser::Pod->get_perl_exe();
     my @inc  = map { "-I$_" } @{$config->{inc}};
     my $args = PLS::Parser::Pod->get_perl_args();
@@ -113,6 +112,8 @@ sub start_imported_package_symbols_process
 sub _get_setup
 {
     my ($config) = @_;
+
+    require PLS::Parser::Index;
 
     # Just use the first workspace folder as ROOT_PATH - we don't know
     # which folder the code will ultimately be in, and it doesn't really matter

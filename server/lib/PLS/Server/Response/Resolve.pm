@@ -9,6 +9,7 @@ use PLS::Parser::Index;
 use PLS::Parser::Pod::Package;
 use PLS::Parser::Pod::Subroutine;
 use PLS::Parser::Pod::Builtin;
+use PLS::Parser::Pod::Variable;
 
 =head1 NAME
 
@@ -21,79 +22,91 @@ about the currently selected completion item.
 
 =cut
 
-sub new
-{
-    my ($class, $request) = @_;
+sub new {
+    my ( $class, $request ) = @_;
 
-    my $self = {id => $request->{id}, result => undef};
+    my $self = { id => $request->{id}, result => undef };
     bless $self, $class;
 
     my $index = PLS::Parser::Index->new();
     my $kind  = $request->{params}{kind};
 
-    if ($kind == 6)
-    {
-        my $pod = PLS::Parser::Pod::Variable->new(variable => $request->{params}{label});
-        my $ok  = $pod->find();
+    if ( $kind == 6 ) {
+        my $pod = PLS::Parser::Pod::Variable->new(
+            variable => $request->{params}{label} );
+        my $ok = $pod->find();
 
-        if ($ok)
-        {
+        if ($ok) {
             $self->{result} = $request->{params};
-            $self->{result}{documentation} = {kind => 'markdown', value => ${$pod->{markdown}}};
+            $self->{result}{documentation} =
+              { kind => 'markdown', value => ${ $pod->{markdown} } };
         }
     } ## end if ($kind == 6)
-    elsif ($kind == 7)
-    {
-        my $pod = PLS::Parser::Pod::Package->new(index => $index, package => $request->{params}{label});
-        my $ok  = $pod->find();
+    elsif ( $kind == 7 ) {
+        my $pod = PLS::Parser::Pod::Package->new(
+            index   => $index,
+            package => $request->{params}{label}
+        );
+        my $ok = $pod->find();
 
-        if ($ok)
-        {
+        if ($ok) {
             $self->{result} = $request->{params};
-            $self->{result}{documentation} = {kind => 'markdown', value => ${$pod->{markdown}}};
+            $self->{result}{documentation} =
+              { kind => 'markdown', value => ${ $pod->{markdown} } };
         }
     } ## end elsif ($kind == 7)
-    elsif ($kind == 3 or $kind == 21)
-    {
-        my ($package, $subroutine);
+    elsif ( $kind == 3 or $kind == 21 ) {
+        my ( $package, $subroutine );
 
-        if ($request->{params}{label} =~ /->/ or ($request->{params}{sortText} // '') =~ /->/)
+        if ( $request->{params}{label} =~ /->/
+            or ( $request->{params}{sortText} // '' ) =~ /->/ )
         {
-            my $label = $request->{params}{label} =~ /->/ ? $request->{params}{label} : $request->{params}{sortText};
-            ($package, $subroutine) = split /->/, $label;
+            my $label =
+                $request->{params}{label} =~ /->/
+              ? $request->{params}{label}
+              : $request->{params}{sortText};
+            ( $package, $subroutine ) = split /->/, $label;
             $package = [$package];
         } ## end if ($request->{params}...)
-        elsif ($request->{params}{label} =~ /::/ or ($request->{params}{filterText} // '') =~ /::/)
+        elsif ( $request->{params}{label} =~ /::/
+            or ( $request->{params}{filterText} // '' ) =~ /::/ )
         {
-            my $label = $request->{params}{label} =~ /::/ ? $request->{params}{label} : $request->{params}{filterText};
+            my $label =
+                $request->{params}{label} =~ /::/
+              ? $request->{params}{label}
+              : $request->{params}{filterText};
             my @parts = split /::/, $label;
             $subroutine = pop @parts;
-            $package    = [join '::', @parts];
+            $package    = [ join '::', @parts ];
         } ## end elsif ($request->{params}...)
-        else
-        {
+        else {
             $subroutine = $request->{params}{label};
-            $package    = $request->{params}{data} if (ref $request->{params}{data} eq 'ARRAY');
+            $package    = $request->{params}{data}
+              if ( ref $request->{params}{data} eq 'ARRAY' );
         }
 
-        my $pod = PLS::Parser::Pod::Subroutine->new(index => $index, packages => $package, subroutine => $subroutine);
-        my $ok  = $pod->find();
+        my $pod = PLS::Parser::Pod::Subroutine->new(
+            index      => $index,
+            packages   => $package,
+            subroutine => $subroutine
+        );
+        my $ok = $pod->find();
 
-        if ($ok)
-        {
+        if ($ok) {
             $self->{result} = $request->{params};
-            $self->{result}{documentation} = {kind => 'markdown', value => ${$pod->{markdown}}};
+            $self->{result}{documentation} =
+              { kind => 'markdown', value => ${ $pod->{markdown} } };
         }
     } ## end elsif ($kind == 3 or $kind...)
-    elsif ($kind == 14)
-    {
-        my $pod = PLS::Parser::Pod::Builtin->new(function => $request->{params}{label});
-        my $ok  = $pod->find();
+    elsif ( $kind == 14 ) {
+        my $pod = PLS::Parser::Pod::Builtin->new(
+            function => $request->{params}{label} );
+        my $ok = $pod->find();
 
-        if ($ok)
-        {
+        if ($ok) {
             $self->{result} = $request->{params};
-            $self->{result}{documentation} = {kind => 'markdown', value => ${$pod->{markdown}}};
+            $self->{result}{documentation} =
+              { kind => 'markdown', value => ${ $pod->{markdown} } };
         }
     } ## end elsif ($kind == 14)
 
