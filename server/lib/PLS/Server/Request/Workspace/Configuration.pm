@@ -82,7 +82,7 @@ sub handle_response
     if (exists $config->{syntax}{perl} and length $config->{syntax}{perl})
     {
         my ($perl) = glob $config->{syntax}{perl};
-        PLS::Parser::Pod->set_perl_exe($config->{syntax}{perl});
+        PLS::Parser::Pod->set_perl_exe($perl);
     }
 
     if (exists $config->{syntax}{args} and ref $config->{syntax}{args} eq 'ARRAY' and scalar @{$config->{syntax}{args}})
