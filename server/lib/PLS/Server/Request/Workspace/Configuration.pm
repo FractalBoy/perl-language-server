@@ -69,7 +69,6 @@ sub handle_response
     my $index = PLS::Parser::Index->new();
     my @inc;
 
-    # Replace $ROOT_PATH with actual workspace paths in inc
     if (exists $config->{inc} and ref $config->{inc} eq 'ARRAY')
     {
         foreach my $inc (@{$config->{inc}})
