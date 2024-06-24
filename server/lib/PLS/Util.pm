@@ -23,7 +23,7 @@ sub resolve_workspace_relative_path
     foreach my $workspace_folder (@{$workspace_folders})
     {
         my $resolved = $path =~ s/\$ROOT_PATH/$workspace_folder/r;
-        $resolved =~ s/\Q\${workspaceFolder}\E/$workspace_folder/;
+        $resolved =~ s/\$\{workspaceFolder\}/$workspace_folder/;
 
         if (not $no_glob)
         {

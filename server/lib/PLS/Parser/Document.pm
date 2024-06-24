@@ -122,7 +122,7 @@ sub find_current_list
 
     # Find the nearest list structure that completely surrounds the column.
     return first { $_->lsp_column_number < $column_number and $column_number < $_->lsp_column_number + length($_->content) }
-      sort { abs($column_number - $a->lsp_column_number) - abs($column_number - $b->lsp_column_number) }
+      sort { (abs $column_number - $a->lsp_column_number) - (abs $column_number - $b->lsp_column_number) }
       map  { PLS::Parser::Element->new(element => $_, document => $self->{document}, file => $self->{path}) }
       map  { $find->in($_->element) } @elements;
 } ## end sub find_current_list
@@ -245,7 +245,7 @@ sub search_elements_for_definition
                 my $results = $self->{index}->find_package_subroutine($class, $method);
 
                 # fall back to treating as a method instead of class method
-                return $results if (ref $results eq 'ARRAY' and scalar @$results);
+                return $results if (ref $results eq 'ARRAY' and scalar @{$results});
             } ## end if (ref $self->{index}...)
             else
             {
@@ -748,7 +748,7 @@ sub update_file
     {
         if (ref $change->{range} eq 'HASH')
         {
-            my @lines       = _split_lines($$file);
+            my @lines       = _split_lines(${$file});
             my @replacement = _split_lines($change->{text});
 
             my ($starting_text, $ending_text);
@@ -799,12 +799,12 @@ sub update_file
             # with the replacement, including the existing text that is not changing, that we appended above
             my $lines_replacing = $change->{range}{end}{line} - $change->{range}{start}{line} + 1;
             splice @lines, $change->{range}{start}{line}, $lines_replacing, @replacement;
-            $$file = join '', @lines;
+            ${$file} = join '', @lines;
         } ## end if (ref $change->{range...})
         else
         {
             # no range means we're updating the entire document
-            $$file = $change->{text};
+            ${$file} = $change->{text};
         }
     } ## end foreach my $change (@{$args...})
 
@@ -973,7 +973,7 @@ sub get_variables_fast
     state $variable_rx      = qr/((?&PerlVariable))$PPR::GRAMMAR/;
     my @variables;
 
-    while ($$text =~ /$variable_rx/g)
+    while (${$text} =~ /$variable_rx/g)
     {
         my $declaration = $1;
         my ($lvalue) = $declaration =~ /$lvalue_rx/;
@@ -988,7 +988,7 @@ sub get_variables_fast
 
             push @variables, $variable;
         } ## end while ($lvalue =~ /$variable_rx/g...)
-    } ## end while ($$text =~ /$variable_rx/g...)
+    } ## end while (${$text} =~ /$variable_rx/g...)
 
     return \@variables;
 } ## end sub get_variables_fast
@@ -1010,14 +1010,14 @@ sub get_packages_fast
     state $package_rx = qr/((?&PerlPackageDeclaration))$PPR::GRAMMAR/;
     my @packages;
 
-    while ($$text =~ /$package_rx/g)
+    while (${$text} =~ /$package_rx/g)
     {
         my ($package) = $1 =~ /^package\s+(\S+)/;
         $package =~ s/;$//;
         next unless (length $package);
 
         push @packages, $package;
-    } ## end while ($$text =~ /$package_rx/g...)
+    } ## end while (${$text} =~ /$package_rx/g...)
 
     return \@packages;
 } ## end sub get_packages_fast
@@ -1039,12 +1039,12 @@ sub get_subroutines_fast
     state $sub_rx = qr/sub\b(?&PerlOWS)((?&PerlOldQualifiedIdentifier))$PPR::GRAMMAR/;
     my @subroutine_declarations;
 
-    while ($$text =~ /$sub_rx/g)
+    while (${$text} =~ /$sub_rx/g)
     {
         my $sub = $1;
-        $sub =~ s/^\s+|\s+$//;
-        push @subroutine_declarations, $1;
-    } ## end while ($$text =~ /$sub_rx/g...)
+        $sub =~ s/^\s+|\s+$//g;
+        push @subroutine_declarations, $sub;
+    } ## end while (${$text} =~ /$sub_rx/g...)
 
     return \@subroutine_declarations;
 } ## end sub get_subroutines_fast
@@ -1070,7 +1070,7 @@ sub get_constants_fast
     state $one_constant_rx = qr/use\h+constant\h+((?&PerlBareword))(?&PerlOWS)(?&PerlComma)$PPR::GRAMMAR/;
     my @constants;
 
-    while ($$text =~ /$block_rx/g)
+    while (${$text} =~ /$block_rx/g)
     {
         my $block = $1;
 
@@ -1083,16 +1083,16 @@ sub get_constants_fast
 
             push @constants, $constant;
         } ## end while ($block =~ /$bareword_rx/g...)
-    } ## end while ($$text =~ /$block_rx/g...)
+    } ## end while (${$text} =~ /$block_rx/g...)
 
-    while ($$text =~ /$one_constant_rx/g)
+    while (${$text} =~ /$one_constant_rx/g)
     {
         my $constant = $1;
         next unless (length $constant);
         $constant =~ s/^\s+|\s+$//g;
 
         push @constants, $constant;
-    } ## end while ($$text =~ /$one_constant_rx/g...)
+    } ## end while (${$text} =~ /$one_constant_rx/g...)
 
     return \@constants;
 } ## end sub get_constants_fast
@@ -1109,7 +1109,7 @@ sub get_imports
 
     my @imports;
 
-    while ($$text =~ /$use_rx/g)
+    while (${$text} =~ /$use_rx/g)
     {
         my $use = $1;
 
@@ -1122,7 +1122,7 @@ sub get_imports
 
             push @imports, {use => $use, module => $module};
         } ## end if ($use =~ /$identifier_rx/...)
-    } ## end while ($$text =~ /$use_rx/g...)
+    } ## end while (${$text} =~ /$use_rx/g...)
 
     return \@imports;
 } ## end sub get_imports
@@ -1143,7 +1143,7 @@ sub format_range
 
     if (ref $text ne 'SCALAR')
     {
-        return (0, {code => -32700, message => 'Could not get document text.'});
+        return (0, {code => -32_700, message => 'Could not get document text.'});
     }
 
     my $selection  = '';
@@ -1155,7 +1155,7 @@ sub format_range
         # just format up to the line before that
         $range->{end}{line}-- if ($range->{end}{character} == 0);
 
-        my @lines = _split_lines($$text);
+        my @lines = _split_lines(${$text});
         @lines = @lines[$range->{start}{line} .. $range->{end}{line}];
 
         # ignore the column, and just format the entire line.
@@ -1168,7 +1168,7 @@ sub format_range
     else
     {
         $whole_file = 1;
-        $selection  = $$text;
+        $selection  = ${$text};
         my $lines = () = $selection =~ m{($/)}g;
         $lines++;
 
@@ -1333,7 +1333,7 @@ sub _get_ppi_document
             my $line     = $args{line};
             my $new_line = $/;
 
-            my ($text) = $$file =~ /(?:[^$new_line]*$new_line){$line}([^$new_line]*)$new_line?/m;
+            my ($text) = ${$file} =~ /(?:[^$new_line]*$new_line){$line}([^$new_line]*)$new_line?/m;
 
             if (length $text)
             {
@@ -1828,8 +1828,8 @@ sub sort_imports
 
     foreach my $child ($doc->children)
     {
-        my $seqno;
-        next unless ($seqno = ($child->isa('PPI::Statement::Include') .. (not $child->isa('PPI::Statement::Include') and not $child->isa('PPI::Token::Whitespace'))));
+        my $seqno = ($child->isa('PPI::Statement::Include') .. (not $child->isa('PPI::Statement::Include') and not $child->isa('PPI::Token::Whitespace')));
+        next                                     if (not $seqno);
         last                                     if ($seqno =~ /E0/);
         $insert_after = $child->previous_sibling if ($seqno eq '1');
 
@@ -1880,14 +1880,15 @@ sub sort_imports
     # There doesn't seem to be a better way to do this other than to use this private method.
     $insert_after->__insert_after(@special_pragmas, @isa_pragmas, @pragmas, @installed_modules, @internal_modules, @constant_pragmas);
 
-    open my $fh, '<', $self->get_full_text();
-
     my $lines;
 
-    while (my $line = <$fh>)
+    if (open my $fh, '<', $self->get_full_text())
     {
-        $lines = $.;
-    }
+        while (my $line = <$fh>)
+        {
+            $lines = $.;
+        }
+    } ## end if (open my $fh, '<', ...)
 
     return \($doc->serialize), $lines;
 } ## end sub sort_imports

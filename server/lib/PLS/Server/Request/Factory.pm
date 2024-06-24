@@ -26,7 +26,7 @@ sub new
     my ($class, $request) = @_;
 
     my $method = $request->{method};
-    ($method) = split '/', $method;
+    ($method) = split m{/}, $method;
 
     # create and return request classes here
 

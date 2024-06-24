@@ -26,7 +26,7 @@ sub length
 {
     my ($self) = @_;
 
-    return $self->SUPER::length() + length('package ') + length(';');
+    return $self->SUPER::length() + (length 'package ') + (length ';');
 }
 
 1;

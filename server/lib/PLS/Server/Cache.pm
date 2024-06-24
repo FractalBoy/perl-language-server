@@ -88,7 +88,7 @@ sub get_builtin_variables
                 $variable = substr $variable, 0, -1 if (length $1);
 
                 # Remove variables indicated by pod sequences
-                next if ($variable =~ /^\$</ and $variable ne '$<');
+                next if ($variable =~ /^\$</ and $variable ne '$<');    ## no critic (RequireInterpolationOfMetachars)
                 push @{$builtin_variables}, $variable;
             } ## end if ($line =~ /=item\s*(C<)?([\$\@\%]\S+)\s*/...)
         } ## end while (my $line = <$fh>)

@@ -79,6 +79,8 @@ sub on_expire
             $future->done($self);
         }
     )->retain();
+
+    return;
 } ## end sub on_expire
 
 1;

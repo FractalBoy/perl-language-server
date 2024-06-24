@@ -33,9 +33,9 @@ sub find
     my $definitions;
     $definitions = $self->{index}->find_package($self->{package}) if (ref $self->{index} eq 'PLS::Parser::Index');
 
-    if (ref $definitions eq 'ARRAY' and scalar @$definitions)
+    if (ref $definitions eq 'ARRAY' and scalar @{$definitions})
     {
-        foreach my $definition (@$definitions)
+        foreach my $definition (@{$definitions})
         {
             my $path = URI->new($definition->{uri})->file;
             open my $fh, '<', $path or next;
@@ -47,7 +47,7 @@ sub find
                 $self->{markdown} = $markdown;
                 return 1;
             }
-        } ## end foreach my $definition (@$definitions...)
+        } ## end foreach my $definition (@{$definitions...})
     } ## end if (ref $definitions eq...)
 
     my ($ok, $markdown) = $self->get_markdown_for_package($self->{package});

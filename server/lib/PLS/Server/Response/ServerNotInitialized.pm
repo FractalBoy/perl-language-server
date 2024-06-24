@@ -23,7 +23,7 @@ sub new
     my %self = (
                 id    => $request->{id},
                 error => {
-                          code    => -32002,
+                          code    => -32_002,
                           message => 'server not yet initialized'
                          }
                );

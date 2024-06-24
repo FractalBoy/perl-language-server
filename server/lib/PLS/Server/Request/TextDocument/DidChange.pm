@@ -63,7 +63,7 @@ sub service
         my $loop = IO::Async::Loop->new();
         $loop->add($timers{$uri});
         $timers{$uri}->start();
-    } ## end else [ if (ref $timers{$uri} ...)]
+    } ## end else[ if (ref $timers{$uri} ...)]
 
     return;
 } ## end sub service

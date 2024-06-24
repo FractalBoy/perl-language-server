@@ -83,10 +83,10 @@ sub find
             {
                 my $markdown;
                 ($ok, $markdown) = $self->find_pod_in_file($path, $self->{subroutine});
-                push @markdown, $$markdown if $ok;
+                push @markdown, ${$markdown} if $ok;
             } ## end if (length $path)
 
-            unless ($ok)
+            if (not $ok)
             {
                 push @definitions, @{$self->{index}->find_package_subroutine($package, $self->{subroutine})} if (ref $self->{index} eq 'PLS::Parser::Index');
             }
@@ -100,7 +100,7 @@ sub find
     if (scalar @definitions)
     {
         my ($ok, $markdown) = $self->find_pod_in_definitions(\@definitions);
-        push @markdown, $$markdown if $ok;
+        push @markdown, ${$markdown} if $ok;
     }
 
     if ($self->{include_builtins})
@@ -123,13 +123,13 @@ sub find
         {
             my ($ok, $markdown) = $self->get_markdown_for_package($package);
 
-            unless ($ok)
+            if (not $ok)
             {
                 $package = join '::', $package, $self->{subroutine};
                 ($ok, $markdown) = $self->get_markdown_for_package($package);
             }
 
-            push @markdown, $$markdown if $ok;
+            push @markdown, ${$markdown} if $ok;
         } ## end foreach my $package (@{$self...})
     } ## end if (ref $self->{packages...})
 
@@ -146,7 +146,7 @@ sub find_pod_in_definitions
 {
     my ($self, $definitions) = @_;
 
-    return 0 unless (ref $definitions eq 'ARRAY' and scalar @$definitions);
+    return 0 unless (ref $definitions eq 'ARRAY' and scalar @{$definitions});
 
     my $ok;
     my @markdown_parts;
@@ -157,10 +157,10 @@ sub find_pod_in_definitions
         my ($found, $markdown_part) = $self->find_pod_in_file($path, $self->{subroutine});
         next unless $found;
 
-        if (length $$markdown_part)
+        if (length ${$markdown_part})
         {
-            $$markdown_part = "*(From $path)*\n" . $$markdown_part;
-            push @markdown_parts, $$markdown_part;
+            ${$markdown_part} = "*(From $path)*\n" . ${$markdown_part};
+            push @markdown_parts, ${$markdown_part};
         }
 
         $ok = 1;

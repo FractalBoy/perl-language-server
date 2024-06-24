@@ -5,7 +5,7 @@ use warnings;
 
 use Exporter qw(import);
 
-our $package;
+my $package;
 
 BEGIN
 {
@@ -29,7 +29,7 @@ BEGIN
     *PLS::JSON::false = $package->can('false');
 } ## end BEGIN
 
-our @EXPORT = qw(encode_json decode_json);
+our @EXPORT = qw(encode_json decode_json);    ## no critic (ProhibitAutomaticExportation)
 
 sub new
 {

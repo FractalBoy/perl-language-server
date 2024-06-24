@@ -79,7 +79,9 @@ sub set_perl_args
     my (undef, $args) = @_;
 
     $PERL_ARGS = $args;
-}
+
+    return;
+} ## end sub set_perl_args
 
 =head2 get_perl_args
 
@@ -166,7 +168,7 @@ sub get_markdown_from_lines
 
     $parser->output_string(\$markdown);
     $parser->no_whining(1);
-    $parser->parse_lines(@$lines, undef);
+    $parser->parse_lines(@{$lines}, undef);
 
     $class->clean_markdown(\$markdown);
 
@@ -190,7 +192,7 @@ sub get_markdown_from_text
 
     $parser->output_string(\$markdown);
     $parser->no_whining(1);
-    $parser->parse_string_document($$text);
+    $parser->parse_string_document(${$text});
 
     $class->clean_markdown(\$markdown);
 
@@ -266,7 +268,9 @@ sub clean_markdown
     my ($class, $markdown) = @_;
 
     # remove first extra space to avoid markdown from being displayed inappropriately as code
-    $$markdown =~ s/\n\n/\n/;
+    ${$markdown} =~ s/\n\n/\n/;
+
+    return;
 } ## end sub clean_markdown
 
 =head2 combine_markdown
@@ -303,7 +307,7 @@ sub get_clean_inc
         @include = grep { not /\Q$FindBin::RealBin\E/ } @INC;
 
         # try to get a clean @INC from the perl we're using
-        if (my $pid = open my $perl, '-|', $PERL_EXE, '-e', q{$, = "\n"; print @INC; print "\n"})
+        if (my $pid = open my $perl, '-|', $PERL_EXE, '-e', q{$, = "\n"; print @INC; print "\n"})    ## no critic (RequireInterpolationOfMetachars)
         {
             @include = ();
 
@@ -316,7 +320,7 @@ sub get_clean_inc
 
             waitpid $pid, 0;
         } ## end if (my $pid = open my ...)
-    }
+    } ## end if (not scalar @include...)
 
     my @temp_include = @include;
     push @temp_include, @{$PLS::Server::State::CONFIG->{inc} // []};

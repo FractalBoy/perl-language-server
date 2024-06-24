@@ -26,6 +26,8 @@ sub service
     my ($self, $server) = @_;
 
     $server->send_server_request(PLS::Server::Request::Workspace::Configuration->new());
-}
+
+    return;
+} ## end sub service
 
 1;
