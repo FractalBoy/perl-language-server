@@ -208,7 +208,7 @@ sub get_compilation_errors
         }
 
         @loadfile = (-e => $code);
-    } ## end else [ if (not length $suffix...)]
+    } ## end else[ if (not length $suffix...)]
 
     my @diagnostics;
 
@@ -293,7 +293,24 @@ sub get_perlcritic_errors
 {
     my ($source, $path) = @_;
 
-    my ($profile) = glob $PLS::Server::State::CONFIG->{perlcritic}{perlcriticrc};
+    my $profile;
+
+    foreach my $workspace_folder (@{PLS::Parser::Index->new->workspace_folders})
+    {
+        $profile = $PLS::Parser::State::CONFIG->{perlcritic}{perlcriticrc} =~ s/\$ROOT_PATH/$workspace_folder/r;
+        ($profile) = glob $profile;
+
+        if (length $profile and -f $profile)
+        {
+            last;
+        }
+    } ## end foreach my $workspace_folder...
+
+    if (not length $profile)
+    {
+        ($profile) = glob $PLS::Server::State::CONFIG->{perlcritic}{perlcriticrc};
+    }
+
     undef $profile if (not length $profile or not -f $profile or not -r $profile);
 
     return $perlcritic_function->call(args => [$profile, $source, $path]);
