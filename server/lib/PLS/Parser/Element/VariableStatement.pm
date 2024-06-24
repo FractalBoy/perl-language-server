@@ -9,7 +9,7 @@ use PLS::Parser::Element::Variable;
 
 =head1 NAME
 
-PLS::Parser::Element::Variable
+PLS::Parser::Element::VariableStatement
 
 =head1 DESCRIPTION
 

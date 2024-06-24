@@ -61,7 +61,7 @@ sub service
                                      {
                                       id    => $self->{id},
                                       error => {
-                                                code    => -32602,
+                                                code    => -32_602,
                                                 message => 'Failed to sort imports.',
                                                 data    => $file
                                                }

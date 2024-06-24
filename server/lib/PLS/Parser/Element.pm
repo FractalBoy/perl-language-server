@@ -3,7 +3,7 @@ package PLS::Parser::Element;
 use strict;
 use warnings;
 
-use List::Util qw(any first);
+use List::Util   qw(any first);
 use Scalar::Util qw(blessed);
 
 =head1 NAME
@@ -180,7 +180,7 @@ sub package_name
     if (    blessed($element->statement)
         and $element->statement->isa('PPI::Statement::Variable')
         and $element->statement->type eq 'our'
-        and any { $_->symbol eq '@ISA' } $element->statement->symbols)
+        and any { $_->symbol eq '@ISA' } $element->statement->symbols)    ## no critic (RequireInterpolationOfMetachars)
     {
         my $import = _extract_import($element, $column_number);
         return $import if (length $import);
@@ -316,7 +316,7 @@ sub cursor_on_package
     my @parts         = split /::/, $element->content;
     my $current_index = 1;
 
-    for (my $i = 0 ; $i <= $#parts ; $i++)
+    foreach my $i (0 .. $#parts)
     {
         my $part = $parts[$i];
 
@@ -328,7 +328,7 @@ sub cursor_on_package
         } ## end if ($index <= $current_index...)
 
         $current_index += length $part;
-    } ## end for (my $i = 0 ; $i <= ...)
+    } ## end foreach my $i (0 .. $#parts...)
 
     return;
 } ## end sub cursor_on_package
@@ -398,6 +398,8 @@ sub _get_string_from_list
             }
         } ## end foreach my $item ($expr->children...)
     } ## end foreach my $expr ($element->...)
+
+    return '';
 } ## end sub _get_string_from_list
 
 =head2 _get_string_from_qw
@@ -427,6 +429,8 @@ sub _get_string_from_qw
 
         $current_column = $next_start;
     } ## end foreach my $word (@words)
+
+    return '';
 } ## end sub _get_string_from_qw
 
 =head2 range

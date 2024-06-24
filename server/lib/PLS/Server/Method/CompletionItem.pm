@@ -7,6 +7,10 @@ use PLS::Server::Request::CompletionItem::Resolve;
 
 =head1 NAME
 
+PLS::Server::Method::CompletionItem
+
+=head1 DESCRIPTION
+
 This module redirects requests beginning with C<completionItem/> to the
 appropriate subclass of L<PLS::Server::Request>.
 
@@ -26,7 +30,7 @@ sub get_request
 {
     my ($request) = @_;
 
-    my (undef, $method) = split '/', $request->{method};
+    my (undef, $method) = split m{/}, $request->{method};
 
     if ($method eq 'resolve')
     {

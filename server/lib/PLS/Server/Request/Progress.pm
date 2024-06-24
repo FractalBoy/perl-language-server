@@ -23,7 +23,7 @@ sub new
     my $token = delete $args{token};
 
     my $self = {
-                method       => '$/progress',
+                method       => '$/progress',                         ## no critic (RequireInterpolationOfMetachars)
                 params       => {token => $token, value => \%args},
                 notification => 1
                };

@@ -17,7 +17,7 @@ use PLS::Server::Request::TextDocument::RangeFormatting;
 
 =head1 NAME
 
-PLS::Server::Method::Workspace
+PLS::Server::Method::TextDocument
 
 =head1 DESCRIPTION
 
@@ -80,7 +80,7 @@ sub get_request
 {
     my ($request) = @_;
 
-    my (undef, $method) = split '/', $request->{method};
+    my (undef, $method) = split m{/}, $request->{method};
 
     if ($method eq 'definition')
     {

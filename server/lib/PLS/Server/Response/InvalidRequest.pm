@@ -24,7 +24,7 @@ sub new
       bless {
              id    => $request->{id},
              error => {
-                       code    => -32600,
+                       code    => -32_600,
                        message => 'Invalid request.'
                       }
             }, $class;

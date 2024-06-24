@@ -9,7 +9,7 @@ use PLS::Server::Response::DocumentSymbol;
 
 =head1 NAME
 
-PLS::Server::Response::DocumentSymbol
+PLS::Server::Request::TextDocument::DocumentSymbol
 
 =head1 DESCRIPTION
 

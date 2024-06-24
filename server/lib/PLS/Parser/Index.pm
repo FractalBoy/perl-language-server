@@ -462,9 +462,9 @@ sub get_line_offsets
 
     my @line_offsets = (0);
 
-    while ($$text =~ /\r?\n/g)
+    while (${$text} =~ /\r?\n/g)
     {
-        push @line_offsets, pos($$text);
+        push @line_offsets, pos ${$text};
     }
 
     return \@line_offsets;
@@ -474,7 +474,7 @@ sub get_line_by_offset
 {
     my ($class, $line_offsets, $offset) = @_;
 
-    for (my $i = 0 ; $i <= $#{$line_offsets} ; $i++)
+    foreach my $i (0 .. $#{$line_offsets})
     {
         my $current_offset = $line_offsets->[$i];
         my $next_offset    = $i + 1 <= $#{$line_offsets} ? $line_offsets->[$i + 1] : undef;
@@ -483,7 +483,7 @@ sub get_line_by_offset
         {
             return $i;
         }
-    } ## end for (my $i = 0 ; $i <= ...)
+    } ## end foreach my $i (0 .. $#{$line_offsets...})
 
     return $#{$line_offsets};
 } ## end sub get_line_by_offset
@@ -497,13 +497,13 @@ sub get_packages
 
     my $file = URI->new($uri)->file;
     $file = readlink $file if (-l $file);
-    $uri = URI::file->new($file)->as_string();
+    $uri  = URI::file->new($file)->as_string();
 
-    while ($$text =~ /$rx/g)
+    while (${$text} =~ /$rx/g)
     {
         my $name = $1;
 
-        my $end        = pos($$text);
+        my $end        = pos ${$text};
         my $start      = $end - length $name;
         my $start_line = $class->get_line_by_offset($line_offsets, $start);
         $start -= $line_offsets->[$start_line];
@@ -527,7 +527,7 @@ sub get_packages
                              }
                      }
           };
-    } ## end while ($$text =~ /$rx/g)
+    } ## end while (${$text} =~ /$rx/g...)
 
     return \%packages;
 } ## end sub get_packages
@@ -538,10 +538,10 @@ sub get_subroutines
 
     my $file = URI->new($uri)->file;
     $file = readlink $file if (-l $file);
-    $uri = URI::file->new($file)->as_string();
+    $uri  = URI::file->new($file)->as_string();
 
     # Stolen mostly from PPR definition for PerlSubroutineDeclaration
-    state $sub_rx = qr/
+    state $sub_rx = qr{
         (?<full>
         (?<declaration>(?>
             (?: (?> my | our | state ) \b      (?>(?&PerlOWS)) )?+
@@ -570,21 +570,21 @@ sub get_subroutines
         )
         (?> ; | \{
             (?&PerlOWS)
-			(?<label>(?<params>(?&PerlVariableDeclaration))(?&PerlOWS)=(?&PerlOWS)\@_;?)?
+            (?<label>(?<params>(?&PerlVariableDeclaration))(?&PerlOWS)=(?&PerlOWS)\@_;?)?
             (?&PerlOWS)
-			(?>(?&PerlStatementSequence))
-		\} )
+            (?>(?&PerlStatementSequence))
+        \} )
         )
-        $PPR::GRAMMAR/x;
+        $PPR::GRAMMAR}x;
 
     state $var_rx     = qr/((?&PerlVariable)|undef)$PPR::GRAMMAR/;
     state $package_rx = qr/((?&PerlPackageDeclaration))$PPR::GRAMMAR/;
 
     my %subroutines;
 
-    while ($$text =~ /$sub_rx/g)
+    while (${$text} =~ /$sub_rx/g)
     {
-        my $end   = pos($$text);
+        my $end   = pos ${$text};
         my $start = $end - length $+{full};
         $end = $start + length $+{declaration};
 
@@ -611,7 +611,7 @@ sub get_subroutines
         # to the subroutine declaration.
         my $package;
 
-        if (substr($$text, 0, pos($$text)) =~ /$package_rx/)
+        if (substr(${$text}, 0, pos ${$text}) =~ /$package_rx/)
         {
             ($package) = $1 =~ /^package\s+(.+)\s*;\s*$/;
         }
@@ -633,13 +633,13 @@ sub get_subroutines
             'package' => $package,
             kind      => 3
           };
-    } ## end while ($$text =~ /$sub_rx/g...)
+    } ## end while (${$text} =~ /$sub_rx/g...)
 
     state $block_rx        = qr/use\h+constant(?&PerlOWS)((?&PerlBlock))$PPR::GRAMMAR/;
     state $bareword_rx     = qr/((?&PerlBareword))(?&PerlOWS)(?&PerlComma)$PPR::GRAMMAR/;
     state $one_constant_rx = qr/use\h+constant\h+((?&PerlBareword))(?&PerlOWS)(?&PerlComma)$PPR::GRAMMAR/;
 
-    while ($$text =~ /$block_rx/g)
+    while (${$text} =~ /$block_rx/g)
     {
         my $block       = $1;
         my $block_end   = $+[1];
@@ -649,7 +649,7 @@ sub get_subroutines
         # to the constant declaration
         my $package;
 
-        if (substr($$text, 0, pos($$text)) =~ /$package_rx/)
+        if (substr(${$text}, 0, pos ${$text}) =~ /$package_rx/)
         {
             ($package) = $1 =~ /^package\s+(.+)\s*;\s*$/;
         }
@@ -684,9 +684,9 @@ sub get_subroutines
                 kind      => 21          # constant kind
             };
         } ## end while ($block =~ /$bareword_rx/g...)
-    } ## end while ($$text =~ /$block_rx/g...)
+    } ## end while (${$text} =~ /$block_rx/g...)
 
-    while ($$text =~ /$one_constant_rx/g)
+    while (${$text} =~ /$one_constant_rx/g)
     {
         my $bareword = $1;
         my $end      = $+[1];
@@ -701,7 +701,7 @@ sub get_subroutines
         # to the constant declaration
         my $package;
 
-        if (substr($$text, 0, pos($$text)) =~ /$package_rx/)
+        if (substr(${$text}, 0, pos ${$text}) =~ /$package_rx/)
         {
             ($package) = $1 =~ /^package\s+(.+)\s*;\s*$/;
         }
@@ -721,7 +721,7 @@ sub get_subroutines
             'package' => $package,
             kind      => 21          # constant kind
         };
-    } ## end while ($$text =~ /$one_constant_rx/g...)
+    } ## end while (${$text} =~ /$one_constant_rx/g...)
 
     return \%subroutines;
 } ## end sub get_subroutines

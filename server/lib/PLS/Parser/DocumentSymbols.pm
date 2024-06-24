@@ -77,7 +77,7 @@ sub get_all_document_symbols
           };
     } ## end foreach my $index (0 .. $#{...})
 
-    unless (scalar @package_roots)
+    if (not scalar @package_roots)
     {
         my $range = PLS::Parser::Element->new(element => $document->{document})->range();
 
@@ -89,7 +89,7 @@ sub get_all_document_symbols
             selectionRange => $range,
             children       => \@roots
           };
-    } ## end unless (scalar @package_roots...)
+    } ## end if (not scalar @package_roots...)
 
     return \@package_roots;
 } ## end sub get_all_document_symbols
@@ -131,30 +131,39 @@ sub _get_all_document_symbols
     } ## end elsif ($scope->isa('PPI::Statement::Sub'...))
     elsif ($scope->isa('PPI::Statement::Variable'))
     {
-        push @{$array}, map {
-            my $range = $_->range();
-
+        foreach my $statement (@{$document->get_variable_statements($scope)})
+        {
+            foreach my $symbol (@{$statement->symbols})
             {
-             name           => $_->name,
-             kind           => VARIABLE,
-             range          => $range,
-             selectionRange => $range
-            }
-        } map { @{$_->symbols} } @{$document->get_variable_statements($scope)};
+                my $range = $symbol->range();
+
+                push @{$array},
+                  {
+                    name           => $_->name,
+                    kind           => VARIABLE,
+                    range          => $range,
+                    selectionRange => $range
+                  };
+            } ## end foreach my $symbol (@{$statement...})
+        } ## end foreach my $statement (@{$document...})
     } ## end elsif ($scope->isa('PPI::Statement::Variable'...))
     elsif ($scope->isa('PPI::Statement::Include') and $scope->type eq 'use' and $scope->pragma eq 'constant')
     {
-        push @{$array}, map {
-            my $range = $_->range();
+        foreach my $constant (@{$document->get_constants($scope)})
+        {
+            my $range = $constant->range();
 
-            {
-             name           => $_->name,
-             kind           => CONSTANT,
-             range          => $range,
-             selectionRange => $range
-            }
-        } @{$document->get_constants($scope)};
+            push @{$array},
+              {
+                name           => $_->name,
+                kind           => CONSTANT,
+                range          => $range,
+                selectionRange => $range
+              };
+        } ## end foreach my $constant (@{$document...})
     } ## end elsif ($scope->isa('PPI::Statement::Include'...))
+
+    return;
 } ## end sub _get_all_document_symbols
 
 1;

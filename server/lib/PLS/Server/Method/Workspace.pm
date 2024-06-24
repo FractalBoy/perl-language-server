@@ -51,7 +51,7 @@ sub get_request
 {
     my ($request) = @_;
 
-    my (undef, $method) = split '/', $request->{method};
+    my (undef, $method) = split m{/}, $request->{method};
 
     if ($method eq 'didChangeConfiguration')
     {

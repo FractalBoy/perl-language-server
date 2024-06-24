@@ -36,7 +36,7 @@ sub new
 
     if (ref $results eq 'ARRAY')
     {
-        foreach my $result (@$results)
+        foreach my $result (@{$results})
         {
             delete @{$result}{qw(package signature kind)};
         }

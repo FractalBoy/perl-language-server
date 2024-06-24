@@ -36,7 +36,7 @@ sub new
                                                                     start => {line => 0,            character => 0},
                                                                     end   => {line => $args{lines}, character => 0}
                                                                    },
-                                                          newText => $$text
+                                                          newText => ${$text}
                                                          }
                                                         ]
                                                }

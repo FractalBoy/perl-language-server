@@ -23,7 +23,7 @@ sub new
     return
       bless {
              id    => $args{id},
-             error => {code => -32800, message => 'Request cancelled.'}
+             error => {code => -32_800, message => 'Request cancelled.'}
             }, $class;
 } ## end sub new
 

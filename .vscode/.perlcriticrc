@@ -272,11 +272,11 @@ severity                           = 3
 
 # The maximum number of alternatives that will be allowed.
 # Minimum value 1. No maximum.
-max_elsif = 3
+max_elsif = 5
 
 
 # Don't write deeply nested loops and conditionals.
-[ControlStructures::ProhibitDeepNests]
+[-ControlStructures::ProhibitDeepNests]
 # set_themes                         = complexity core maintenance
 # add_themes                         =
 # severity                           = 3
@@ -517,7 +517,7 @@ severity                           = 2
 
 
 # Close filehandles as soon as possible after opening them.
-[InputOutput::RequireBriefOpen]
+[-InputOutput::RequireBriefOpen]
 # set_themes                         = core maintenance pbp
 # add_themes                         =
 # severity                           = 4
@@ -940,7 +940,7 @@ global_variables = :all_upper
 
 
 # Minimize complexity by factoring code into smaller subroutines.
-[Subroutines::ProhibitExcessComplexity]
+[-Subroutines::ProhibitExcessComplexity]
 # set_themes                         = complexity core maintenance
 # add_themes                         =
 # severity                           = 3
@@ -1435,7 +1435,7 @@ rcs_keywords = Revision Author LastChangedDate Id Date
 
 
 # Do not reuse a variable name in a lexical scope
-[Variables::ProhibitReusedNames]
+[-Variables::ProhibitReusedNames]
 # set_themes                         = bugs core
 # add_themes                         =
 # severity                           = 3

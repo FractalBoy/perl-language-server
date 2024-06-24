@@ -81,7 +81,7 @@ sub get_request
         return PLS::Server::Request::Initialized->new($request);
     }
 
-    if ($method eq '$/cancelRequest')
+    if ($method eq '$/cancelRequest')    ## no critic (RequireInterpolationOfMetachars)
     {
         return PLS::Server::Request::CancelRequest->new($request);
     }

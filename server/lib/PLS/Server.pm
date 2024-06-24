@@ -63,19 +63,25 @@ sub run
 
                 exit if $eof;
 
-                unless ($size)
+                if (not $size)
                 {
-                    return 0 unless ($$buffref =~ s/^(.*?)\r\n\r\n//s);
-                    my $headers = $1;
+                    if (${$buffref} =~ s/^(.*?)\r\n\r\n//s)
+                    {
+                        my $headers = $1;
 
-                    my %headers = map { split /: / } grep { length } split /\r\n/, $headers;
-                    $size = $headers{'Content-Length'};
-                    die 'no Content-Length header provided' unless $size;
-                } ## end unless ($size)
+                        my %headers = map { split /: / } grep { length } split /\r\n/, $headers;
+                        $size = $headers{'Content-Length'};
+                        die 'no Content-Length header provided' unless $size;
+                    } ## end if (${$buffref} =~ s/^(.*?)\r\n\r\n//s...)
+                    else
+                    {
+                        return 0;
+                    }
+                } ## end if (not $size)
 
-                return 0 if (length($$buffref) < $size);
+                return 0 if (length(${$buffref}) < $size);
 
-                my $json = substr $$buffref, 0, $size, '';
+                my $json = substr ${$buffref}, 0, $size, '';
                 $size = 0;
 
                 my $content = decode_json $json;
@@ -160,7 +166,7 @@ sub send_message
 
     return if (not blessed($message) or not $message->isa('PLS::Server::Message'));
     my $json   = $message->serialize();
-    my $length = length $$json;
+    my $length = length ${$json};
     $self->{stream}->write("Content-Length: $length\r\n\r\n$$json")->retain();
 
     return;

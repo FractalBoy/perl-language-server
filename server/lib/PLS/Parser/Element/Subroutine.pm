@@ -42,8 +42,7 @@ sub signature
         next   unless $child->isa('PPI::Statement::Variable');
         return unless $child->type eq 'my';
         return
-          unless any { $_->isa('PPI::Token::Magic') and $_->content eq '@_' }
-        $child->children;
+          unless any { $_->isa('PPI::Token::Magic') and $_->content eq '@_' } $child->children;    ## no critic (RequireInterpolationOfMetachars)
         return unless (scalar $child->variables);
         return {label => $child->content, parameters => [map { {label => $_} } $child->variables]};
     } ## end foreach my $child ($block->...)
@@ -62,7 +61,7 @@ sub length
 {
     my ($self) = @_;
 
-    return $self->SUPER::length() + length('sub ');
+    return $self->SUPER::length() + (length 'sub ');
 }
 
 1;
