@@ -139,7 +139,7 @@ sub _get_all_document_symbols
 
                 push @{$array},
                   {
-                    name           => $_->name,
+                    name           => $symbol->name,
                     kind           => VARIABLE,
                     range          => $range,
                     selectionRange => $range
@@ -155,7 +155,7 @@ sub _get_all_document_symbols
 
             push @{$array},
               {
-                name           => $_->name,
+                name           => $constant->name,
                 kind           => CONSTANT,
                 range          => $range,
                 selectionRange => $range
