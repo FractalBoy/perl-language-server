@@ -6,6 +6,7 @@ README.pod
 bin/pls
 lib/PLS.pm
 lib/PLS/JSON.pm
+lib/PLS/Util.pm
 lib/PLS/Parser/Element/VariableStatement.pm
 lib/PLS/Parser/Element/Subroutine.pm
 lib/PLS/Parser/Element/Variable.pm

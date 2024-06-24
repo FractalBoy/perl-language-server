@@ -30,6 +30,7 @@ use PLS::Parser::Pod::Method;
 use PLS::Parser::Pod::Package;
 use PLS::Parser::Pod::Subroutine;
 use PLS::Parser::Pod::Variable;
+use PLS::Util;
 
 my %FILES;
 my %VERSIONS;
@@ -1192,18 +1193,7 @@ sub format_range
         $argv .= $args{formatting_options}{tabSize};
     }
 
-    my $perltidyrc;
-
-    foreach my $workspace_folder (@{$args{workspace_folders}})
-    {
-        $perltidyrc = $args{perltidyrc} =~ s/\$ROOT_PATH/$workspace_folder/r;
-        ($perltidyrc) = glob $perltidyrc;
-
-        if (length $perltidyrc and -f $perltidyrc)
-        {
-            last;
-        }
-    } ## end foreach my $workspace_folder...
+    my ($perltidyrc) = PLS::Util::resolve_workspace_relative_path($args{perltidyrc}, $args{workspace_folders});
 
     if (not length $perltidyrc)
     {
