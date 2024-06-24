@@ -9,8 +9,6 @@ use IO::Async::Function;
 use IO::Async::Loop;
 use Scalar::Util qw(blessed);
 
-use PLS::Parser::Document;
-
 use constant {
               PACKAGE  => 4,
               FUNCTION => 12,
@@ -41,6 +39,7 @@ sub get_all_document_symbols_async
         IO::Async::Loop->new->add($function);
     }
 
+    require PLS::Parser::Document;
     my $text = PLS::Parser::Document->text_from_uri($uri);
     return $function->call(args => [$class, $uri, $text]);
 } ## end sub get_all_document_symbols_async
@@ -48,6 +47,9 @@ sub get_all_document_symbols_async
 sub get_all_document_symbols
 {
     my ($class, $uri, $text) = @_;
+
+    require PLS::Parser::Document;
+    require PLS::Parser::Element;
 
     my $document = PLS::Parser::Document->new(uri => $uri, text => $text);
     return [] if (ref $document ne 'PLS::Parser::Document');
@@ -95,6 +97,8 @@ sub get_all_document_symbols
 sub _get_all_document_symbols
 {
     my ($class, $document, $scope, $roots, $current) = @_;
+
+    require PLS::Parser::Element;
 
     my $array = ref $current eq 'HASH' ? $current->{children} : $roots;
     return unless blessed($scope);

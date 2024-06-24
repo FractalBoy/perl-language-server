@@ -8,7 +8,6 @@ use parent 'PLS::Parser::Pod';
 use Pod::Simple::Search;
 use Pod::Markdown;
 
-use PLS::Parser::Document;
 use PLS::Parser::PackageSymbols;
 use PLS::Parser::Pod::Builtin;
 use PLS::Server::State;
@@ -49,6 +48,7 @@ sub find
     # function is imported.
     if (length $self->{uri} and (ref $self->{packages} ne 'ARRAY' or not scalar @{$self->{packages}}))
     {
+        require PLS::Parser::Document;
         my $full_text          = PLS::Parser::Document->text_from_uri($self->{uri});
         my $imports            = PLS::Parser::Document->get_imports($full_text);
         my $imported_functions = PLS::Parser::PackageSymbols::get_imported_package_symbols($PLS::Server::State::CONFIG, @{$imports})->get();
