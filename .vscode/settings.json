@@ -1,0 +1,7 @@
+{
+    "pls.perltidy.perltidyrc": "${workspaceFolder}/.vscode/.perltidyrc",
+    "pls.perlcritic.perlcriticrc": "${workspaceFolder}/.vscode/.perlcriticrc",
+    "pls.inc": [
+        "${workspaceFolder}/server/lib"
+    ]
+}
