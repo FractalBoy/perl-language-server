@@ -23,7 +23,10 @@
         "vscode": {
             "extensions": [
                 "fractalboy.pls"
-            ]
+            ],
+            "settings": {
+                "pls.cmd": "/home/vscode/.asdf/installs/perl/5.40.0/bin/pls"
+            }
         }
     }
 }
