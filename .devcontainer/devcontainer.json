@@ -1,0 +1,29 @@
+// For format details, see https://aka.ms/devcontainer.json. For config options, see the
+// README at: https://github.com/devcontainers/templates/tree/main/src/debian
+{
+    "name": "Debian",
+    // Or use a Dockerfile or Docker Compose file. More info: https://containers.dev/guide/dockerfile
+    "image": "mcr.microsoft.com/devcontainers/base:bookworm",
+    "features": {
+        "ghcr.io/devcontainers-contrib/features/perl-asdf:2": {
+            "version": "5.40.0"
+        }
+    },
+    "workspaceMount": "",
+    "remoteUser": "vscode",
+    "containerEnv": {
+        "HOME": "/home/vscode"
+    },
+    "runArgs": [
+        "--userns=keep-id",
+        "--volume=${localWorkspaceFolder}:/workspaces/${localWorkspaceFolderBasename}:Z"
+    ],
+    "postCreateCommand": "cpanm PLS Cpanel::JSON::XS PadWalker Data::Dump",
+    "customizations": {
+        "vscode": {
+            "extensions": [
+                "fractalboy.pls"
+            ]
+        }
+    }
+}
