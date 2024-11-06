@@ -76,7 +76,7 @@ sub handle_response
             push @inc, PLS::Util::resolve_workspace_relative_path($inc, $index->workspace_folders, 1);
         }
 
-        $config->{inc} = [List::Util::uniq sort @inc];
+        $config->{inc} = [List::Util::uniq @inc];
     } ## end if (exists $config->{inc...})
 
     if (exists $config->{syntax}{perl} and length $config->{syntax}{perl})
