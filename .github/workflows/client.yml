@@ -2,16 +2,16 @@ name: Client CI
 
 on:
   push:
-    tags: '**'
+    tags: "**"
     paths:
-      - 'client/**'
-      - '.github/workflows/client.yml'
+      - "client/**"
+      - ".github/workflows/client.yml"
 
   workflow_dispatch:
 
 defaults:
   run:
-    working-directory: 'client'
+    working-directory: "client"
 
 jobs:
   build_publish:
@@ -20,19 +20,16 @@ jobs:
       VSCE_PAT: ${{ secrets.VSCE_PAT }}
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
-      - uses: actions/setup-node@v3
+      - uses: actions/setup-node@v4
         with:
-          node-version: 16.x
-          cache: yarn
-          cache-dependency-path: client/yarn.lock
+          node-version: lts/*
+          cache: npm
+          cache-dependency-path: client/package-lock.json
 
       - name: Install dependencies
-        run: yarn install
-
-      - name: Install vsce
-        run: yarn global add vsce
+        run: npm install
 
       - name: Publish extension
-        run: vsce publish
+        run: npx @vscode/vsce publish
