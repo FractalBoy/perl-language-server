@@ -6,7 +6,8 @@ use feature 'state';
 
 use File::Spec;
 use FindBin;
-use IPC::Open3;
+use IO::Async::Loop;
+use IO::Async::Process;
 use Pod::Markdown;
 use Pod::Simple::Search;
 use Symbol qw(gensym);
@@ -121,16 +122,17 @@ sub run_perldoc_command
 
     my $markdown = '';
 
-    my $err = gensym;
-    my $pid = open3(my $in, my $out, $err, get_perldoc_location(), @command);
+    my $proc = IO::Async::Process->new(
+                                       command   => [get_perldoc_location(), @command],
+                                       stderr    => {into => \my $stderr},
+                                       stdout    => {into => \my $stdout},
+                                       on_finish => sub { }
+                                      );
+    IO::Async::Loop->new->add($proc);
 
-    close $in, () = <$err>;    # need to read all of error file handle
-    my $pod = do { local $/; <$out> };
-    close $out;
-    waitpid $pid, 0;
-    my $exit_code = $? >> 8;
-    return 0 if $exit_code != 0;
-    return $class->get_markdown_from_text(\$pod);
+    my $exit_code = $proc->finish_future->get();
+    return 0 if ($exit_code != 0);
+    return $class->get_markdown_from_text(\$stdout);
 } ## end sub run_perldoc_command
 
 =head2 get_markdown_for_package
@@ -307,19 +309,29 @@ sub get_clean_inc
         @include = grep { not /\Q$FindBin::RealBin\E/ } @INC;
 
         # try to get a clean @INC from the perl we're using
-        if (my $pid = open my $perl, '-|', $PERL_EXE, '-e', q{$, = "\n"; print @INC; print "\n"})    ## no critic (RequireInterpolationOfMetachars)
+        my @clean_inc;
+
+        my $proc = IO::Async::Process->new(
+            command => [$PERL_EXE, '-e', q{print join "\n", @INC, ''}],    ## no critic (RequireInterpolationOfMetachars)
+            stdout => {
+                on_read => sub {
+                    my ($stream, $buffref) = @_;
+
+                    while (${$buffref} =~ s/^(.*)\n//)
+                    {
+                        push @clean_inc, $1;
+                    }
+                } ## end sub
+            },
+            on_finish => sub { }
+        );
+        IO::Async::Loop->new->add($proc);
+        $proc->finish_future->get();
+
+        if (scalar @clean_inc)
         {
-            @include = ();
-
-            while (my $line = <$perl>)
-            {
-                chomp $line;
-                next unless (length $line);
-                push @include, $line;
-            } ## end while (my $line = <$perl>...)
-
-            waitpid $pid, 0;
-        } ## end if (my $pid = open my ...)
+            @include = @clean_inc;
+        }
     } ## end if (not scalar @include...)
 
     my @temp_include = @include;
