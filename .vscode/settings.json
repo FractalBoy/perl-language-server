@@ -3,5 +3,11 @@
     "pls.perlcritic.perlcriticrc": "${workspaceFolder}/.vscode/.perlcriticrc",
     "pls.inc": [
         "${workspaceFolder}/server/lib"
-    ]
+    ],
+    "[javascript]": {
+        "editor.defaultFormatter": "esbenp.prettier-vscode"
+    },
+    "[json]": {
+        "editor.defaultFormatter": "esbenp.prettier-vscode"
+    }
 }
