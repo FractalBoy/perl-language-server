@@ -19,11 +19,15 @@
         "--userns=keep-id",
         "--volume=${localWorkspaceFolder}:/workspaces/${localWorkspaceFolderBasename}:Z"
     ],
-    "postCreateCommand": "cd server && cpanm --installdeps . && perl Makefile.PL && make && make install && cpanm Cpanel::JSON::XS PadWalker Data::Dump",
+    "postCreateCommand": "wget -qO- https://github.com/asdf-vm/asdf/releases/download/v0.16.2/asdf-v0.16.2-linux-amd64.tar.gz | tar xz -C $HOME/.asdf/bin && asdf reshim && cd server && cpanm --installdeps . && perl Makefile.PL && make && make install && cpanm Cpanel::JSON::XS PadWalker Data::Dump",
     "customizations": {
         "vscode": {
             "extensions": [
-                "fractalboy.pls"
+                "fractalboy.pls",
+                "esbenp.prettier-vscode",
+                "dbaeumer.vscode-eslint",
+                "amodio.tsl-problem-matcher",
+                "ms-vscode.extension-test-runner"
             ],
             "settings": {
                 "pls.cmd": "/home/vscode/.asdf/installs/perl/5.40.0/bin/pls"
