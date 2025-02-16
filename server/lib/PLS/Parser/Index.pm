@@ -148,8 +148,8 @@ sub index_files
                         my $file = URI->new($uri)->file;
                         return if $self->is_ignored($file);
 
-                        $file = readlink $file if (-l $file);
-                        return                 if $self->is_ignored($file);
+                        $file = path($file)->realpath if (-l $file);
+                        return                        if $self->is_ignored($file);
 
                         $self->cleanup_file($file);
 
@@ -420,7 +420,7 @@ sub get_all_perl_files
              return if any { /^\./ } @pieces;
 
              push @perl_files, $File::Find::name;
-         }
+         } ## end sub
         },
         @folders
     );
@@ -496,7 +496,7 @@ sub get_packages
     my %packages;
 
     my $file = URI->new($uri)->file;
-    $file = readlink $file if (-l $file);
+    $file = path($file)->realpath if (-l $file);
     $uri  = URI::file->new($file)->as_string();
 
     while (${$text} =~ /$rx/g)
@@ -537,7 +537,7 @@ sub get_subroutines
     my ($class, $text, $uri, $line_offsets) = @_;
 
     my $file = URI->new($uri)->file;
-    $file = readlink $file if (-l $file);
+    $file = path($file)->realpath if (-l $file);
     $uri  = URI::file->new($file)->as_string();
 
     # Stolen mostly from PPR definition for PerlSubroutineDeclaration
