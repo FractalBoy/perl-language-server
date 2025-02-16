@@ -7,7 +7,8 @@
     "features": {
         "ghcr.io/devcontainers-contrib/features/perl-asdf:2": {
             "version": "5.40.0"
-        }
+        },
+        "ghcr.io/devcontainers/features/node:1": {}
     },
     "workspaceMount": "",
     "remoteUser": "vscode",
@@ -18,7 +19,7 @@
         "--userns=keep-id",
         "--volume=${localWorkspaceFolder}:/workspaces/${localWorkspaceFolderBasename}:Z"
     ],
-    "postCreateCommand": "cpanm PLS Cpanel::JSON::XS PadWalker Data::Dump",
+    "postCreateCommand": "cd server && cpanm --installdeps . && perl Makefile.PL && make && make install && cpanm Cpanel::JSON::XS PadWalker Data::Dump",
     "customizations": {
         "vscode": {
             "extensions": [
