@@ -118,7 +118,7 @@ sub get_compilation_errors
         $temp = eval { File::Temp->new(CLEANUP => 0, TEMPLATE => '.pls-tmp-XXXXXXXXXX', DIR => $dir) };
         $temp = eval { File::Temp->new(CLEANUP => 0) } if (ref $temp ne 'File::Temp');
         $path = $temp->filename;
-        $future->on_done(sub { unlink $temp });
+        $future->on_ready(sub { unlink $temp });
 
         my $source_text = Encode::encode('UTF-8', ${$source});
 
@@ -183,7 +183,7 @@ sub get_compilation_errors
 
             # Load code using module name, but redirect Perl to the temp file
             # when loading the file we are compiling.
-            $code = <<~ "EOF";
+            $code = <<~"EOF";
             BEGIN
             {
                 unshift \@INC, sub {
@@ -270,7 +270,7 @@ sub get_compilation_errors
                 } ## end while (${$buffref} =~ s/^(.*)\n//...)
 
                 return 0;
-            }
+            } ## end sub
         },
         stdout => {
             on_read => sub {
@@ -280,7 +280,7 @@ sub get_compilation_errors
                 # This can happen if there is a BEGIN block that prints to STDOUT.
                 ${$buffref} = '';
                 return 0;
-            }
+            } ## end sub
         },
         on_finish => sub {
             $future->done(@diagnostics);

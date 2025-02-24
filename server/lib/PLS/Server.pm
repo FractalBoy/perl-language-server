@@ -88,7 +88,7 @@ sub run
 
                 $self->handle_client_message($content);
                 return 1;
-            };
+            }; ## end sub
         }
     );
 
@@ -149,14 +149,10 @@ sub send_server_request
     }
     elsif ($request->isa('Future'))
     {
-        $request->on_done(
-            sub {
-                my ($request) = @_;
+        $request = $request->get();
+        $self->handle_server_request($request);
+    }
 
-                $self->handle_server_request($request);
-            }
-        )->retain();
-    } ## end elsif ($request->isa('Future'...))
     return;
 } ## end sub send_server_request
 
@@ -167,7 +163,7 @@ sub send_message
     return if (not blessed($message) or not $message->isa('PLS::Server::Message'));
     my $json   = $message->serialize();
     my $length = length ${$json};
-    $self->{stream}->write("Content-Length: $length\r\n\r\n$$json")->retain();
+    $self->{stream}->write("Content-Length: $length\r\n\r\n$$json")->get();
 
     return;
 } ## end sub send_message
@@ -178,28 +174,38 @@ sub handle_client_request
 
     my $response = $request->service($self);
 
-    if (blessed($response))
+    if (not blessed($response))
     {
-        if ($response->isa('PLS::Server::Response'))
-        {
-            $self->send_message($response);
-        }
-        elsif ($response->isa('Future'))
-        {
-            $self->{running_futures}{$request->{id}} = $response if (length $request->{id});
+        return;
+    }
 
-            $response->on_done(
-                sub {
-                    my ($response) = @_;
-                    $self->send_message($response);
-                }
-              )->on_cancel(
-                sub {
-                    $self->send_message(PLS::Server::Response::Cancelled->new(id => $request->{id}));
-                }
-              );
-        } ## end elsif ($response->isa('Future'...))
-    } ## end if (blessed($response)...)
+    if ($response->isa('PLS::Server::Response'))
+    {
+        $self->send_message($response);
+    }
+    elsif ($response->isa('Future'))
+    {
+        my $id = $request->{id};
+
+        if (length $id)
+        {
+            $self->{running_futures}{$id} = $response;
+        }
+
+        $response->await();
+
+        if ($response->is_cancelled)
+        {
+            $response = PLS::Server::Response::Cancelled->new(id => $id);
+        }
+        else
+        {
+            $response = $response->result;
+        }
+
+        delete $self->{running_futures}{$id};
+        $self->send_message($response);
+    } ## end elsif ($response->isa('Future'...))
 
     return;
 } ## end sub handle_client_request
@@ -232,7 +238,6 @@ sub handle_server_request
         $self->{pending_requests}{$request->{id}} = $request;
     }
 
-    delete $self->{running_futures}{$request->{id}} if (length $request->{id});
     $self->send_message($request);
     return;
 } ## end sub handle_server_request
@@ -244,6 +249,20 @@ sub handle_server_response
     $self->send_message($response);
     return;
 } ## end sub handle_server_response
+
+sub cancel_request
+{
+    my ($self, $id) = @_;
+
+    my $future = delete $self->{running_futures}{$id};
+
+    if (blessed($future) and $future->isa('Future'))
+    {
+        $future->cancel();
+    }
+
+    return;
+} ## end sub cancel_request
 
 sub stop
 {

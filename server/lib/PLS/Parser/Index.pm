@@ -178,7 +178,7 @@ sub index_files
 
             return Future->done(@futures);
         }
-    )->retain();
+    );
 } ## end sub index_files
 
 sub get_all_perl_files_async
@@ -221,16 +221,15 @@ sub index_workspace
     my ($self, $path) = @_;
 
     push @{$self->workspace_folders}, $path;
+    @{$self->workspace_folders} = List::Util::uniq @{$self->workspace_folders};
 
-    $self->get_all_perl_files_async($path)->then(
+    return $self->get_all_perl_files_async($path)->then(
         sub {
             my ($workspace_uris) = @_;
 
             return $self->index_files(@{$workspace_uris});
         }
-    )->then(sub { Future->wait_all(@_) })->retain();
-
-    return;
+    )->then(sub { Future->wait_all(@_) });
 } ## end sub index_workspace
 
 sub cleanup_file

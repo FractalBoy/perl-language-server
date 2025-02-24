@@ -86,7 +86,7 @@ sub index_files_without_progress
 {
     my (undef, $index) = @_;
 
-    $index->index_files()->then(sub { Future->wait_all(@_) })->retain();
+    $index->index_files()->then(sub { Future->wait_all(@_) })->get();
 
     return;
 } ## end sub index_files_without_progress
@@ -115,9 +115,11 @@ sub index_files_with_progress
             my $done  = 0;
             my $total = scalar @futures;
 
+            my @new_futures;
+
             foreach my $future (@futures)
             {
-                $future->then(
+                push @new_futures, $future->then(
                     sub {
                         my ($file) = @_;
 
@@ -133,10 +135,10 @@ sub index_files_with_progress
                                                                                         )
                                                     );
                     }
-                )->retain();
+                );
             } ## end foreach my $future (@futures...)
 
-            return Future->wait_all(@futures)->then(
+            return Future->wait_all(@new_futures)->then(
                 sub {
                     $server->send_server_request(
                                                  PLS::Server::Request::Progress->new(
@@ -149,7 +151,7 @@ sub index_files_with_progress
                 }
             );
         }
-    )->retain();
+    )->get();
 
     return;
 } ## end sub index_files_with_progress
