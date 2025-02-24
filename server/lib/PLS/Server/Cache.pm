@@ -77,22 +77,34 @@ sub get_builtin_variables
 
     return $builtin_variables if (scalar @{$builtin_variables});
 
-    if (open my $fh, '-|', $perldoc, '-Tu', 'perlvar')
-    {
-        while (my $line = <$fh>)
-        {
-            if ($line =~ /=item\s*(C<)?([\$\@\%]\S+)\s*/)
-            {
-                # If variable started with pod sequence "C<" remove ">" from the end
-                my $variable = $2;
-                $variable = substr $variable, 0, -1 if (length $1);
+    my $process = IO::Async::Process->new(
+        command => [$perldoc, qw(-Tu perlvar)],
+        stdout  => {
+            on_read => sub {
+                my (undef, $buffref) = @_;
 
-                # Remove variables indicated by pod sequences
-                next if ($variable =~ /^\$</ and $variable ne '$<');    ## no critic (RequireInterpolationOfMetachars)
-                push @{$builtin_variables}, $variable;
-            } ## end if ($line =~ /=item\s*(C<)?([\$\@\%]\S+)\s*/...)
-        } ## end while (my $line = <$fh>)
-    } ## end if (open my $fh, '-|',...)
+                while (${$buffref} =~ s/^(.*)\n//)
+                {
+                    my $line = $1;
+
+                    if ($line =~ /=item\s*(C<)?([\$\@\%]\S+)\s*/)
+                    {
+                        # If variable started with pod sequence "C<" remove ">" from the end
+                        my $variable = $2;
+                        $variable = substr $variable, 0, -1 if (length $1);
+
+                        # Remove variables indicated by pod sequences
+                        next if ($variable =~ /^\$</ and $variable ne '$<');    ## no critic (RequireInterpolationOfMetachars)
+                        push @{$builtin_variables}, $variable;
+                    } ## end if ($line =~ /=item\s*(C<)?([\$\@\%]\S+)\s*/...)
+                } ## end while (${$buffref} =~ s/^(.*)\n//...)
+            } ## end sub
+        },
+        on_finish => sub { }
+    );
+
+    IO::Async::Loop->new->add($process);
+    $process->finish_future->get();
 
     return $builtin_variables;
 } ## end sub get_builtin_variables
