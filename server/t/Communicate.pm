@@ -1,4 +1,4 @@
-package t::Communicate;
+package t::Communicate;    ## no critic (Capitalization)
 
 use strict;
 use warnings;
@@ -29,10 +29,11 @@ sub new
         close $server_write_fh;
 
         my $self = {
-                    pid      => $pid,
-                    read_fh  => $client_read_fh,
-                    write_fh => $client_write_fh,
-                    err_fh   => $client_err_fh
+                    pid       => $pid,
+                    read_fh   => $client_read_fh,
+                    read_buff => '',
+                    write_fh  => $client_write_fh,
+                    err_fh    => $client_err_fh
                    };
 
         return bless $self, $class;
@@ -49,7 +50,7 @@ sub new
         open STDERR, '>&', $server_err_fh;
         my $server = PLS::Server->new();
         exit $server->run();
-    } ## end else [ if ($pid) ]
+    } ## end else[ if ($pid)]
 
     return;
 } ## end sub new
@@ -69,16 +70,50 @@ sub recv_message
 {
     my ($self) = @_;
 
-    local $/ = "\r\n";
-    my $response = readline $self->{read_fh};
-    return unless (length $response);
-    readline $self->{read_fh};    # blank line
-    my ($content_length) = $response =~ /Content-Length: (\d+)/;
-    my $json;
-    read $self->{read_fh}, $json, $content_length;
+    my $content = $self->read_content();
 
-    return eval { JSON::PP->new->utf8->decode($json) };
+    if ($content)
+    {
+        return $content;
+    }
+
+    while (sysread $self->{read_fh}, $self->{read_buff}, 8192, length($self->{read_buff}))
+    {
+        $content = $self->read_content();
+
+        if ($content)
+        {
+            return $content;
+        }
+    } ## end while (sysread $self->{read_fh...})
+
+    return;
 } ## end sub recv_message
+
+sub read_content
+{
+    my ($self) = @_;
+
+    if (not length $self->{read_buff})
+    {
+        return;
+    }
+
+    if ($self->{read_buff} =~ s/^(.*?)\r\n\r\n//s)
+    {
+        my ($content_length) = $1 =~ /Content-Length: (\d+)/;
+
+        if (length $self->{read_buff} < $content_length)
+        {
+            sysread $self->{read_fh}, $self->{read_buff}, ($content_length - length($self->{read_buff})), length($self->{read_buff});
+        }
+
+        my $json = substr $self->{read_buff}, 0, $content_length, '';
+        return eval { decode_json($json) };
+    } ## end if ($self->{read_buff}...)
+
+    return;
+} ## end sub read_content
 
 sub send_message_and_recv_response
 {
@@ -92,7 +127,7 @@ sub send_raw_message
 {
     my ($self, $message) = @_;
 
-    print {$self->{write_fh}} $message;
+    syswrite $self->{write_fh}, $message;
 
     return;
 } ## end sub send_raw_message

@@ -45,7 +45,9 @@ lib/PLS/Server/Response/Resolve.pm
 lib/PLS/Server/Response/Location.pm
 lib/PLS/Server/Response/WorkspaceSymbols.pm
 lib/PLS/Server/Response/Shutdown.pm
+lib/PLS/Server/Response/Sleep.pm
 lib/PLS/Server/Request/Progress.pm
+lib/PLS/Server/Request/Sleep.pm
 lib/PLS/Server/Request/Window/WorkDoneProgress/Create.pm
 lib/PLS/Server/Response/InvalidRequest.pm
 lib/PLS/Server/Message.pm

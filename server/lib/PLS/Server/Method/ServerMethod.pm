@@ -9,6 +9,7 @@ use PLS::Server::Request::Initialized;
 use PLS::Server::Request::CancelRequest;
 use PLS::Server::Request::Shutdown;
 use PLS::Server::Request::Exit;
+use PLS::Server::Request::Sleep;
 use PLS::Server::Response::ServerNotInitialized;
 use PLS::Server::Response::InvalidRequest;
 
@@ -86,6 +87,11 @@ sub get_request
         return PLS::Server::Request::CancelRequest->new($request);
     }
 
+    if ($method eq 'sleep')
+    {
+        return PLS::Server::Request::Sleep->new($request);
+    }
+
     if ($method eq 'shutdown')
     {
         return PLS::Server::Request::Shutdown->new($request);
@@ -98,11 +104,16 @@ sub is_server_method
 {
     my ($method) = @_;
 
-    return 1 if ($method eq 'initialize');
-    return 1 if ($method eq 'initialized');
-    return 1 if ($method eq 'shutdown');
-    return 1 if ($method eq 'exit');
-    return 1 if ($method eq '$');
+    my %valid = (
+                 initialize  => 1,
+                 initialized => 1,
+                 shutdown    => 1,
+                 exit        => 1,
+                 sleep       => 1,
+                 '$'         => 1
+                );
+
+    return 1 if $valid{$method};
     return 0;
 } ## end sub is_server_method
 
