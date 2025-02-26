@@ -188,19 +188,25 @@ sub handle_client_request
             $self->{running_futures}{$id} = $response;
         }
 
-        return $response->then(
+        my $future = $response->then(
             sub {
                 my ($response) = @_;
 
-                if (not exists $self->{running_futures}{$id})
-                {
-                    $response = PLS::Server::Response::Cancelled->new(id => $id);
-                }
-
+                warn "sending response for id $id\n";
                 $self->send_message($response);
                 return Future->done();
             }
-        );
+          )->on_cancel(
+            sub {
+                $self->send_message(PLS::Server::Response::Cancelled->new(id => $id));
+            }
+          );
+
+        # Kind of silly, but the sequence future doesn't get cancelled automatically -
+        # we need to set that up ourselves.
+        $response->on_cancel($future);
+
+        return $future;
     } ## end elsif ($response->isa('Future'...))
 
     return;
@@ -254,11 +260,8 @@ sub cancel_request
 
     if (blessed($future) and $future->isa('Future'))
     {
-        if (not $future->is_ready)
-        {
-            $future->done();
-        }
-    } ## end if (blessed($future) and...)
+        $future->cancel();
+    }
 
     return;
 } ## end sub cancel_request

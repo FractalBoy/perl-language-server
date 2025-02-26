@@ -39,6 +39,13 @@ sub new
     $timer->start();
     $loop->add($timer);
 
+    $future->on_cancel(
+        sub {
+            $timer->stop();
+            $timer->remove_from_parent();
+        }
+    );
+
     return $future;
 } ## end sub new
 
