@@ -12,11 +12,10 @@ use PLS::Parser::Pod;
 
 sub warm_up
 {
-    get_builtin_variables();
     get_core_modules();
     get_ext_modules();
 
-    return;
+    return get_builtin_variables();
 } ## end sub warm_up
 
 sub get_ext_modules
@@ -75,7 +74,7 @@ sub get_builtin_variables
     my $perldoc = PLS::Parser::Pod->get_perldoc_location();
     state $builtin_variables = [];
 
-    return $builtin_variables if (scalar @{$builtin_variables});
+    return Future->done($builtin_variables) if (scalar @{$builtin_variables});
 
     my $process = IO::Async::Process->new(
         command => [$perldoc, qw(-Tu perlvar)],
@@ -104,9 +103,7 @@ sub get_builtin_variables
     );
 
     IO::Async::Loop->new->add($process);
-    $process->finish_future->get();
-
-    return $builtin_variables;
+    return $process->finish_future->then(sub { $builtin_variables });
 } ## end sub get_builtin_variables
 
 1;

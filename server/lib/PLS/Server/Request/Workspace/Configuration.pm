@@ -102,14 +102,12 @@ sub handle_response
         push @futures, $future;
     } ## end foreach my $uri (@{PLS::Parser::Document...})
 
+    push @futures, PLS::Server::Cache::warm_up();
+
     PLS::Parser::PackageSymbols::start_package_symbols_process($config);
     PLS::Parser::PackageSymbols::start_imported_package_symbols_process($config);
 
-    PLS::Server::Cache::warm_up();
-
-    Future->wait_all(@futures)->await();
-
-    return;
+    return Future->wait_all(@futures)->then(sub { });
 } ## end sub handle_response
 
 sub convert_config

@@ -224,7 +224,7 @@ sub handle_client_response
 
     if (blessed($request) and $request->isa('PLS::Server::Request'))
     {
-        $request->handle_response($response, $self);
+        return $request->handle_response($response, $self);
     }
 
     return;
