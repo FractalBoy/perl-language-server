@@ -4,12 +4,9 @@ use strict;
 use warnings;
 
 use Future;
-use Future::Queue;
-use Future::Utils;
 use IO::Async::Loop;
 use IO::Async::Signal;
 use IO::Async::Stream;
-use IO::Handle;
 use Scalar::Util qw(blessed);
 
 use PLS::JSON;
