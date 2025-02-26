@@ -53,10 +53,10 @@ sub new
 
     return
       bless {
-             loop             => IO::Async::Loop->new(),
-             stream           => undef,
-             running_futures  => {},
-             pending_requests => {}
+             loop              => IO::Async::Loop->new(),
+             stream            => undef,
+             pending_requests  => {},
+             pending_responses => {}
             }, $class;
 } ## end sub new
 
@@ -196,7 +196,7 @@ sub handle_client_request
 
         if (length $id)
         {
-            $self->{running_futures}{$id} = $response;
+            $self->{pending_responses}{$id} = $response;
         }
 
         my $future = $response->then(
@@ -256,7 +256,7 @@ sub cancel_request
 {
     my ($self, $id) = @_;
 
-    my $future = delete $self->{running_futures}{$id};
+    my $future = delete $self->{pending_responses}{$id};
 
     if (blessed($future) and $future->isa('Future'))
     {
