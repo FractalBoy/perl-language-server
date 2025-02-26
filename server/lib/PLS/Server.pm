@@ -146,7 +146,6 @@ sub send_server_request
         $request->on_done(
             sub {
                 my ($request) = @_;
-
                 $self->handle_server_request($request);
             }
         );
@@ -159,7 +158,7 @@ sub send_message
 {
     my ($self, $message) = @_;
 
-    return if (not blessed($message) or not $message->isa('PLS::Server::Message'));
+    return Future->done() if (not blessed($message) or not $message->isa('PLS::Server::Message'));
     my $json   = $message->serialize();
     my $length = length ${$json};
     return $self->{stream}->write("Content-Length: $length\r\n\r\n$$json");
@@ -192,7 +191,6 @@ sub handle_client_request
         my $future = $response->then(
             sub {
                 my ($response) = @_;
-
                 return $self->send_message($response);
             }
           )->on_cancel(
