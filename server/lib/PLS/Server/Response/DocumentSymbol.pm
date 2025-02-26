@@ -66,7 +66,7 @@ sub on_expire
 
             if ($future->is_ready)
             {
-                return Future->done();
+                return;
             }
 
             my $current_version = PLS::Parser::Document::uri_version($uri);
@@ -74,12 +74,12 @@ sub on_expire
             if (not length $current_version or length $version and $current_version > $version)
             {
                 $future->done($self);
-                return Future->done();
+                return;
             }
 
             $self->{result} = $symbols;
             $future->done($self);
-            return Future->done();
+            return;
         }
     )->get();
 

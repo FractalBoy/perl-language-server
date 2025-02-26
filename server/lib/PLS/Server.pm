@@ -194,7 +194,7 @@ sub handle_client_request
 
                 warn "sending response for id $id\n";
                 $self->send_message($response);
-                return Future->done();
+                return;
             }
           )->on_cancel(
             sub {
