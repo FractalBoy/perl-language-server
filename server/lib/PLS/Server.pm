@@ -192,7 +192,6 @@ sub handle_client_request
             sub {
                 my ($response) = @_;
 
-                warn "sending response for id $id\n";
                 $self->send_message($response);
                 return;
             }
