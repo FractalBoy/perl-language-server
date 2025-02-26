@@ -17,6 +17,20 @@ use PLS::Server::Request::Factory;
 use PLS::Server::Response;
 use PLS::Server::Response::Cancelled;
 
+# Install $SIG{__WARN__} handler to hide warnings coming from IO::Async and Future.
+$SIG{__WARN__} = sub {    ## no critic (RequireLocalizedPunctuationVars)
+    my ($warning) = @_;
+
+    if (   $warning =~ m{Deep recursion on subroutine "Future.+(?:done|on_ready)"}
+        or $warning =~ m{Use of uninitialized value \$events in bitwise and (&).*IO/Async/Loop/Poll.pm})
+    {
+        return;
+    }
+
+    warn $warning;
+    return;
+}; ## end sub
+
 =head1 NAME
 
 PLS::Server
