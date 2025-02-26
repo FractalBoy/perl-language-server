@@ -130,20 +130,21 @@ sub index_files_with_progress
                 );
             } ## end foreach my $future (@futures...)
 
-            return Future->wait_all(@new_futures)->then(
-                sub {
-                    $server->send_server_request(
-                                                 PLS::Server::Request::Progress->new(
-                                                                                     token   => $work_done_progress_create->{params}{token},
-                                                                                     kind    => 'end',
-                                                                                     message => 'Finished indexing all files'
-                                                                                    )
-                                                );
-
-                }
-            );
+            return Future->wait_all(@new_futures);
         }
-    );
+      )->then(
+        sub {
+            $server->send_server_request(
+                                         PLS::Server::Request::Progress->new(
+                                                                             token   => $work_done_progress_create->{params}{token},
+                                                                             kind    => 'end',
+                                                                             message => 'Finished indexing all files'
+                                                                            )
+                                        );
+
+        }
+      );
+
 } ## end sub index_files_with_progress
 
 1;
