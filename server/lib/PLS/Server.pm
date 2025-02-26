@@ -109,8 +109,7 @@ sub handle_client_message
 
         if (blessed($message) and $message->isa('PLS::Server::Response'))
         {
-            $self->send_message($message);
-            return;
+            return $self->send_message($message);
         }
     } ## end if (length $message->{...})
     else
@@ -163,9 +162,7 @@ sub send_message
     return if (not blessed($message) or not $message->isa('PLS::Server::Message'));
     my $json   = $message->serialize();
     my $length = length ${$json};
-    $self->{stream}->write("Content-Length: $length\r\n\r\n$$json")->get();
-
-    return;
+    return $self->{stream}->write("Content-Length: $length\r\n\r\n$$json");
 } ## end sub send_message
 
 sub handle_client_request
@@ -181,8 +178,7 @@ sub handle_client_request
 
     if ($response->isa('PLS::Server::Response'))
     {
-        $self->send_message($response);
-        return;
+        return $self->send_message($response);
     }
     elsif ($response->isa('Future'))
     {
@@ -197,12 +193,11 @@ sub handle_client_request
             sub {
                 my ($response) = @_;
 
-                $self->send_message($response);
-                return;
+                return $self->send_message($response);
             }
           )->on_cancel(
             sub {
-                $self->send_message(PLS::Server::Response::Cancelled->new(id => $id));
+                $self->send_message(PLS::Server::Response::Cancelled->new(id => $id))->await();
             }
           );
 
@@ -244,17 +239,9 @@ sub handle_server_request
         $self->{pending_requests}{$request->{id}} = $request;
     }
 
-    $self->send_message($request);
+    $self->send_message($request)->await();
     return;
 } ## end sub handle_server_request
-
-sub handle_server_response
-{
-    my ($self, $response) = @_;
-
-    $self->send_message($response);
-    return;
-} ## end sub handle_server_response
 
 sub cancel_request
 {
