@@ -57,7 +57,7 @@ sub service
 
     if (scalar @changed_files)
     {
-        $index->index_files(@changed_files)->then(sub { Future->wait_all(@_) })->get();
+        return $index->index_files(@changed_files)->then(sub { Future->wait_all(@_) });
     }
 
     return;

@@ -23,12 +23,13 @@ sub service
 {
     my ($self, $server) = @_;
 
-    $server->send_server_request(PLS::Server::Request::TextDocument::PublishDiagnostics->new(uri => $self->{params}{textDocument}{uri}, close => 1));
+    my $publish_future = PLS::Server::Request::TextDocument::PublishDiagnostics->new(uri => $self->{params}{textDocument}{uri}, close => 1);
+    $server->send_server_request($publish_future);
 
     my $text_document = $self->{params}{textDocument};
     PLS::Parser::Document->close_file(%{$text_document});
 
-    return;
+    return $publish_future->then(sub { });
 } ## end sub service
 
 1;

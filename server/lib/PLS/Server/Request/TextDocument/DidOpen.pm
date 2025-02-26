@@ -5,6 +5,8 @@ use warnings;
 
 use parent 'PLS::Server::Request';
 
+use Future;
+
 use PLS::Parser::Document;
 use PLS::Parser::PackageSymbols;
 use PLS::Server::Request::TextDocument::PublishDiagnostics;
@@ -27,14 +29,16 @@ sub service
     my $text_document = $self->{params}{textDocument};
     PLS::Parser::Document->open_file(%{$text_document});
 
-    $server->send_server_request(PLS::Server::Request::TextDocument::PublishDiagnostics->new(uri => $text_document->{uri}));
+    my $publish_future = PLS::Server::Request::TextDocument::PublishDiagnostics->new(uri => $text_document->{uri});
+    $server->send_server_request($publish_future);
 
     # Warm up the cache for imported package symbols
     my $text    = PLS::Parser::Document->text_from_uri($text_document->{uri});
     my $imports = PLS::Parser::Document->get_imports($text);
-    PLS::Parser::PackageSymbols::get_imported_package_symbols($PLS::Server::State::CONFIG, @{$imports})->get();
 
-    return;
+    my $symbols_future = PLS::Parser::PackageSymbols::get_imported_package_symbols($PLS::Server::State::CONFIG, @{$imports});
+
+    return Future->wait_all($publish_future, $symbols_future)->then(sub { });
 } ## end sub service
 
 1;

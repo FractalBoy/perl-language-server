@@ -5,6 +5,8 @@ use warnings;
 
 use parent 'PLS::Server::Request';
 
+use Future;
+
 use PLS::Parser::Document;
 use PLS::Server::Request::TextDocument::PublishDiagnostics;
 
@@ -23,10 +25,11 @@ sub service
 {
     my ($self, $server) = @_;
 
-    my $uri = $self->{params}{textDocument}{uri};
-    $server->send_server_request(PLS::Server::Request::TextDocument::PublishDiagnostics->new(uri => $uri));
+    my $uri            = $self->{params}{textDocument}{uri};
+    my $publish_future = PLS::Server::Request::TextDocument::PublishDiagnostics->new(uri => $uri);
+    $server->send_server_request($publish_future);
 
-    return;
+    return $publish_future->then(sub { });
 } ## end sub service
 
 1;

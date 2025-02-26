@@ -61,9 +61,7 @@ sub service
     $server->send_server_request(PLS::Server::Request::Client::RegisterCapability->new(\@capabilities));
 
     # Now is a good time to start indexing files.
-    $self->index_files($index, $server);
-
-    return;
+    return $self->index_files($index, $server);
 } ## end sub service
 
 sub index_files
@@ -72,24 +70,18 @@ sub index_files
 
     if ($PLS::Server::State::CLIENT_CAPABILITIES->{window}{workDoneProgress})
     {
-        $self->index_files_with_progress($index, $server);
-    }
-    else
-    {
-        $self->index_files_without_progress($index);
+        return $self->index_files_with_progress($index, $server);
     }
 
-    return;
+    return $self->index_files_without_progress($index);
 } ## end sub index_files
 
 sub index_files_without_progress
 {
     my (undef, $index) = @_;
 
-    $index->index_files()->then(sub { Future->wait_all(@_) })->get();
-
-    return;
-} ## end sub index_files_without_progress
+    return $index->index_files()->then(sub { Future->wait_all(@_) });
+}
 
 sub index_files_with_progress
 {
@@ -108,7 +100,7 @@ sub index_files_with_progress
                                                                     )
                                 );
 
-    $index->index_files()->then(
+    return $index->index_files()->then(
         sub {
             my @futures = @_;
 
@@ -151,9 +143,7 @@ sub index_files_with_progress
                 }
             );
         }
-    )->get();
-
-    return;
+    );
 } ## end sub index_files_with_progress
 
 1;

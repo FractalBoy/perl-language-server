@@ -44,9 +44,7 @@ sub service
         push @futures, $index->index_workspace($path);
     }
 
-    Future->wait_all(@futures)->get();
-
-    return;
+    return Future->wait_all(@futures);
 } ## end sub service
 
 1;

@@ -144,9 +144,14 @@ sub send_server_request
     }
     elsif ($request->isa('Future'))
     {
-        $request = $request->get();
-        $self->handle_server_request($request);
-    }
+        $request->on_done(
+            sub {
+                my ($request) = @_;
+
+                $self->handle_server_request($request);
+            }
+        );
+    } ## end elsif ($request->isa('Future'...))
 
     return;
 } ## end sub send_server_request

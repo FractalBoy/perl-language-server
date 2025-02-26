@@ -5,6 +5,7 @@ use warnings;
 
 use parent 'PLS::Server::Request';
 
+use Future;
 use List::Util;
 use Scalar::Util;
 
@@ -91,17 +92,22 @@ sub handle_response
     }
 
     $PLS::Server::State::CONFIG = $config;
+    my @futures;
 
     # @INC may have changed - republish diagnostics
     foreach my $uri (@{PLS::Parser::Document->open_files()})
     {
-        $server->send_server_request(PLS::Server::Request::TextDocument::PublishDiagnostics->new(uri => $uri));
-    }
+        my $future = PLS::Server::Request::TextDocument::PublishDiagnostics->new(uri => $uri);
+        $server->send_server_request($future);
+        push @futures, $future;
+    } ## end foreach my $uri (@{PLS::Parser::Document...})
 
     PLS::Parser::PackageSymbols::start_package_symbols_process($config);
     PLS::Parser::PackageSymbols::start_imported_package_symbols_process($config);
 
     PLS::Server::Cache::warm_up();
+
+    Future->wait_all(@futures)->await();
 
     return;
 } ## end sub handle_response

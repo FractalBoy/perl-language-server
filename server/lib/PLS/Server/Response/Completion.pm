@@ -81,34 +81,32 @@ sub new
             # Imported functions can't be called with an arrow
             push @futures, get_imported_package_functions($document, $full_text) unless $arrow;
         } ## end if ($filter)
-
     } ## end else[ if ($filter =~ /^[\$\@\%]/...)]
-
-    push @results, @{Future->wait_all(@futures)->then(
-            sub {
-                [map { @{$_->result} } grep { $_->is_ready } @_]
-            }
-          )->get()
-    };
-
-    my %unique_by_detail;
-
-    foreach my $result (@results)
-    {
-        my $new_text = $result->{label};
-        $new_text = $result->{insertText} if (length $result->{insertText});
-        delete $result->{insertText};
-        next if (exists $result->{detail} and length $result->{detail} and $unique_by_detail{$result->{detail}}++);
-
-        push @{$self->{result}}, {%{$result}, textEdit => {newText => $new_text, range => $range}};
-    } ## end foreach my $result (@results...)
 
     if (not $arrow and not $package and $filter !~ /^\%\@/)
     {
         push @{$self->{result}}, get_snippets();
     }
 
-    return $self;
+    return Future->wait_all(@futures)->then(
+        sub {
+            push @results, map { @{$_->result} } @_;
+
+            my %unique_by_detail;
+
+            foreach my $result (@results)
+            {
+                my $new_text = $result->{label};
+                $new_text = $result->{insertText} if (length $result->{insertText});
+                delete $result->{insertText};
+                next if (exists $result->{detail} and length $result->{detail} and $unique_by_detail{$result->{detail}}++);
+
+                push @{$self->{result}}, {%{$result}, textEdit => {newText => $new_text, range => $range}};
+            } ## end foreach my $result (@results...)
+
+            return $self;
+        }
+    );
 } ## end sub new
 
 sub get_keywords
@@ -150,7 +148,7 @@ sub get_package_functions
         sub {
             my ($functions) = @_;
 
-            return Future->done([]) if (ref $functions ne 'HASH');
+            return [] if (ref $functions ne 'HASH');
 
             my $separator = $arrow ? '->' : '::';
             my @functions;
@@ -191,7 +189,7 @@ sub get_package_functions
                 } ## end foreach my $name (@{$functions...})
             } ## end foreach my $package_name (keys...)
 
-            return Future->done(\@functions);
+            return \@functions;
         }
     );
 } ## end sub get_package_functions
@@ -224,7 +222,8 @@ sub get_imported_package_functions
                     push @results, $result;
                 } ## end foreach my $subroutine (@{$imported_functions...})
             } ## end foreach my $package_name (keys...)
-            return Future->done(\@results);
+
+            return \@results;
         }
     );
 } ## end sub get_imported_package_functions

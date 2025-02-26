@@ -83,9 +83,9 @@ sub _send_data_and_recv_result
         sub {
             my ($json) = @_;
 
-            return Future->done(eval { decode_json $json } // {});
+            return eval { decode_json $json } // {};
         },
-        sub { Future->done({}) }
+        sub { return {} }
     );
 } ## end sub _send_data_and_recv_result
 

@@ -53,10 +53,13 @@ sub service
             on_expire => sub {
                 delete $timers{$uri};
 
-                $server->send_server_request(PLS::Server::Request::TextDocument::PublishDiagnostics->new(uri => $uri));
+                my $publish_future = PLS::Server::Request::TextDocument::PublishDiagnostics->new(uri => $uri);
+                $server->send_server_request($publish_future);
 
-                my $index = PLS::Parser::Index->new();
-                $index->index_files($uri)->then(sub { Future->wait_all(@_) })->get();
+                my $index        = PLS::Parser::Index->new();
+                my $index_future = $index->index_files($uri)->then(sub { Future->wait_all(@_) });
+
+                Future->wait_all($publish_future, $index_future)->await();
             },
             remove_on_expire => 1
         );
