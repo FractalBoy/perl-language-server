@@ -2,5 +2,5 @@
   "jsonrpc": "2.0",
   "id": null,
   "method": "sleep",
-  "params": { "delay": 20 }
+  "params": { "delay": 10 }
 }

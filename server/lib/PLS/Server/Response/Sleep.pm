@@ -8,6 +8,18 @@ use parent 'PLS::Server::Response';
 use IO::Async::Loop;
 use IO::Async::Timer::Countdown;
 
+=head1 NAME
+
+PLS::Server::Response::Sleep
+
+=head1 DESCRIPTION
+
+This is not a real language server response - it is only used for testing.
+
+It will wait the requested delay in seconds before returning an empty response.
+
+=cut
+
 sub new
 {
     my ($class, $request) = @_;
@@ -19,9 +31,9 @@ sub new
 
     my $loop   = IO::Async::Loop->new();
     my $future = $loop->new_future();
-    $future->set_label('sleep');
+
     my $timer = IO::Async::Timer::Countdown->new(
-        delay     => 10,
+        delay     => $request->{params}{delay},
         on_expire => sub {
             $future->done($self);
         },
@@ -29,6 +41,13 @@ sub new
     );
     $timer->start();
     $loop->add($timer);
+
+    $future->on_cancel(
+        sub {
+            $timer->stop();
+            $timer->remove_from_parent();
+        }
+    );
 
     return $future;
 } ## end sub new
