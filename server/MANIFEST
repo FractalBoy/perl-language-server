@@ -87,8 +87,8 @@ t/packets/cancel.json
 t/packets/configuration.json
 t/packets/didopen.json
 t/packets/exit.json
-t/packets/formatting.json
 t/packets/initialize.json
 t/packets/initialized.json
 t/packets/shutdown.json
+t/packets/sleep.json
 t/Communicate.pm
