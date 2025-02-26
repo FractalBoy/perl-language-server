@@ -81,7 +81,7 @@ sub on_expire
             $future->done($self);
             return;
         }
-    )->get();
+    )->await();
 
     return;
 } ## end sub on_expire
