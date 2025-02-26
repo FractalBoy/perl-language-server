@@ -54,7 +54,11 @@ sub service
     } ## end foreach my $change (@{$self...})
 
     @changed_files = uniq @changed_files;
-    $index->index_files(@changed_files)->then(sub { Future->wait_all(@_) })->retain() if (scalar @changed_files);
+
+    if (scalar @changed_files)
+    {
+        return $index->index_files(@changed_files)->then(sub { Future->wait_all(@_) });
+    }
 
     return;
 } ## end sub service

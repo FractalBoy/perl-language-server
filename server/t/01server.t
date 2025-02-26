@@ -136,8 +136,8 @@ subtest 'server not initialized' => sub {
     ok(valid_response($response), 'valid response');
     cmp_ok($response->{jsonrpc}, '==', 2.0, 'response is jsonrpc 2.0');
     cmp_ok($response->{id},      '==', 0,   'response is id 0');
-    is_deeply($response->{error}, {code => -32002, message => 'server not yet initialized'}, 'server not yet initialized');
-};
+    is_deeply($response->{error}, {code => -32_002, message => 'server not yet initialized'}, 'server not yet initialized');
+}; ## end 'server not initialized' => sub
 
 subtest 'initialize server' => sub {
     plan tests => 15;
@@ -165,7 +165,7 @@ subtest 'initialize server' => sub {
     is_deeply($capabilities->{completionProvider},     {triggerCharacters => ['>', ':', '$', '@', '%', ' ', '-'], resolveProvider => JSON::PP::true}, 'server is completion provider');
     is_deeply($capabilities->{executeCommandProvider}, {commands          => ['pls.sortImports']},                                                    'server can execute commands');
     ok($capabilities->{workspaceSymbolProvider}, 'server is workspace symbol provider');
-};
+}; ## end 'initialize server' => sub
 
 subtest 'initial requests' => sub {
     plan tests => 30;
@@ -179,10 +179,12 @@ subtest 'initial requests' => sub {
         push @messages, $comm->recv_message();
     }
 
-    my $work_done_create    = List::Util::first { $_->{method} eq 'window/workDoneProgress/create' } @messages;
-    my $work_done_begin     = List::Util::first { $_->{method} eq '$/progress' and $_->{params}{value}{kind} eq 'begin' } @messages;
-    my $work_done_report    = List::Util::first { $_->{method} eq '$/progress' and $_->{params}{value}{kind} eq 'report' } @messages;
-    my $work_done_end       = List::Util::first { $_->{method} eq '$/progress' and $_->{params}{value}{kind} eq 'end' } @messages;
+    my $work_done_create = List::Util::first { $_->{method} eq 'window/workDoneProgress/create' } @messages;
+    ## no critic (RequireInterpolationOfMetachars)
+    my $work_done_begin  = List::Util::first { $_->{method} eq '$/progress' and $_->{params}{value}{kind} eq 'begin' } @messages;
+    my $work_done_report = List::Util::first { $_->{method} eq '$/progress' and $_->{params}{value}{kind} eq 'report' } @messages;
+    my $work_done_end    = List::Util::first { $_->{method} eq '$/progress' and $_->{params}{value}{kind} eq 'end' } @messages;
+    ## use critic
     my $register_capability = List::Util::first { $_->{method} eq 'client/registerCapability' } @messages;
     my $configuration       = List::Util::first { $_->{method} eq 'workspace/configuration' } @messages;
 
@@ -201,20 +203,20 @@ subtest 'initial requests' => sub {
     cmp_ok(@{$register_capability->{params}{registrations}[1]{registerOptions}{watchers}}, '==', 1, 'correct number of watchers');
     is($register_capability->{params}{registrations}[1]{registerOptions}{watchers}[0]{globPattern}, '**/*', 'correct glob pattern');
 
-    is($work_done_begin->{method},               '$/progress', 'work done begin sent');
+    is($work_done_begin->{method},               '$/progress', 'work done begin sent');    ## no critic (RequireInterpolationOfMetachars)
     is($work_done_begin->{params}{token},        $token,       'correct token');
     is($work_done_begin->{params}{value}{kind},  'begin',      'begin sent first');
     is($work_done_begin->{params}{value}{title}, 'Indexing',   'correct title');
     cmp_ok($work_done_begin->{params}{value}{percentage}, '==', 0, 'correct percentage');
     ok(!$work_done_begin->{params}{value}{cancellable}, 'work is not cancellable');
 
-    is($work_done_report->{method},                 '$/progress',                   'work done report sent');
+    is($work_done_report->{method},                 '$/progress',                   'work done report sent');    ## no critic (RequireInterpolationOfMetachars)
     is($work_done_report->{params}{token},          $token,                         'correct token');
     is($work_done_report->{params}{value}{kind},    'report',                       'report sent second');
     is($work_done_report->{params}{value}{message}, 'Indexed Communicate.pm (1/1)', 'correct message');
     cmp_ok($work_done_report->{params}{value}{percentage}, '==', 100, 'correct percentage');
 
-    is($work_done_end->{method},                 '$/progress',                  'work done report sent');
+    is($work_done_end->{method},                 '$/progress',                  'work done report sent');        ## no critic (RequireInterpolationOfMetachars)
     is($work_done_end->{params}{token},          $token,                        'correct token');
     is($work_done_end->{params}{value}{kind},    'end',                         'end sent last');
     is($work_done_end->{params}{value}{message}, 'Finished indexing all files', 'correct message');
@@ -247,7 +249,7 @@ subtest 'initial requests' => sub {
       );
 
     $comm->stop_server();
-};
+}; ## end 'initial requests' => sub
 
 subtest 'cancel request' => sub {
     plan tests => 4;
@@ -255,26 +257,25 @@ subtest 'cancel request' => sub {
     my $comm = t::Communicate->new();
     initialize_server($comm);
     complete_initialization($comm);
-    my $uri    = open_file('Communicate.pm', $comm);
-    my $format = slurp('formatting.json', 2);
+    my $uri   = open_file('Communicate.pm', $comm);
+    my $sleep = slurp('sleep.json', 2);
 
     my $cancel = slurp('cancel.json');
-    $format->{params}{textDocument}{uri} = $uri;
 
-    $cancel->{params}{id} = $format->{id};
+    $cancel->{params}{id} = $sleep->{id};
 
-    # request formatting and then cancel immediately.
+    # request sleep and then cancel immediately.
     # should receive a response that the request was canceled.
-    $comm->send_message($format);
+    $comm->send_message($sleep);
     $comm->send_message($cancel);
     my $response = $comm->recv_message();
 
     ok(valid_response($response), 'valid response');
-    cmp_ok($response->{id},          '==', $format->{id}, 'correct id');
-    cmp_ok($response->{error}{code}, '==', -32800,        'correct code');    # request cancelled = -32800
+    cmp_ok($response->{id},          '==', $sleep->{id}, 'correct id');
+    cmp_ok($response->{error}{code}, '==', -32_800,      'correct code');    # request cancelled = -32800
     is($response->{error}{message}, 'Request cancelled.', 'correct error message');
     $comm->stop_server();
-};
+}; ## end 'cancel request' => sub
 
 subtest 'bad message' => sub {
     plan tests => 1;
@@ -284,7 +285,7 @@ subtest 'bad message' => sub {
     chomp(my $error = $comm->recv_err());
     like($error, qr/no content-length header/i, 'no content length header error thrown');
     waitpid $comm->{pid}, 0;
-};
+}; ## end 'bad message' => sub
 
 subtest 'shutdown and exit' => sub {
     plan tests => 5;
@@ -296,9 +297,9 @@ subtest 'shutdown and exit' => sub {
     my $shutdown_response = $comm->send_message_and_recv_response(slurp('shutdown.json', 2));
     cmp_ok($shutdown_response->{id}, '==', 2, 'got shutdown response');
 
-    my $invalid_request = $comm->send_message_and_recv_response(slurp('formatting.json', 3));
-    cmp_ok($invalid_request->{id},          '==', 3,      'got invalid request response');
-    cmp_ok($invalid_request->{error}{code}, '==', -32600, 'got correct error code');
+    my $invalid_request = $comm->send_message_and_recv_response(slurp('sleep.json', 3));
+    cmp_ok($invalid_request->{id},          '==',  3,      'got invalid request response');
+    cmp_ok($invalid_request->{error}{code}, '==', -32_600, 'got correct error code');
 
     $comm->send_message(slurp('exit.json'));
     waitpid $comm->{pid}, 0;
@@ -311,4 +312,4 @@ subtest 'shutdown and exit' => sub {
     $comm->send_message(slurp('exit.json'));
     waitpid $comm->{pid}, 0;
     cmp_ok($? >> 8, '==', 1, 'got 1 exit code when exit request sent without shutdown');
-};
+}; ## end 'shutdown and exit' => sub

@@ -1414,7 +1414,7 @@ sub find_word_under_cursor
           or $_->type eq 'PPI::Token::QuoteLike::Regexp'
           or $_->type eq 'PPI::Token::QuoteLike::Command'
           or $_->element->isa('PPI::Token::Regexp');
-    };
+    }; ## end $predicate = sub
     my $element          = first { $predicate->() or $_->type eq 'PPI::Token::Operator' } @in_range;
     my $closest_operator = first { $_->type eq 'PPI::Token::Operator' } grep { $_->lsp_column_number < $character } @elements;
 

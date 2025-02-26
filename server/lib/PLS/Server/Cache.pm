@@ -12,11 +12,10 @@ use PLS::Parser::Pod;
 
 sub warm_up
 {
-    get_builtin_variables();
     get_core_modules();
     get_ext_modules();
 
-    return;
+    return get_builtin_variables();
 } ## end sub warm_up
 
 sub get_ext_modules
@@ -75,26 +74,36 @@ sub get_builtin_variables
     my $perldoc = PLS::Parser::Pod->get_perldoc_location();
     state $builtin_variables = [];
 
-    return $builtin_variables if (scalar @{$builtin_variables});
+    return Future->done($builtin_variables) if (scalar @{$builtin_variables});
 
-    if (open my $fh, '-|', $perldoc, '-Tu', 'perlvar')
-    {
-        while (my $line = <$fh>)
-        {
-            if ($line =~ /=item\s*(C<)?([\$\@\%]\S+)\s*/)
-            {
-                # If variable started with pod sequence "C<" remove ">" from the end
-                my $variable = $2;
-                $variable = substr $variable, 0, -1 if (length $1);
+    my $process = IO::Async::Process->new(
+        command => [$perldoc, qw(-Tu perlvar)],
+        stdout  => {
+            on_read => sub {
+                my (undef, $buffref) = @_;
 
-                # Remove variables indicated by pod sequences
-                next if ($variable =~ /^\$</ and $variable ne '$<');    ## no critic (RequireInterpolationOfMetachars)
-                push @{$builtin_variables}, $variable;
-            } ## end if ($line =~ /=item\s*(C<)?([\$\@\%]\S+)\s*/...)
-        } ## end while (my $line = <$fh>)
-    } ## end if (open my $fh, '-|',...)
+                while (${$buffref} =~ s/^(.*)\n//)
+                {
+                    my $line = $1;
 
-    return $builtin_variables;
+                    if ($line =~ /=item\s*(C<)?([\$\@\%]\S+)\s*/)
+                    {
+                        # If variable started with pod sequence "C<" remove ">" from the end
+                        my $variable = $2;
+                        $variable = substr $variable, 0, -1 if (length $1);
+
+                        # Remove variables indicated by pod sequences
+                        next if ($variable =~ /^\$</ and $variable ne '$<');    ## no critic (RequireInterpolationOfMetachars)
+                        push @{$builtin_variables}, $variable;
+                    } ## end if ($line =~ /=item\s*(C<)?([\$\@\%]\S+)\s*/...)
+                } ## end while (${$buffref} =~ s/^(.*)\n//...)
+            } ## end sub
+        },
+        on_finish => sub { }
+    );
+
+    IO::Async::Loop->new->add($process);
+    return $process->finish_future->then(sub { $builtin_variables });
 } ## end sub get_builtin_variables
 
 1;

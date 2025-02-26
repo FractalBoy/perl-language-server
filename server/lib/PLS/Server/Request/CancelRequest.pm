@@ -23,13 +23,7 @@ sub service
     my ($self, $server) = @_;
 
     my $id = $self->{params}{id};
-    return unless (exists $server->{running_futures}{$id});
-    my $request_to_cancel = $server->{running_futures}{$id};
-
-    return unless (blessed($request_to_cancel) and $request_to_cancel->isa('Future'));
-    $request_to_cancel->cancel();
-
-    delete $server->{running_futures}{$id};
+    $server->cancel_request($id);
 
     return;
 } ## end sub service

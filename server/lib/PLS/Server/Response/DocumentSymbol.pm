@@ -5,8 +5,6 @@ use warnings;
 
 use parent 'PLS::Server::Response';
 
-use feature 'state';
-
 use IO::Async::Loop;
 use IO::Async::Timer::Countdown;
 
@@ -32,17 +30,15 @@ sub new
 
     my $uri = $request->{params}{textDocument}{uri};
 
-    # Delay document symbols by a couple of seconds to allow cancelling before processing starts.
-    my $future = Future->new();
-    my $timer = IO::Async::Timer::Countdown->new(
-                                                 delay            => 2,
-                                                 on_expire        => sub { $self->on_expire($uri, $future) },
-                                                 remove_on_expire => 1
-                                                );
+    # Document symbols are requested and canceled very often. We should wait to make sure
+    # that we aren't requesting them too quickly.
+    my $loop   = IO::Async::Loop->new();
+    my $future = $loop->new_future();
+    my $timer = IO::Async::Timer::Countdown->new(delay     => 2,
+                                                 on_expire => sub { $self->on_expire($uri, $future) });
+    $timer->start();
+    $loop->add($timer);
 
-    IO::Async::Loop->new->add($timer->start());
-
-    # When the future is canceled, make sure to stop the timer so that it never actually starts generating document symbols.
     $future->on_cancel(
         sub {
             $timer->stop();
@@ -57,11 +53,21 @@ sub on_expire
 {
     my ($self, $uri, $future) = @_;
 
+    if ($future->is_ready)
+    {
+        return;
+    }
+
     my $version = PLS::Parser::Document::uri_version($uri);
 
-    PLS::Parser::DocumentSymbols->get_all_document_symbols_async($uri)->on_done(
+    PLS::Parser::DocumentSymbols->get_all_document_symbols_async($uri)->then(
         sub {
             my ($symbols) = @_;
+
+            if ($future->is_ready)
+            {
+                return;
+            }
 
             my $current_version = PLS::Parser::Document::uri_version($uri);
 
@@ -73,12 +79,9 @@ sub on_expire
 
             $self->{result} = $symbols;
             $future->done($self);
+            return;
         }
-      )->on_fail(
-        sub {
-            $future->done($self);
-        }
-    )->retain();
+    )->await();
 
     return;
 } ## end sub on_expire

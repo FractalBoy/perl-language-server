@@ -51,11 +51,15 @@ sub service
         $timers{$uri} = IO::Async::Timer::Countdown->new(
             delay     => 2,
             on_expire => sub {
-                my $index = PLS::Parser::Index->new();
-                $index->index_files($uri)->then(sub { Future->wait_all(@_) })->retain();
-
-                $server->send_server_request(PLS::Server::Request::TextDocument::PublishDiagnostics->new(uri => $uri));
                 delete $timers{$uri};
+
+                my $publish_future = PLS::Server::Request::TextDocument::PublishDiagnostics->new(uri => $uri);
+                $server->send_server_request($publish_future);
+
+                my $index        = PLS::Parser::Index->new();
+                my $index_future = $index->index_files($uri)->then(sub { Future->wait_all(@_) });
+
+                Future->wait_all($publish_future, $index_future)->await();
             },
             remove_on_expire => 1
         );

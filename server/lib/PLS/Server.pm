@@ -4,18 +4,29 @@ use strict;
 use warnings;
 
 use Future;
-use Future::Queue;
-use Future::Utils;
 use IO::Async::Loop;
 use IO::Async::Signal;
 use IO::Async::Stream;
-use IO::Handle;
 use Scalar::Util qw(blessed);
 
 use PLS::JSON;
 use PLS::Server::Request::Factory;
 use PLS::Server::Response;
 use PLS::Server::Response::Cancelled;
+
+# Install $SIG{__WARN__} handler to hide warnings coming from IO::Async and Future.
+$SIG{__WARN__} = sub {    ## no critic (RequireLocalizedPunctuationVars)
+    my ($warning) = @_;
+
+    if (   $warning =~ m{Deep recursion on subroutine "Future.+(?:done|on_ready)"}
+        or $warning =~ m{Use of uninitialized value \$events in bitwise and (&).*IO/Async/Loop/Poll.pm})
+    {
+        return;
+    }
+
+    warn $warning;
+    return;
+}; ## end sub
 
 =head1 NAME
 
@@ -42,10 +53,10 @@ sub new
 
     return
       bless {
-             loop             => IO::Async::Loop->new(),
-             stream           => undef,
-             running_futures  => {},
-             pending_requests => {}
+             loop              => IO::Async::Loop->new(),
+             stream            => undef,
+             pending_requests  => {},
+             pending_responses => {}
             }, $class;
 } ## end sub new
 
@@ -56,39 +67,34 @@ sub run
     $self->{stream} = IO::Async::Stream->new_for_stdio(
         autoflush => 0,
         on_read   => sub {
-            my $size = 0;
+            my ($stream, $buffref, $eof) = @_;
 
-            return sub {
-                my ($stream, $buffref, $eof) = @_;
+            exit if $eof;
 
-                exit if $eof;
+            my @futures;
 
-                if (not $size)
+            while (${$buffref} =~ s/^(.*?)\r\n\r\n//s)
+            {
+                my $headers = $1;
+
+                my %headers = map { split /: / } grep { length } split /\r\n/, $headers;
+                my $size    = $headers{'Content-Length'};
+                die 'no Content-Length header provided' unless $size;
+
+                if (length ${$buffref} < $size)
                 {
-                    if (${$buffref} =~ s/^(.*?)\r\n\r\n//s)
-                    {
-                        my $headers = $1;
+                    ${$buffref} = "$headers\r\n\r\n${$buffref}";
+                    return 0;
+                }
 
-                        my %headers = map { split /: / } grep { length } split /\r\n/, $headers;
-                        $size = $headers{'Content-Length'};
-                        die 'no Content-Length header provided' unless $size;
-                    } ## end if (${$buffref} =~ s/^(.*?)\r\n\r\n//s...)
-                    else
-                    {
-                        return 0;
-                    }
-                } ## end if (not $size)
-
-                return 0 if (length(${$buffref}) < $size);
-
-                my $json = substr ${$buffref}, 0, $size, '';
-                $size = 0;
-
+                my $json    = substr ${$buffref}, 0, $size, '';
                 my $content = decode_json $json;
 
-                $self->handle_client_message($content);
-                return 1;
-            };
+                push @futures, $self->handle_client_message($content);
+            } ## end while (${$buffref} =~ s/^(.*?)\r\n\r\n//s...)
+
+            Future->wait_all(@futures)->get();
+            return 0;
         }
     );
 
@@ -114,8 +120,7 @@ sub handle_client_message
 
         if (blessed($message) and $message->isa('PLS::Server::Response'))
         {
-            $self->send_message($message);
-            return;
+            return $self->send_message($message);
         }
     } ## end if (length $message->{...})
     else
@@ -127,11 +132,11 @@ sub handle_client_message
 
     if ($message->isa('PLS::Server::Request'))
     {
-        $self->handle_client_request($message);
+        return $self->handle_client_request($message);
     }
     if ($message->isa('PLS::Server::Response'))
     {
-        $self->handle_client_response($message);
+        return $self->handle_client_response($message);
     }
 
     return;
@@ -152,11 +157,11 @@ sub send_server_request
         $request->on_done(
             sub {
                 my ($request) = @_;
-
                 $self->handle_server_request($request);
             }
-        )->retain();
+        );
     } ## end elsif ($request->isa('Future'...))
+
     return;
 } ## end sub send_server_request
 
@@ -164,12 +169,10 @@ sub send_message
 {
     my ($self, $message) = @_;
 
-    return if (not blessed($message) or not $message->isa('PLS::Server::Message'));
+    return Future->done() if (not blessed($message) or not $message->isa('PLS::Server::Message'));
     my $json   = $message->serialize();
     my $length = length ${$json};
-    $self->{stream}->write("Content-Length: $length\r\n\r\n$$json")->retain();
-
-    return;
+    return $self->{stream}->write("Content-Length: $length\r\n\r\n$$json");
 } ## end sub send_message
 
 sub handle_client_request
@@ -178,28 +181,41 @@ sub handle_client_request
 
     my $response = $request->service($self);
 
-    if (blessed($response))
+    if (not blessed($response))
     {
-        if ($response->isa('PLS::Server::Response'))
-        {
-            $self->send_message($response);
-        }
-        elsif ($response->isa('Future'))
-        {
-            $self->{running_futures}{$request->{id}} = $response if (length $request->{id});
+        return;
+    }
 
-            $response->on_done(
-                sub {
-                    my ($response) = @_;
-                    $self->send_message($response);
-                }
-              )->on_cancel(
-                sub {
-                    $self->send_message(PLS::Server::Response::Cancelled->new(id => $request->{id}));
-                }
-              );
-        } ## end elsif ($response->isa('Future'...))
-    } ## end if (blessed($response)...)
+    if ($response->isa('PLS::Server::Response'))
+    {
+        return $self->send_message($response);
+    }
+    elsif ($response->isa('Future'))
+    {
+        my $id = $request->{id};
+
+        if (length $id)
+        {
+            $self->{pending_responses}{$id} = $response;
+        }
+
+        my $future = $response->then(
+            sub {
+                my ($response) = @_;
+                return $self->send_message($response);
+            }
+          )->on_cancel(
+            sub {
+                $self->send_message(PLS::Server::Response::Cancelled->new(id => $id))->await();
+            }
+          );
+
+        # Kind of silly, but the sequence future doesn't get cancelled automatically -
+        # we need to set that up ourselves.
+        $response->on_cancel($future);
+
+        return $future;
+    } ## end elsif ($response->isa('Future'...))
 
     return;
 } ## end sub handle_client_request
@@ -212,7 +228,7 @@ sub handle_client_response
 
     if (blessed($request) and $request->isa('PLS::Server::Request'))
     {
-        $request->handle_response($response, $self);
+        return $request->handle_response($response, $self);
     }
 
     return;
@@ -232,18 +248,23 @@ sub handle_server_request
         $self->{pending_requests}{$request->{id}} = $request;
     }
 
-    delete $self->{running_futures}{$request->{id}} if (length $request->{id});
-    $self->send_message($request);
+    $self->send_message($request)->await();
     return;
 } ## end sub handle_server_request
 
-sub handle_server_response
+sub cancel_request
 {
-    my ($self, $response) = @_;
+    my ($self, $id) = @_;
 
-    $self->send_message($response);
+    my $future = delete $self->{pending_responses}{$id};
+
+    if (blessed($future) and $future->isa('Future'))
+    {
+        $future->cancel();
+    }
+
     return;
-} ## end sub handle_server_response
+} ## end sub cancel_request
 
 sub stop
 {
