@@ -29,10 +29,25 @@ sub new
 
     bless $self, $class;
 
-    my $document = PLS::Parser::Document->new(uri => $request->{params}{textDocument}{uri}, line => $request->{params}{position}{line});
+    my ($line, $character) = @{$request->{params}{position}}{qw(line character)};
+
+    my $document = PLS::Parser::Document->new(uri => $request->{params}{textDocument}{uri}, line => $line);
     return $self if (ref $document ne 'PLS::Parser::Document');
 
-    my $results = $document->go_to_definition(1, $request->{params}{position}{character});
+    my $results = $document->go_to_definition($line, $character);
+
+    # If there are no results, for a variable, we need to fall back to checking the entire document.
+    if (ref $results ne 'ARRAY' or not scalar @{$results})
+    {
+        my @matches = $document->find_elements_at_location($line, $character);
+
+        if (List::Util::any { $_->variable_name() } @matches)
+        {
+            $document = PLS::Parser::Document->new(uri => $request->{params}{textDocument}{uri});
+            return $self if (ref $document ne 'PLS::Parser::Document');
+            $results = $document->go_to_definition($line, $character);
+        } ## end if (List::Util::any { ...})
+    } ## end if (ref $results ne 'ARRAY'...)
 
     if (ref $results eq 'ARRAY')
     {
