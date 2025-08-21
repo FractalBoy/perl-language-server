@@ -36,3 +36,6 @@ All notable changes to the "pls" extension will be documented in this file.
 
 ## [0.0.17] - 2023-01-21
 - Added `pls.podchecker.enabled` setting, to disable and re-enable podchecker.
+
+## [0.0.18] - 2025-08-21
+- Bumped vscode-languageclient version from 8.0.2 to 9.0.1.

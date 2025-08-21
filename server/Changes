@@ -208,3 +208,14 @@ Revision history for perl module PLS
    - Works around https://github.com/Perl/perl5/issues/20615
  - Server no longer checks to see if the client process is still running, to allow
    for running PLS in a container - thank you @mbudde (https://github.com/mbudde)!
+
+0.906 2025-08-21
+
+- A typo in the deprecation message for the perl.perltidyrc setting is fixed - thank you @yanick (https://github.com/yanick)!
+- Documentation for using PLS with emacs was added - thank you @c-alpha (https://github.com/c-alpha)!
+- The .perltidyrc and .perlcriticrc can now be specified as a path relative to the project.
+  - ${workspaceFolder} is now recommended over $ROOT_PATH to be consistent with other VSCode configuration.
+- The perl binary path can now be specified with a glob (for example, your home directory can be specified with "~")
+- The @INC provided by the pls.inc setting is no longer sorted alphanumerically.
+- IO::Async::Process is used instead of open/open3, which should prevent pls hangs due to blocking I/O.
+- Hover and go to definition no longer parse the entire document, which is a dramatic performance improvement for large files.
