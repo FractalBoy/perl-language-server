@@ -29,10 +29,10 @@ sub new
 
     bless $self, $class;
 
-    my $document = PLS::Parser::Document->new(uri => $request->{params}{textDocument}{uri});
+    my $document = PLS::Parser::Document->new(uri => $request->{params}{textDocument}{uri}, line => $request->{params}{position}{line});
     return $self if (ref $document ne 'PLS::Parser::Document');
 
-    my $results = $document->go_to_definition(@{$request->{params}{position}}{qw(line character)});
+    my $results = $document->go_to_definition(1, $request->{params}{position}{character});
 
     if (ref $results eq 'ARRAY')
     {
