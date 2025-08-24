@@ -3,21 +3,21 @@ name: Server CI
 on:
   push:
     branches: [master]
-    tags: '**'
+    tags: "**"
     paths:
-      - 'server/**'
-      - '.github/workflows/server.yml'
+      - "server/**"
+      - ".github/workflows/server.yml"
   pull_request:
     branches: [master]
     paths:
-      - 'server/**'
-      - '.github/workflows/server.yml'
+      - "server/**"
+      - ".github/workflows/server.yml"
 
   workflow_dispatch:
 
 defaults:
   run:
-    working-directory: 'server'
+    working-directory: "server"
 
 jobs:
   build_test_deploy:
@@ -25,14 +25,25 @@ jobs:
 
     strategy:
       matrix:
-        os: ['ubuntu-latest', 'macos-latest']
-        perl: ['5.40', '5.38', '5.36', '5.34', '5.32', '5.30', '5.28', '5.26']
+        os: ["ubuntu-latest", "macos-latest"]
+        perl:
+          [
+            "5.42",
+            "5.40",
+            "5.38",
+            "5.36",
+            "5.34",
+            "5.32",
+            "5.30",
+            "5.28",
+            "5.26",
+          ]
 
     name: Perl ${{ matrix.perl }} on ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v5
 
-      - uses: shogo82148/actions-setup-perl@v1.30.0
+      - uses: shogo82148/actions-setup-perl@v1
         with:
           perl-version: ${{ matrix.perl }}
           install-modules-with: cpanm
@@ -52,5 +63,5 @@ jobs:
         run: make dist
 
       - name: Publish to CPAN
-        if: ${{ startsWith(github.ref, 'refs/tags/') && matrix.os == 'ubuntu-latest' && matrix.perl == '5.40' }}
+        if: ${{ startsWith(github.ref, 'refs/tags/') && matrix.os == 'ubuntu-latest' && matrix.perl == '5.42' }}
         run: cpan-upload -u mreisner -p '${{ secrets.PAUSE_PASSWORD }}' PLS*.tar.gz
