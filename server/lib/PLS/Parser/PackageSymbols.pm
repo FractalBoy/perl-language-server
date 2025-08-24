@@ -113,14 +113,7 @@ sub _get_setup
 {
     my ($config) = @_;
 
-    require PLS::Parser::Index;
-
-    # Just use the first workspace folder as ROOT_PATH - we don't know
-    # which folder the code will ultimately be in, and it doesn't really matter
-    # for anyone except me.
-    my ($workspace_folder) = @{PLS::Parser::Index->new->workspace_folders};
-    my $cwd = $config->{cwd} // '';
-    $cwd =~ s/\$ROOT_PATH/$workspace_folder/;
+    my ($cwd) = PLS::Util::resolve_workspace_relative_path($config->{cwd}, undef, 1);
     my @setup;
     push @setup, (chdir => $cwd) if (length $cwd and -d $cwd);
 
