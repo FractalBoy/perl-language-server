@@ -31,5 +31,8 @@ jobs:
       - name: Install dependencies
         run: npm install
 
-      - name: Publish extension
+      - name: Publish extension to Visual Studio Marketplace
         run: npx @vscode/vsce publish
+
+      - name: Publish extension to open-vsx.org
+        run: npx ovsx publish -p "${{ secrets.OVSX_PAT }}"
