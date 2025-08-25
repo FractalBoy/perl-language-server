@@ -67,6 +67,11 @@ sub get_all_document_symbols
         my $line_end   = $index == $#{$packages} ? undef : $packages->[$index + 1]->lsp_line_number;
         my $range      = $packages->[$index]->range();
 
+        if (not $packages->[$index]->name)
+        {
+            next;
+        }
+
         push @package_roots,
           {
             name           => $packages->[$index]->name,

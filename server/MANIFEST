@@ -14,6 +14,8 @@ lib/PLS/Parser/Element/Package.pm
 lib/PLS/Parser/Element/Constant.pm
 lib/PLS/Parser/DocumentSymbols.pm
 lib/PLS/Parser/Document.pm
+lib/PLS/Parser/GetPackageSymbols.pm
+lib/PLS/Parser/GetImportedPackageSymbols.pm
 lib/PLS/Parser/Pod/Subroutine.pm
 lib/PLS/Parser/Pod/Builtin.pm
 lib/PLS/Parser/Pod/Method.pm
