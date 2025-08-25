@@ -45,7 +45,7 @@ sub find
             if ($ok)
             {
                 $self->{markdown} = $markdown;
-                return 1;
+                return Future->done(1);
             }
         } ## end foreach my $definition (@{$definitions...})
     } ## end if (ref $definitions eq...)
@@ -53,7 +53,7 @@ sub find
     my ($ok, $markdown) = $self->get_markdown_for_package($self->{package});
     $self->{markdown} = $markdown if $ok;
 
-    return $ok;
+    return Future->done($ok);
 } ## end sub find
 
 1;

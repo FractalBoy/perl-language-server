@@ -8,6 +8,7 @@ use feature 'state';
 use Digest::SHA;
 use Encode;
 use ExtUtils::Installed;
+use Future::Utils;
 use List::Util qw(first any);
 use Module::CoreList;
 use PPI;
@@ -203,7 +204,7 @@ sub search_elements_for_definition
                     return [{uri => $self->{uri}, range => $this_files_package->range}] if (ref $this_files_package eq 'PLS::Parser::Element::Package' and $this_files_package->name eq $package);
 
                     my $external = $self->find_external_package($package);
-                    return [$external] if (ref $external eq 'HASH');
+                    return $external if (ref $external eq 'ARRAY');
                 } ## end else[ if (ref $self->{index}...)]
             } ## end if ($match->cursor_on_package...)
 
@@ -224,7 +225,7 @@ sub search_elements_for_definition
                 } ## end else[ if (ref $self->{index}...)]
 
                 my $external = $self->find_external_subroutine($package, $subroutine);
-                return [$external] if (ref $external eq 'HASH');
+                return $external if (ref $external eq 'ARRAY');
             } ## end if (length $package)
 
             if (ref $self->{index} eq 'PLS::Parser::Index')
@@ -254,7 +255,7 @@ sub search_elements_for_definition
             }
 
             my $external = $self->find_external_subroutine($class, $method);
-            return [$external] if (ref $external eq 'HASH');
+            return $external if (ref $external eq 'ARRAY');
         } ## end if (my ($class, $method...))
         if (my $method = $match->method_name())
         {
@@ -279,7 +280,7 @@ sub search_elements_for_definition
                 else
                 {
                     my $external = $self->find_external_subroutine($package, $import);
-                    return [$external] if (ref $external eq 'HASH');
+                    return $external if (ref $external eq 'ARRAY');
                 }
             } ## end if (length $import)
             else
@@ -291,7 +292,7 @@ sub search_elements_for_definition
                 else
                 {
                     my $external = $self->find_external_package($package);
-                    return [$external] if (ref $external eq 'HASH');
+                    return $external if (ref $external eq 'ARRAY');
                 }
             } ## end else[ if (length $import)]
         } ## end if (my ($package, $import...))
@@ -319,10 +320,10 @@ sub search_elements_for_definition
         else
         {
             my $external = $self->find_external_package($link);
-            return [$external] if (ref $external eq 'HASH');
+            return $external if (ref $external eq 'ARRAY');
 
             $external = $self->find_external_subroutine($package_name, $subroutine_name);
-            return [$external] if (ref $external eq 'HASH');
+            return $external if (ref $external eq 'ARRAY');
         } ## end else[ if (ref $self->{index}...)]
 
     } ## end if (my $link = $self->...)
@@ -402,106 +403,288 @@ This attempts to find POD for the symbol at the given location.
 
 =cut
 
-sub find_pod
+sub find_pod    ## no critic (RequireArgUnpacking)
 {
     my ($self, $uri, $line_number, $column_number) = @_;
 
     my @elements = $self->find_elements_at_location($line_number, $column_number);
+    my $future   = IO::Async::Loop->new->new_future;
 
-    foreach my $element (@elements)
+    use Data::Dumper;
+
+    return Future::Utils::repeat
     {
+        my ($element) = @_;
+
         my ($package, $subroutine, $variable, $import);
 
-        if (($package, $import) = $element->package_name($column_number))
-        {
-            my %args       = (index => $self->{index}, element => $element, package => $package);
-            my $class_name = 'PLS::Parser::Pod::Package';
+        return $self->_find_pod_for_package($element, $column_number)->then_with_f(
+            sub {
+                my ($future, $found, $pod) = @_;
 
-            if (length $import)
-            {
-                if ($import =~ /^[\$\@\%]/)
+                if ($found)
                 {
-                    $args{variable} = $import;
-                    $class_name = 'PLS::Parser::Pod::Variable';
+                    return $future;
                 }
-                else
-                {
-                    $args{subroutine} = $import;
-                    $args{packages}   = [$package];
-                    delete $args{package};
-                    $class_name = 'PLS::Parser::Pod::Subroutine';
-                } ## end else[ if ($import =~ /^[\$\@\%]/...)]
-            } ## end if (length $import)
 
-            my $pod = $class_name->new(%args);
-            my $ok  = $pod->find();
-            return (1, $pod) if $ok;
-        } ## end if (($package, $import...))
-        if (($package, $subroutine) = $element->class_method_package_and_name())
-        {
-            my $pod =
-              PLS::Parser::Pod::ClassMethod->new(
-                                                 index      => $self->{index},
-                                                 element    => $element,
-                                                 packages   => [$package],
-                                                 subroutine => $subroutine
+                return $self->_find_pod_for_class_method($element)->then_with_f(
+                    sub {
+                        my ($future, $found, $pod) = @_;
+
+                        if ($found)
+                        {
+                            return $future;
+                        }
+
+                        return $self->_find_pod_for_method($element)->then_with_f(
+                            sub {
+                                my ($future, $found, $pod) = @_;
+
+                                if ($found)
+                                {
+                                    return $future;
+                                }
+
+                                return $self->_find_pod_for_subroutine($element, $uri)->then_with_f(
+                                    sub {
+                                        my ($future, $found, $pod) = @_;
+
+                                        if ($found)
+                                        {
+                                            return $future;
+                                        }
+
+                                        return $self->_find_pod_for_variable($element)->then_with_f(
+                                            sub {
+                                                my ($future, $found, $pod) = @_;
+
+                                                if ($found)
+                                                {
+                                                    return $future;
+                                                }
+
+                                                return $self->_find_pod_for_file_test($element)->then_with_f(
+                                                    sub {
+                                                        my ($future, $found, $pod) = @_;
+
+                                                        if ($found)
+                                                        {
+                                                            return $future;
+                                                        }
+
+                                                        return Future->done(0);
+                                                    }
                                                 );
-            my $ok = $pod->find();
-            return (1, $pod) if $ok;
-        } ## end if (($package, $subroutine...))
-        if ($subroutine = $element->method_name())
-        {
-            my $pod =
-              PLS::Parser::Pod::Method->new(
-                                            index      => $self->{index},
-                                            element    => $element,
-                                            subroutine => $subroutine
-                                           );
-            my $ok = $pod->find();
-            return (1, $pod) if $ok;
-        } ## end if ($subroutine = $element...)
-        if (($package, $subroutine) = $element->subroutine_package_and_name())
-        {
-            my @packages = length $package ? ($package) : ();
-
-            my $pod =
-              PLS::Parser::Pod::Subroutine->new(
-                                                uri              => $uri,
-                                                index            => $self->{index},
-                                                element          => $element,
-                                                packages         => \@packages,
-                                                subroutine       => $subroutine,
-                                                include_builtins => 1
-                                               );
-            my $ok = $pod->find();
-            return (1, $pod) if $ok;
-        } ## end if (($package, $subroutine...))
-        if ($variable = $element->variable_name())
-        {
-            my $pod =
-              PLS::Parser::Pod::Variable->new(
-                                              index    => $self->{index},
-                                              element  => $element,
-                                              variable => $variable
-                                             );
-            my $ok = $pod->find();
-            return (1, $pod) if $ok;
-        } ## end if ($variable = $element...)
-        if ($element->type eq 'PPI::Token::Operator' and $element->content =~ /^-[rwxoRWXOezsfdlpSbctugkTBMAC]$/)
-        {
-            my $pod = PLS::Parser::Pod::Subroutine->new(
-                                                        index            => $self->{index},
-                                                        element          => $element,
-                                                        subroutine       => '-X',
-                                                        include_builtins => 1
-                                                       );
-            my $ok = $pod->find();
-            return (1, $pod) if $ok;
-        } ## end if ($element->type eq ...)
-    } ## end foreach my $element (@elements...)
-
-    return 0;
+                                            }
+                                        );
+                                    }
+                                );
+                            }
+                        );
+                    }
+                );
+            }
+        );
+    } ## end Future::Utils::repeat
+    (
+     foreach => \@elements,
+     until   => sub {
+         my ($f)  = @_;
+         my ($ok) = $f->result;
+         return $ok;
+     }
+    );    ## end while => sub
 } ## end sub find_pod
+
+sub _find_pod_for_package
+{
+    my ($self, $element, $column_number) = @_;
+
+    if (my ($package, $import) = $element->package_name($column_number))
+    {
+        my %args       = (index => $self->{index}, element => $element, package => $package);
+        my $class_name = 'PLS::Parser::Pod::Package';
+
+        if (length $import)
+        {
+            if ($import =~ /^[\$\@\%]/)
+            {
+                $args{variable} = $import;
+                $class_name = 'PLS::Parser::Pod::Variable';
+            }
+            else
+            {
+                $args{subroutine} = $import;
+                $args{packages}   = [$package];
+                delete $args{package};
+                $class_name = 'PLS::Parser::Pod::Subroutine';
+            } ## end else[ if ($import =~ /^[\$\@\%]/...)]
+        } ## end if (length $import)
+
+        my $pod = $class_name->new(%args);
+        return $pod->find()->then(
+            sub {
+                my ($found) = @_;
+
+                if ($found)
+                {
+                    return Future->done(1, $pod);
+                }
+
+                return Future->done(0);
+            }
+        );
+    } ## end if (my ($package, $import...))
+
+    return Future->done(0);
+} ## end sub _find_pod_for_package
+
+sub _find_pod_for_class_method
+{
+    my ($self, $element) = @_;
+
+    if (my ($package, $subroutine) = $element->class_method_package_and_name())
+    {
+        my $pod = PLS::Parser::Pod::ClassMethod->new(
+                                                     index      => $self->{index},
+                                                     element    => $element,
+                                                     packages   => [$package],
+                                                     subroutine => $subroutine
+                                                    );
+        return $pod->find()->then(
+            sub {
+                my ($found) = @_;
+
+                if ($found)
+                {
+                    return Future->done(1, $pod);
+                }
+
+                return Future->done(0);
+            }
+        );
+    } ## end if (my ($package, $subroutine...))
+
+    return Future->done(0);
+} ## end sub _find_pod_for_class_method
+
+sub _find_pod_for_method
+{
+    my ($self, $element) = @_;
+
+    if (my $subroutine = $element->method_name())
+    {
+        my $pod = PLS::Parser::Pod::Method->new(
+                                                index      => $self->{index},
+                                                element    => $element,
+                                                subroutine => $subroutine
+                                               );
+        return $pod->find()->then(
+            sub {
+                my ($found) = @_;
+
+                if ($found)
+                {
+                    return Future->done(1, $pod);
+                }
+
+                return Future->done(0);
+            }
+        );
+    } ## end if (my $subroutine = $element...)
+
+    return Future->done(0);
+} ## end sub _find_pod_for_method
+
+sub _find_pod_for_subroutine
+{
+    my ($self, $element, $uri) = @_;
+
+    if (my ($package, $subroutine) = $element->subroutine_package_and_name())
+    {
+        my @packages = length $package ? ($package) : ();
+
+        my $pod = PLS::Parser::Pod::Subroutine->new(
+                                                    uri              => $uri,
+                                                    index            => $self->{index},
+                                                    element          => $element,
+                                                    packages         => \@packages,
+                                                    subroutine       => $subroutine,
+                                                    include_builtins => 1
+                                                   );
+        return $pod->find()->then(
+            sub {
+                my ($found) = @_;
+
+                if ($found)
+                {
+                    return Future->done(1, $pod);
+                }
+
+                return Future->done(0);
+            }
+        );
+    } ## end if (my ($package, $subroutine...))
+
+    return Future->done(0);
+} ## end sub _find_pod_for_subroutine
+
+sub _find_pod_for_variable
+{
+    my ($self, $element) = @_;
+
+    if (my $variable = $element->variable_name())
+    {
+        my $pod = PLS::Parser::Pod::Variable->new(
+                                                  index    => $self->{index},
+                                                  element  => $element,
+                                                  variable => $variable
+                                                 );
+        return $pod->find()->then(
+            sub {
+                my ($found) = @_;
+
+                if ($found)
+                {
+                    return Future->done(1, $pod);
+                }
+
+                return Future->done(0);
+            }
+        );
+    } ## end if (my $variable = $element...)
+
+    return Future->done(0);
+} ## end sub _find_pod_for_variable
+
+sub _find_pod_for_file_test
+{
+    my ($self, $element) = @_;
+
+    if ($element->type eq 'PPI::Token::Operator' and $element->content =~ /^-[rwxoRWXOezsfdlpSbctugkTBMAC]$/)
+    {
+        my $pod = PLS::Parser::Pod::Subroutine->new(
+                                                    index            => $self->{index},
+                                                    element          => $element,
+                                                    subroutine       => '-X',
+                                                    include_builtins => 1
+                                                   );
+        return $pod->find()->then(
+            sub {
+                my ($found) = @_;
+
+                if ($found)
+                {
+                    return Future->done(1, $pod);
+                }
+
+                return Future->done(0);
+            }
+        );
+    } ## end if ($element->type eq ...)
+
+    return Future->done(0);
+} ## end sub _find_pod_for_file_test
 
 sub find_elements_at_location
 {
@@ -539,25 +722,18 @@ sub find_external_subroutine
 {
     my ($self, $package_name, $subroutine_name) = @_;
 
-    my $include = PLS::Parser::Pod->get_clean_inc();
-    my $package = Module::Metadata->new_from_module($package_name, inc => $include);
-    return if (ref $package ne 'Module::Metadata');
+    my $include  = PLS::Parser::Pod->get_clean_inc();
+    my $metadata = Module::Metadata->new_from_module($package_name, inc => $include);
+    return if (ref $metadata ne 'Module::Metadata');
 
-    my $doc = PLS::Parser::Document->new(path => $package->filename);
-    return if (ref $doc ne 'PLS::Parser::Document');
+    open my $fh, '<', $metadata->filename or return;
+    my $uri  = URI::file->new($metadata->filename)->as_string;
+    my $text = do { local $/; <$fh> };
+    close $fh;
 
-    foreach my $subroutine (@{$doc->get_subroutines()})
-    {
-        next unless ($subroutine->name eq $subroutine_name);
-
-        return {
-                uri       => URI::file->new($package->filename)->as_string,
-                range     => $subroutine->range(),
-                signature => $subroutine->location_info->{signature}
-               };
-    } ## end foreach my $subroutine (@{$doc...})
-
-    return;
+    my $line_offsets = PLS::Parser::Index->get_line_offsets(\$text);
+    my $subroutines  = PLS::Parser::Index->get_subroutines(\$text, $uri, $line_offsets);
+    return $subroutines->{$subroutine_name};
 } ## end sub find_external_subroutine
 
 =head2 find_external_package
@@ -577,20 +753,14 @@ sub find_external_package
 
     return if (ref $metadata ne 'Module::Metadata');
 
-    my $document = PLS::Parser::Document->new(path => $metadata->filename);
-    return if (ref $document ne 'PLS::Parser::Document');
+    open my $fh, '<', $metadata->filename or return;
+    my $uri  = URI::file->new($metadata->filename)->as_string;
+    my $text = do { local $/; <$fh> };
+    close $fh;
 
-    foreach my $package (@{$document->get_packages()})
-    {
-        next unless ($package->name eq $package_name);
-
-        return {
-                uri   => URI::file->new($metadata->filename)->as_string,
-                range => $package->range()
-               };
-    } ## end foreach my $package (@{$document...})
-
-    return;
+    my $line_offsets = PLS::Parser::Index->get_line_offsets(\$text);
+    my $packages     = PLS::Parser::Index->get_packages(\$text, $uri, $line_offsets);
+    return $packages->{$package_name};
 } ## end sub find_external_package
 
 =head2 go_to_variable_definition

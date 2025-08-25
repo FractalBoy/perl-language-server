@@ -33,29 +33,33 @@ sub find
 {
     my ($self) = @_;
 
-    my ($ok, $markdown) = $self->run_perldoc_command('-Tuv', $self->{variable});
+    return $self->run_perldoc_command('-Tuv', $self->{variable})->then(
+        sub {
+            my ($ok, $markdown) = @_;
 
-    if ($ok)
-    {
-        $self->{markdown} = $markdown;
-        return 1;
-    }
+            if ($ok)
+            {
+                $self->{markdown} = $markdown;
+                return Future->done(1);
+            }
 
-    return 0 unless (length $self->{package});
+            return Future->done(0) unless (length $self->{package});
 
-    my $search  = Pod::Simple::Search->new();
-    my $include = $self->get_clean_inc();
-    $search->inc(0);
-    my $path = $search->find($self->{package}, @{$include});
-    ($ok, $markdown) = $self->find_pod_in_file($path, $self->{variable});
+            my $search  = Pod::Simple::Search->new();
+            my $include = $self->get_clean_inc();
+            $search->inc(0);
+            my $path = $search->find($self->{package}, @{$include});
+            ($ok, $markdown) = $self->find_pod_in_file($path, $self->{variable});
 
-    if ($ok)
-    {
-        $self->{markdown} = $markdown;
-        return 1;
-    }
+            if ($ok)
+            {
+                $self->{markdown} = $markdown;
+                return Future->done(1);
+            }
 
-    return 0;
+            return Future->done(0);
+        }
+    );
 } ## end sub find
 
 1;

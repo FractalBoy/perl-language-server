@@ -120,19 +120,31 @@ sub run_perldoc_command
 {
     my ($class, @command) = @_;
 
-    my $markdown = '';
+    my $loop   = IO::Async::Loop->new();
+    my $future = $loop->new_future;
+
+    my ($stdout, $stderr);
 
     my $proc = IO::Async::Process->new(
-                                       command   => [get_perldoc_location(), @command],
-                                       stderr    => {into => \my $stderr},
-                                       stdout    => {into => \my $stdout},
-                                       on_finish => sub { }
-                                      );
-    IO::Async::Loop->new->add($proc);
+        command   => [get_perldoc_location(), @command],
+        stdout    => {into => \$stdout},
+        stderr    => {into => \$stderr},
+        on_finish => sub {
+            my (undef, $exit_code) = @_;
 
-    my $exit_code = $proc->finish_future->get();
-    return 0 if ($exit_code != 0);
-    return $class->get_markdown_from_text(\$stdout);
+            if ($exit_code == 0)
+            {
+                $future->done($class->get_markdown_from_text(\$stdout));
+                return;
+            }
+
+            $future->done(0);
+            return;
+        }
+    );
+
+    $loop->add($proc);
+    return $future;
 } ## end sub run_perldoc_command
 
 =head2 get_markdown_for_package

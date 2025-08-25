@@ -30,10 +30,18 @@ sub find
 {
     my ($self) = @_;
 
-    my ($ok, $markdown) = $self->run_perldoc_command('-Tuf', $self->{function});
+    return $self->run_perldoc_command('-Tuf', $self->{function})->then(
+        sub {
+            my ($ok, $markdown) = @_;
 
-    $self->{markdown} = $markdown if $ok;
-    return $ok;
+            if ($ok)
+            {
+                $self->{markdown} = $markdown;
+            }
+
+            return Future->done($ok);
+        }
+    );
 } ## end sub find
 
 1;

@@ -103,43 +103,70 @@ sub find
         push @markdown, ${$markdown} if $ok;
     }
 
+    my $builtin_future;
+
     if ($self->{include_builtins})
     {
         my $builtin = PLS::Parser::Pod::Builtin->new(function => $self->{subroutine});
-        my $ok      = $builtin->find();
-        unshift @markdown, ${$builtin->{markdown}} if $ok;
-    } ## end if ($self->{include_builtins...})
+        $builtin_future = $builtin->find()->then(
+            sub {
+                my ($ok) = @_;
 
-    if (scalar @markdown)
+                if ($ok)
+                {
+                    return Future->done(1, $builtin);
+                }
+
+                return Future->done(0);
+            }
+        );
+    } ## end if ($self->{include_builtins...})
+    else
     {
-        $self->{markdown} = \($self->combine_markdown(@markdown));
-        return 1;
+        $builtin_future = Future->done(0);
     }
 
-    # if all else fails, show documentation for the entire package
-    if (ref $self->{packages} and scalar @{$self->{packages}})
-    {
-        foreach my $package (@{$self->{packages}})
-        {
-            my ($ok, $markdown) = $self->get_markdown_for_package($package);
+    return $builtin_future->then(
+        sub {
+            my ($ok, $builtin) = @_;
 
-            if (not $ok)
+            if ($ok)
             {
-                $package = join '::', $package, $self->{subroutine};
-                ($ok, $markdown) = $self->get_markdown_for_package($package);
+                unshift @markdown, ${$builtin->{markdown}};
             }
 
-            push @markdown, ${$markdown} if $ok;
-        } ## end foreach my $package (@{$self...})
-    } ## end if (ref $self->{packages...})
+            if (scalar @markdown)
+            {
+                $self->{markdown} = \($self->combine_markdown(@markdown));
+                return Future->done(1);
+            }
 
-    if (scalar @markdown)
-    {
-        $self->{markdown} = \($self->combine_markdown(@markdown));
-        return 1;
-    }
+            # if all else fails, show documentation for the entire package
+            if (ref $self->{packages} and scalar @{$self->{packages}})
+            {
+                foreach my $package (@{$self->{packages}})
+                {
+                    my ($ok, $markdown) = $self->get_markdown_for_package($package);
 
-    return 0;
+                    if (not $ok)
+                    {
+                        $package = join '::', $package, $self->{subroutine};
+                        ($ok, $markdown) = $self->get_markdown_for_package($package);
+                    }
+
+                    push @markdown, ${$markdown} if $ok;
+                } ## end foreach my $package (@{$self...})
+            } ## end if (ref $self->{packages...})
+
+            if (scalar @markdown)
+            {
+                $self->{markdown} = \($self->combine_markdown(@markdown));
+                return Future->done(1);
+            }
+
+            return Future->done(0);
+        }
+    );
 } ## end sub find
 
 sub find_pod_in_definitions
