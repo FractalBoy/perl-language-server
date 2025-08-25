@@ -258,7 +258,7 @@ EOF
 sub get_imported_package_symbols_code
 {
     my $code = <<'EOF';
-#close STDERR;
+close STDERR;
 
 my $json_package = 'JSON::PP';
 
@@ -299,9 +299,9 @@ while (my $line = <STDIN>)
         {
             if ($mtimes{$module_path} == (stat $INC{$module_path})[9])
             {
-                if (ref $symbol_cache{$module->{use}} eq 'ARRAY')
+                if (ref $symbol_cache{$import->{use}} eq 'ARRAY')
                 {
-                    foreach my $subroutine (@{$symbol_cache{$module->{use}}})
+                    foreach my $subroutine (@{$symbol_cache{$import->{use}}})
                     {
                         $functions{$import->{module}}{$subroutine} = 1;
                     }
