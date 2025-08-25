@@ -40,6 +40,8 @@ sub new
 {
     my ($class) = @_;
 
+    our $PPID = $$;
+
     return
       bless {
              loop             => IO::Async::Loop->new(),
@@ -88,7 +90,7 @@ sub run
 
                 $self->handle_client_message($content);
                 return 1;
-            };
+            }; ## end sub
         }
     );
 

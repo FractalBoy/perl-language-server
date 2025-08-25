@@ -4,8 +4,10 @@ use strict;
 use warnings;
 
 use parent q(PLS::Server::Response);
+use feature 'state';
 
 use PLS::Parser::Document;
+use PLS::Server::State;
 
 =head1 NAME
 
@@ -31,34 +33,66 @@ sub new
 
     my ($line, $character) = @{$request->{params}{position}}{qw(line character)};
 
-    my $document = PLS::Parser::Document->new(uri => $request->{params}{textDocument}{uri}, line => $line);
-    return $self if (ref $document ne 'PLS::Parser::Document');
+    state $function;
 
-    my $results = $document->go_to_definition($line, $character);
-
-    # If there are no results, for a variable, we need to fall back to checking the entire document.
-    if (ref $results ne 'ARRAY' or not scalar @{$results})
+    if (not $function)
     {
-        my @matches = $document->find_elements_at_location($line, $character);
+        $function = IO::Async::Function->new(
+            code => sub {
+                my ($uri, $line, $character, $config, $files, $versions) = @_;
 
-        if (List::Util::any { $_->variable_name() } @matches)
-        {
-            $document = PLS::Parser::Document->new(uri => $request->{params}{textDocument}{uri});
-            return $self if (ref $document ne 'PLS::Parser::Document');
-            $results = $document->go_to_definition($line, $character);
-        } ## end if (List::Util::any { ...})
-    } ## end if (ref $results ne 'ARRAY'...)
+                local $PLS::Server::State::CONFIG      = $config;
+                local %PLS::Parser::Document::FILES    = %{$files};
+                local %PLS::Parser::Document::VERSIONS = %{$versions};
 
-    if (ref $results eq 'ARRAY')
-    {
-        foreach my $result (@{$results})
-        {
-            delete @{$result}{qw(package signature kind)};
+                my $document = PLS::Parser::Document->new(uri => $uri, line => $line);
+                return unless (ref $document eq 'PLS::Parser::Document');
+
+                my $results = $document->go_to_definition($line, $character);
+
+                # If there are no results, for a variable, we need to fall back to checking the entire document.
+                if (ref $results ne 'ARRAY' or not scalar @{$results})
+                {
+                    my @matches = $document->find_elements_at_location($line, $character);
+
+                    if (List::Util::any { $_->variable_name() } @matches)
+                    {
+                        $document = PLS::Parser::Document->new(uri => $request->{params}{textDocument}{uri});
+                        return $self if (ref $document ne 'PLS::Parser::Document');
+                        $results = $document->go_to_definition($line, $character);
+                    } ## end if (List::Util::any { ...})
+                } ## end if (ref $results ne 'ARRAY'...)
+
+                return $results;
+            }
+        );
+        IO::Async::Loop->new->add($function);
+    } ## end if (not $function)
+
+    return
+      $function->call(
+                      args => [
+                               $request->{params}{textDocument}{uri},
+                               $line, $character, $PLS::Server::State::CONFIG,
+                               {$request->{params}{textDocument}{uri} => $PLS::Parser::Document::FILES{$request->{params}{textDocument}{uri}}},
+                               {$request->{params}{textDocument}{uri} => $PLS::Parser::Document::VERSIONS{$request->{params}{textDocument}{uri}}},
+                              ]
+      )->then(
+        sub {
+            my ($results) = @_;
+
+            if (ref $results eq 'ARRAY')
+            {
+                foreach my $result (@{$results})
+                {
+                    delete @{$result}{qw(package signature kind)};
+                }
+            } ## end if (ref $results eq 'ARRAY'...)
+
+            $self->{result} = $results;
+            return $self;
         }
-    } ## end if (ref $results eq 'ARRAY'...)
-
-    $self->{result} = $results;
-    return $self;
+      );
 } ## end sub new
 
 1;

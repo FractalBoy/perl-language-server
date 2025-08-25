@@ -32,8 +32,8 @@ use PLS::Parser::Pod::Subroutine;
 use PLS::Parser::Pod::Variable;
 use PLS::Util;
 
-my %FILES;
-my %VERSIONS;
+our %FILES;
+our %VERSIONS;
 
 =head1 NAME
 
@@ -1352,6 +1352,12 @@ sub _get_ppi_document
             }
         } ## end elsif (open $fh, '<', $file...)
     } ## end if (length $args{line}...)
+
+    if (not $self->{one_line} and $$ == $PLS::Server::PPID)
+    {
+        use Carp;
+        Carp::cluck "Parsing entire $args{uri}";
+    }
 
     my $document = PPI::Document->new($file, readonly => 1);
     return if (not blessed($document) or not $document->isa('PPI::Document'));
