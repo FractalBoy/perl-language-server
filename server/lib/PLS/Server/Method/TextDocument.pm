@@ -14,6 +14,7 @@ use PLS::Server::Request::TextDocument::Formatting;
 use PLS::Server::Request::TextDocument::Hover;
 use PLS::Server::Request::TextDocument::SignatureHelp;
 use PLS::Server::Request::TextDocument::RangeFormatting;
+use PLS::Server::Request::TextDocument::SemanticTokens::Full;
 
 =head1 NAME
 
@@ -72,6 +73,11 @@ L<PLS::Server::Request::TextDocument::RangeFormatting>
 
 L<PLS::Server::Request::TextDocument::Completion>
 
+=item textDocument/semanticTokens - L<https://microsoft.github.io/language-server-protocol/specifications/lsp/3.17/specification/#textDocument_semanticTokens>
+
+L<PLS::Server::Request::TextDocument::SemanticTokens::Full>
+L<PLS::Server::Request::TextDocument::SemanticTokens::Range>
+
 =back
 
 =cut
@@ -80,7 +86,7 @@ sub get_request
 {
     my ($request) = @_;
 
-    my (undef, $method) = split m{/}, $request->{method};
+    my (undef, $method) = split m{/}, $request->{method}, 2;
 
     if ($method eq 'definition')
     {
@@ -126,6 +132,14 @@ sub get_request
     {
         return PLS::Server::Request::TextDocument::Completion->new($request);
     }
+    if ($method eq 'semanticTokens/full')
+    {
+        warn "got semantic tokens request\n";
+        return PLS::Server::Request::TextDocument::SemanticTokens::Full->new($request);
+    }
+
+        warn "Unknown textDocument method '$method'\n";
+        return;
 } ## end sub get_request
 
 1;

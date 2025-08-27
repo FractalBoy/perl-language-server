@@ -63,6 +63,50 @@ sub new
                           }
                );
 
+    my $supports_semantic_tokens = $PLS::Server::State::CLIENT_CAPABILITIES->{textDocument}{semanticTokens}{requests}{full};
+
+    if (not $supports_semantic_tokens)
+    {
+        warn "client does not support semantic tokens\n";
+    }
+
+    # if ($supports_semantic_tokens)
+    # {
+    #     $supports_semantic_tokens = $PLS::Server::State::CLIENT_CAPABILITIES->{textDocument}{semanticTokens}{requests}{augmentsSyntaxTokens};
+    #     if (not $supports_semantic_tokens)
+    #     {
+    #         warn "client does not support semantic tokens augmenting syntax tokens\n";
+    #     }
+    # } ## end if ($supports_semantic_tokens...)
+
+    my @token_types = qw(keyword function class number modifier);
+
+    if ($supports_semantic_tokens)
+    {
+        foreach my $required_token (@token_types)
+        {
+            if (List::Util::none { $_ eq $required_token } @{$PLS::Server::State::CLIENT_CAPABILITIES->{textDocument}{semanticTokens}{tokenTypes} || []})
+            {
+                warn "client does not support semantic token type '$required_token'\n";
+                $supports_semantic_tokens = 0;
+                last;
+            } ## end if (List::Util::none {...})
+        } ## end foreach my $required_token ...
+    } ## end if ($supports_semantic_tokens...)
+
+    if ($supports_semantic_tokens)
+    {
+        warn "supports semantic tokens\n";
+        $self{result}{capabilities}{semanticTokensProvider} = {
+                                                               legend => {
+                                                                          tokenTypes     => \@token_types,
+                                                                          tokenModifiers => []
+                                                                         },
+                                                               range => PLS::JSON::false,
+                                                               full  => {delta => PLS::JSON::false}
+                                                              };
+    } ## end if ($supports_semantic_tokens...)
+
     return bless \%self, $class;
 } ## end sub new
 
