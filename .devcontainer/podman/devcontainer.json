@@ -1,0 +1,34 @@
+{
+    "name": "Podman",
+    "image": "mcr.microsoft.com/devcontainers/base:bookworm",
+    "features": {
+        "ghcr.io/devcontainers-extra/features/perl-asdf:2": {
+            "version": "5.40.0"
+        },
+        "ghcr.io/devcontainers/features/node:1": {}
+    },
+    "workspaceMount": "",
+    "remoteUser": "vscode",
+    "containerEnv": {
+        "HOME": "/home/vscode"
+    },
+    "runArgs": [
+        "--userns=keep-id",
+        "--volume=${localWorkspaceFolder}:/workspaces/${localWorkspaceFolderBasename}:Z"
+    ],
+    "postCreateCommand": "wget -qO- https://github.com/asdf-vm/asdf/releases/download/v0.16.2/asdf-v0.16.2-linux-amd64.tar.gz | tar xz -C $HOME/.asdf/bin && asdf reshim && cd server && cpanm -n --installdeps . && perl Makefile.PL && make && make install && cpanm -n Cpanel::JSON::XS PadWalker Data::Dump && asdf reshim",
+    "customizations": {
+        "vscode": {
+            "extensions": [
+                "fractalboy.pls",
+                "esbenp.prettier-vscode",
+                "dbaeumer.vscode-eslint",
+                "amodio.tsl-problem-matcher",
+                "ms-vscode.extension-test-runner"
+            ],
+            "settings": {
+                "pls.cmd": "/home/vscode/.asdf/installs/perl/5.40.0/bin/pls"
+            }
+        }
+    }
+}

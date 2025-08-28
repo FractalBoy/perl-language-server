@@ -1,8 +1,5 @@
-// For format details, see https://aka.ms/devcontainer.json. For config options, see the
-// README at: https://github.com/devcontainers/templates/tree/main/src/debian
 {
-    "name": "Debian",
-    // Or use a Dockerfile or Docker Compose file. More info: https://containers.dev/guide/dockerfile
+    "name": "Docker",
     "image": "mcr.microsoft.com/devcontainers/base:bookworm",
     "features": {
         "ghcr.io/devcontainers-extra/features/perl-asdf:2": {
@@ -10,15 +7,6 @@
         },
         "ghcr.io/devcontainers/features/node:1": {}
     },
-    "workspaceMount": "",
-    "remoteUser": "vscode",
-    "containerEnv": {
-        "HOME": "/home/vscode"
-    },
-    "runArgs": [
-        "--userns=keep-id",
-        "--volume=${localWorkspaceFolder}:/workspaces/${localWorkspaceFolderBasename}:Z"
-    ],
     "postCreateCommand": "wget -qO- https://github.com/asdf-vm/asdf/releases/download/v0.16.2/asdf-v0.16.2-linux-amd64.tar.gz | tar xz -C $HOME/.asdf/bin && asdf reshim && cd server && cpanm -n --installdeps . && perl Makefile.PL && make && make install && cpanm -n Cpanel::JSON::XS PadWalker Data::Dump && asdf reshim",
     "customizations": {
         "vscode": {
