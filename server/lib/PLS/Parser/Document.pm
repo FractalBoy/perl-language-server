@@ -427,64 +427,65 @@ sub find_pod    ## no critic (RequireArgUnpacking)
                     return $future;
                 }
 
-                return $self->_find_pod_for_class_method($element)->then_with_f(
-                    sub {
-                        my ($future, $found, $pod) = @_;
-
-                        if ($found)
-                        {
-                            return $future;
-                        }
-
-                        return $self->_find_pod_for_method($element)->then_with_f(
-                            sub {
-                                my ($future, $found, $pod) = @_;
-
-                                if ($found)
-                                {
-                                    return $future;
-                                }
-
-                                return $self->_find_pod_for_subroutine($element, $uri)->then_with_f(
-                                    sub {
-                                        my ($future, $found, $pod) = @_;
-
-                                        if ($found)
-                                        {
-                                            return $future;
-                                        }
-
-                                        return $self->_find_pod_for_variable($element)->then_with_f(
-                                            sub {
-                                                my ($future, $found, $pod) = @_;
-
-                                                if ($found)
-                                                {
-                                                    return $future;
-                                                }
-
-                                                return $self->_find_pod_for_file_test($element)->then_with_f(
-                                                    sub {
-                                                        my ($future, $found, $pod) = @_;
-
-                                                        if ($found)
-                                                        {
-                                                            return $future;
-                                                        }
-
-                                                        return Future->done(0);
-                                                    }
-                                                );
-                                            }
-                                        );
-                                    }
-                                );
-                            }
-                        );
-                    }
-                );
+                return $self->_find_pod_for_class_method($element);
             }
-        );
+          )->then_with_f(
+            sub {
+                my ($future, $found, $pod) = @_;
+
+                if ($found)
+                {
+                    return $future;
+                }
+
+                return $self->_find_pod_for_method($element);
+            }
+          )->then_with_f(
+            sub {
+                my ($future, $found, $pod) = @_;
+
+                if ($found)
+                {
+                    return $future;
+                }
+
+                return $self->_find_pod_for_subroutine($element, $uri);
+            }
+          )->then_with_f(
+            sub {
+                my ($future, $found, $pod) = @_;
+
+                if ($found)
+                {
+                    return $future;
+                }
+
+                return $self->_find_pod_for_variable($element);
+            }
+          )->then_with_f(
+            sub {
+                my ($future, $found, $pod) = @_;
+
+                if ($found)
+                {
+                    return $future;
+                }
+
+                return $self->_find_pod_for_file_test($element);
+            }
+          )->then_with_f(
+            sub {
+                my ($future, $found, $pod) = @_;
+
+                if ($found)
+                {
+                    return $future;
+                }
+
+                return Future->done(0);
+            }
+          );
+
     } ## end Future::Utils::repeat
     (
      foreach => \@elements,
