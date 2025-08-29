@@ -319,7 +319,7 @@ sub find_package
     {
         require PLS::Parser::Document;
         my $external = PLS::Parser::Document->find_external_package($package);
-        return [$external] if (ref $external eq 'HASH');
+        return $external if (ref $external eq 'ARRAY');
         return [];
     } ## end if (ref $found ne 'ARRAY'...)
 
