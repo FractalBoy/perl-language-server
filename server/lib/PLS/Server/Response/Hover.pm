@@ -40,9 +40,14 @@ sub new
                 return Future->done($self);
             }
 
+            my $range = $pod->{element}->range();
+
+            $range->{start}{line} += $request->{params}{position}{line};
+            $range->{end}{line}   += $request->{params}{position}{line};
+
             $self->{result} = {
                                contents => {kind => 'markdown', value => ${$pod->{markdown}}},
-                               range    => $pod->{element}->range()
+                               range    => $range
                               };
             return Future->done($self);
         }
