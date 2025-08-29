@@ -149,6 +149,13 @@ sub package_name
         and $element->statement->isa('PPI::Statement::Include')
         and $element->statement->type eq 'use')
     {
+        # This is a 'use' statement, but the cursor is on the 'use' keyword, not the package name.
+        if (    $column_number >= $element->statement->column_number
+            and $column_number <= ($element->statement->column_number + length $element->statement->type))
+        {
+            return;
+        }
+
         # This is a 'use parent/base' statement. The import is a package, not a subroutine.
         if ($element->statement->module eq 'parent' or $element->statement->module eq 'base')
         {
@@ -163,10 +170,12 @@ sub package_name
     } ## end if (blessed($element->...))
 
     # Regular use statement, no explicit imports
-    if (blessed($element->statement) and $element->statement->isa('PPI::Statement::Include') and $element->statement->type eq 'use')
+    if (    blessed($element->statement)
+        and $element->statement->isa('PPI::Statement::Include')
+        and $element->statement->type eq 'use')
     {
         return $element->statement->module;
-    }
+    } ## end if (blessed($element->...))
 
     # Class method call, cursor is over the package name
     if (    $element->isa('PPI::Token::Word')
