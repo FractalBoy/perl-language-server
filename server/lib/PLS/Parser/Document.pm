@@ -408,7 +408,6 @@ sub find_pod    ## no critic (RequireArgUnpacking)
     my ($self, $uri, $line_number, $column_number) = @_;
 
     my @elements = $self->find_elements_at_location($line_number, $column_number);
-    my $future   = IO::Async::Loop->new->new_future;
 
     return Future::Utils::repeat
     {
