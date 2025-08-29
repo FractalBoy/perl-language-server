@@ -35,7 +35,14 @@ WriteMakefile(
                                                               url  => 'https://github.com/FractalBoy/perl-language-server.git',
                                                               web  => 'https://github.com/FractalBoy/perl-language-server',
                                                              },
-                                              }
+                                              },
+                                 prereqs => {
+                                             runtime => {
+                                                         suggests => {
+                                                                      'Cpanel::JSON::XS' => 4.39,
+                                                                     }
+                                                        }
+                                            }
                                 }
                  )
                : ()
