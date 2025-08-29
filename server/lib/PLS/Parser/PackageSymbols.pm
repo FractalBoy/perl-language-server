@@ -211,7 +211,7 @@ while (my $line = <STDIN>)
 
             foreach my $name (keys %{$ref})
             {
-                next if $name =~ /^BEGIN|UNITCHECK|INIT|CHECK|END|VERSION|DESTROY|import|unimport|can|isa$/;
+                next if $name =~ /^(BEGIN|UNITCHECK|INIT|CHECK|END|VERSION|DESTROY|import|unimport|can|isa)$/;
                 next if $name =~ /^_/;                                                                         # hide private subroutines
                 next if $name =~ /^\(/; # overloaded operators start with a parenthesis
 
