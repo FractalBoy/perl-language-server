@@ -1,6 +1,7 @@
 #!perl
 
 use Test2::V0;
+use feature 'state';
 
 BEGIN
 {
@@ -21,14 +22,16 @@ plan tests => 6;
 
 # Copy code to non-hidden directory.
 my $code_dir = File::Temp->newdir();
-File::Copy::copy(File::Spec->catfile($FindBin::RealBin, 'Communicate.pm'), $code_dir);
+File::Copy::copy(File::Spec->catfile($FindBin::RealBin, 'Communicate.pm'),           $code_dir);
+File::Copy::copy(File::Spec->catfile($FindBin::RealBin, 'DoesNotCompile.pm'),        $code_dir);
+File::Copy::copy(File::Spec->catfile($FindBin::RealBin, 'ImportsDoesNotCompile.pm'), $code_dir);
 
 sub slurp
 {
     my ($file, $id) = @_;
 
     my $path = File::Spec->catfile($FindBin::RealBin, 'packets', $file);
-    open my $fh, '<', $path;
+    open my $fh, '<', $path or die $!;
     my $json = do { local $/; <$fh> };
     my $obj  = JSON::PP->new->utf8->decode($json);
     $obj->{id} = $id // 0 if (exists $obj->{id});
@@ -45,10 +48,11 @@ sub open_file
     my ($file, $comm) = @_;
 
     my $path = File::Spec->catfile($code_dir, $file);
-    open my $fh, '<', $path;
-    my $text       = do { local $/; <$fh> };
-    my $uri        = URI::file->new($path)->as_string;
-    my $open_files = slurp('didopen.json', 1);
+    open my $fh, '<', $path or die $!;
+    my $text = do { local $/; <$fh> };
+    my $uri  = URI::file->new($path)->as_string;
+    state $id = 1;
+    my $open_files = slurp('didopen.json', $id++);
     $open_files->{params}{textDocument}{uri}  = $uri;
     $open_files->{params}{textDocument}{text} = $text;
 
@@ -117,7 +121,7 @@ sub complete_initialization
 
     $comm->send_message($config);
 
-    foreach (1 .. 5)
+    foreach (1 .. 7)
     {
         $comm->recv_message();
     }
@@ -201,21 +205,21 @@ subtest 'initialize server' => sub {
 }; ## end 'initialize server' => sub
 
 subtest 'initial requests' => sub {
-    plan tests => 8;
+    plan tests => 12;
     my $comm = t::Communicate->new();
     initialize_server($comm);
 
     my @messages;
 
-    foreach (1 .. 6)
+    foreach (1 .. 8)
     {
         push @messages, $comm->recv_message();
     }
 
     my $work_done_create    = List::Util::first { $_->{method} eq 'window/workDoneProgress/create' } @messages;
-    my $work_done_begin     = List::Util::first { $_->{method} eq '$/progress' and $_->{params}{value}{kind} eq 'begin' } @messages;     ## no critic (RequireInterpolationOfMetachars)
-    my $work_done_report    = List::Util::first { $_->{method} eq '$/progress' and $_->{params}{value}{kind} eq 'report' } @messages;    ## no critic (RequireInterpolationOfMetachars)
-    my $work_done_end       = List::Util::first { $_->{method} eq '$/progress' and $_->{params}{value}{kind} eq 'end' } @messages;       ## no critic (RequireInterpolationOfMetachars)
+    my $work_done_begin     = List::Util::first { $_->{method} eq '$/progress' and $_->{params}{value}{kind} eq 'begin' } @messages;    ## no critic (RequireInterpolationOfMetachars)
+    my @work_done_report    = grep { $_->{method} eq '$/progress' and $_->{params}{value}{kind} eq 'report' } @messages;                ## no critic (RequireInterpolationOfMetachars)
+    my $work_done_end       = List::Util::first { $_->{method} eq '$/progress' and $_->{params}{value}{kind} eq 'end' } @messages;      ## no critic (RequireInterpolationOfMetachars)
     my $register_capability = List::Util::first { $_->{method} eq 'client/registerCapability' } @messages;
     my $configuration       = List::Util::first { $_->{method} eq 'workspace/configuration' } @messages;
 
@@ -304,20 +308,24 @@ subtest 'initial requests' => sub {
       );
 
     is(
-        $work_done_report, hash
+        \@work_done_report, array
         {
-            field method => '$/progress';    ## no critic (RequireInterpolationOfMetachars)
-            field params => hash
+            all_items hash
             {
-                field token => $token;
-                field value => hash
+                field method => '$/progress';    ## no critic (RequireInterpolationOfMetachars)
+                field params => hash
                 {
-                    field kind       => 'report';
-                    field percentage => number(100);
-                    field message => 'Indexed Communicate.pm (1/1)'
-                }
+                    field token => $token;
+                    field value => hash
+                    {
+                        field kind       => 'report';
+                        field percentage => number_gt(0);
+                        field message => match(qr{Indexed (?:Communicate|DoesNotCompile|ImportsDoesNotCompile)\.pm \([123]/3\)})
+                    }
+                };
+                etc();
             };
-            etc();
+            etc()
         },
         'work done report sent'
       );
@@ -343,6 +351,7 @@ subtest 'initial requests' => sub {
     $configuration = slurp('configuration.json', $configuration->{id});
     $configuration->{result}[0]{inc} = \@INC;
     $comm->send_message($configuration);
+
     my $uri         = open_file('Communicate.pm', $comm);
     my $diagnostics = $comm->recv_message();
 
@@ -375,7 +384,92 @@ subtest 'initial requests' => sub {
                                 field line      => L();
                                 field character => L();
                             }
-                        } ## end hash
+                        };
+                        end()
+                    };
+                    etc();
+                } ## end array
+            };
+            etc()
+        },
+        'diagnostics are valid',
+        $diagnostics
+      );
+
+    $uri         = open_file('DoesNotCompile.pm', $comm);
+    $diagnostics = $comm->recv_message();
+
+    is(valid_notification($diagnostics), T(), 'diagnostics notification returned');
+    is(
+        $diagnostics, hash
+        {
+            field method => 'textDocument/publishDiagnostics';
+            field params => hash
+            {
+                field uri => $uri;
+                field diagnostics => array
+                {
+                    all_items hash
+                    {
+                        field message  => L();
+                        field severity => L();
+                        field source   => 'perl';
+                        field range => hash
+                        {
+                            field start => hash
+                            {
+                                field line      => L();
+                                field character => L();
+                            };
+                            field end => hash
+                            {
+                                field line      => L();
+                                field character => L();
+                            }
+                        };
+                        end();
+                    };
+                    etc();
+                } ## end array
+            };
+            etc()
+        },
+        'diagnostics are valid',
+        $diagnostics
+      );
+
+    $uri         = open_file('ImportsDoesNotCompile.pm', $comm);
+    $diagnostics = $comm->recv_message();
+
+    is(valid_notification($diagnostics), T(), 'diagnostics notification returned');
+    is(
+        $diagnostics, hash
+        {
+            field method => 'textDocument/publishDiagnostics';
+            field params => hash
+            {
+                field uri => $uri;
+                field diagnostics => array
+                {
+                    all_items hash
+                    {
+                        field message  => L();
+                        field severity => L();
+                        field source   => 'perl';
+                        field range => hash
+                        {
+                            field start => hash
+                            {
+                                field line      => L();
+                                field character => L();
+                            };
+                            field end => hash
+                            {
+                                field line      => L();
+                                field character => L();
+                            }
+                        };
+                        end();
                     };
                     etc();
                 } ## end array
