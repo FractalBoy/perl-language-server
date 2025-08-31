@@ -1,7 +1,6 @@
 #!perl
 
-use strict;
-use warnings;
+use Test2::V0;
 
 BEGIN
 {
@@ -14,10 +13,11 @@ use File::Spec;
 use File::Temp;
 use JSON::PP;
 use List::Util qw(first all);
-use Test::More tests => 6;
 use URI;
 
 use t::Communicate;
+
+plan tests => 6;
 
 # Copy code to non-hidden directory.
 my $code_dir = File::Temp->newdir();
@@ -133,11 +133,11 @@ subtest 'server not initialized' => sub {
     my $response = $comm->send_message_and_recv_response($request);
     $comm->stop_server();
 
-    ok(valid_response($response), 'valid response');
-    cmp_ok($response->{jsonrpc}, '==', 2.0, 'response is jsonrpc 2.0');
-    cmp_ok($response->{id},      '==', 0,   'response is id 0');
-    is_deeply($response->{error}, {code => -32002, message => 'server not yet initialized'}, 'server not yet initialized');
-};
+    is(valid_response($response), T(),                                                                                  'valid response');
+    is($response->{jsonrpc},      number(2.0),                                                                          'response is jsonrpc 2.0');
+    is($response->{id},           number(0),                                                                            'response is id 0');
+    is($response->{error},        hash { field code => -32_002; field message => 'server not yet initialized'; end() }, 'server not yet initialized');
+}; ## end 'server not initialized' => sub
 
 subtest 'initialize server' => sub {
     plan tests => 15;
@@ -146,29 +146,62 @@ subtest 'initialize server' => sub {
     my $response = initialize_server($comm);
     $comm->stop_server();
 
-    ok(valid_response($response), 'valid response');
-    cmp_ok($response->{id}, '==', 0, 'response is id 0');
+    is(valid_response($response), T(),       'valid response');
+    is($response->{id},           number(0), 'response is id 0');
 
-    cmp_ok(scalar keys %{$response->{result}}, '==', 1, 'result has 1 key');
-    is(ref $response->{result}{capabilities}, 'HASH', 'response capabilities is json object');
-    cmp_ok(scalar keys %{$response->{result}{capabilities}}, '==', 12, 'capabilities has 12 keys');
+    is(scalar keys %{$response->{result}},               number(1),      'result has 1 key');
+    is($response->{result}{capabilities},                hash { etc() }, 'response capabilities is json object');
+    is(scalar keys %{$response->{result}{capabilities}}, number(12),     'capabilities has 12 keys');
 
     my $capabilities = $response->{result}{capabilities};
 
-    ok($capabilities->{definitionProvider},     'server is definition provider');
-    ok($capabilities->{documentSymbolProvider}, 'server is document symbol provider');
-    ok($capabilities->{hoverProvider},          'server is hover provider');
-    is_deeply($capabilities->{signatureHelpProvider}, {triggerCharacters => ['(', ',']},                                          'server is signature help provider');
-    is_deeply($capabilities->{textDocumentSync},      {openClose         => JSON::PP::true, change => 2, save => JSON::PP::true}, 'server does text document sync');
-    ok($capabilities->{documentFormattingProvider},      'server is document formatting provider');
-    ok($capabilities->{documentRangeFormattingProvider}, 'server is document formatting provider');
-    is_deeply($capabilities->{completionProvider},     {triggerCharacters => ['>', ':', '$', '@', '%', ' ', '-'], resolveProvider => JSON::PP::true}, 'server is completion provider');
-    is_deeply($capabilities->{executeCommandProvider}, {commands          => ['pls.sortImports']},                                                    'server can execute commands');
-    ok($capabilities->{workspaceSymbolProvider}, 'server is workspace symbol provider');
-};
+    is($capabilities->{definitionProvider},     T(), 'server is definition provider');
+    is($capabilities->{documentSymbolProvider}, T(), 'server is document symbol provider');
+    is($capabilities->{hoverProvider},          T(), 'server is hover provider');
+    is(
+        $capabilities->{signatureHelpProvider}, hash
+        {
+            field triggerCharacters => array { item '('; item ','; end() };
+            end()
+        },
+        'server is signature help provider'
+      );
+    is($capabilities->{textDocumentSync},                hash { field openClose => JSON::PP::true; field change => 2; field save => JSON::PP::true; end() }, 'server does text document sync');
+    is($capabilities->{documentFormattingProvider},      T(),                                                                                                'server is document formatting provider');
+    is($capabilities->{documentRangeFormattingProvider}, T(),                                                                                                'server is document formatting provider');
+    is(
+        $capabilities->{completionProvider},
+        hash
+        {
+            field triggerCharacters => array
+            {
+                item '>';
+                item ':';
+                item '$';
+                item '@';
+                item '%';
+                item ' ';
+                item '-';
+                end()
+            };
+            field resolveProvider => JSON::PP::true;
+            end()
+        },
+        'server is completion provider'
+      );
+    is(
+        $capabilities->{executeCommandProvider}, hash
+        {
+            field commands => array { item 'pls.sortImports'; end() };
+            end()
+        },
+        'server can execute commands'
+      );
+    is($capabilities->{workspaceSymbolProvider}, T(), 'server is workspace symbol provider');
+}; ## end 'initialize server' => sub
 
 subtest 'initial requests' => sub {
-    plan tests => 30;
+    plan tests => 8;
     my $comm = t::Communicate->new();
     initialize_server($comm);
 
@@ -180,74 +213,178 @@ subtest 'initial requests' => sub {
     }
 
     my $work_done_create    = List::Util::first { $_->{method} eq 'window/workDoneProgress/create' } @messages;
-    my $work_done_begin     = List::Util::first { $_->{method} eq '$/progress' and $_->{params}{value}{kind} eq 'begin' } @messages;
-    my $work_done_report    = List::Util::first { $_->{method} eq '$/progress' and $_->{params}{value}{kind} eq 'report' } @messages;
-    my $work_done_end       = List::Util::first { $_->{method} eq '$/progress' and $_->{params}{value}{kind} eq 'end' } @messages;
+    my $work_done_begin     = List::Util::first { $_->{method} eq '$/progress' and $_->{params}{value}{kind} eq 'begin' } @messages;     ## no critic (RequireInterpolationOfMetachars)
+    my $work_done_report    = List::Util::first { $_->{method} eq '$/progress' and $_->{params}{value}{kind} eq 'report' } @messages;    ## no critic (RequireInterpolationOfMetachars)
+    my $work_done_end       = List::Util::first { $_->{method} eq '$/progress' and $_->{params}{value}{kind} eq 'end' } @messages;       ## no critic (RequireInterpolationOfMetachars)
     my $register_capability = List::Util::first { $_->{method} eq 'client/registerCapability' } @messages;
     my $configuration       = List::Util::first { $_->{method} eq 'workspace/configuration' } @messages;
 
+    is(
+        $work_done_create,
+        hash
+        {
+            field method => 'window/workDoneProgress/create';
+            field params => hash { field token => L() };
+            etc()
+        },
+        'work done progress created'
+      );
+
     my $token = $work_done_create->{params}{token};
 
-    is($work_done_create->{method}, 'window/workDoneProgress/create', 'work done progress created');
-    ok(length($token), 'token provided');
+    is(
+        $configuration, hash
+        {
+            field method => 'workspace/configuration';
+            field params => hash
+            {
+                field items => array
+                {
+                    item hash { field section => 'perl'; end() };
+                    item hash { field section => 'pls';  end() };
+                    end()
+                };
+                end();
+            };
+            etc()
+        },
+        'configuration request sent'
+      );
 
-    is($configuration->{method}, 'workspace/configuration', 'configuration request sent');
-    is_deeply($configuration->{params}, {items => [{section => 'perl'}, {section => 'pls'}]}, 'correct configuration section');
+    is(
+        $register_capability, hash
+        {
+            field method => 'client/registerCapability';
+            field params => hash
+            {
+                field registrations => array
+                {
+                    item hash
+                    {
+                        field method => 'workspace/didChangeConfiguration';
+                        etc()
+                    };
+                    item hash
+                    {
+                        field method => 'workspace/didChangeWatchedFiles';
+                        field registerOptions => hash {
+                            field watchers => array
+                            {
+                                item hash { field globPattern => '**/*' }
+                            }
+                        };
+                        etc()
+                    } ## end hash
+                };
+                end();
+            };
+            etc()
+        },
+        'client register capability sent'
+      );
 
-    is($register_capability->{method}, 'client/registerCapability', 'client register capability sent');
-    cmp_ok(@{$register_capability->{params}{registrations}}, '==', 2, 'two registrations sent');
-    is($register_capability->{params}{registrations}[0]{method}, 'workspace/didChangeConfiguration', 'did change configuration capability sent');
-    is($register_capability->{params}{registrations}[1]{method}, 'workspace/didChangeWatchedFiles',  'did change watched files capability sent');
-    cmp_ok(@{$register_capability->{params}{registrations}[1]{registerOptions}{watchers}}, '==', 1, 'correct number of watchers');
-    is($register_capability->{params}{registrations}[1]{registerOptions}{watchers}[0]{globPattern}, '**/*', 'correct glob pattern');
+    is(
+        $work_done_begin, hash
+        {
+            field method => '$/progress';    ## no critic (RequireInterpolationOfMetachars)
+            field params => hash
+            {
+                field token => $token;
+                field value => hash
+                {
+                    field kind        => 'begin';
+                    field title       => 'Indexing';
+                    field percentage  => number(0);
+                    field cancellable => F();
+                } ## end hash
+            };
+            etc()
+        },
+        'work done begin sent'
+      );
 
-    is($work_done_begin->{method},               '$/progress', 'work done begin sent');
-    is($work_done_begin->{params}{token},        $token,       'correct token');
-    is($work_done_begin->{params}{value}{kind},  'begin',      'begin sent first');
-    is($work_done_begin->{params}{value}{title}, 'Indexing',   'correct title');
-    cmp_ok($work_done_begin->{params}{value}{percentage}, '==', 0, 'correct percentage');
-    ok(!$work_done_begin->{params}{value}{cancellable}, 'work is not cancellable');
+    is(
+        $work_done_report, hash
+        {
+            field method => '$/progress';    ## no critic (RequireInterpolationOfMetachars)
+            field params => hash
+            {
+                field token => $token;
+                field value => hash
+                {
+                    field kind       => 'report';
+                    field percentage => number(100);
+                    field message => 'Indexed Communicate.pm (1/1)'
+                }
+            };
+            etc();
+        },
+        'work done report sent'
+      );
 
-    is($work_done_report->{method},                 '$/progress',                   'work done report sent');
-    is($work_done_report->{params}{token},          $token,                         'correct token');
-    is($work_done_report->{params}{value}{kind},    'report',                       'report sent second');
-    is($work_done_report->{params}{value}{message}, 'Indexed Communicate.pm (1/1)', 'correct message');
-    cmp_ok($work_done_report->{params}{value}{percentage}, '==', 100, 'correct percentage');
-
-    is($work_done_end->{method},                 '$/progress',                  'work done report sent');
-    is($work_done_end->{params}{token},          $token,                        'correct token');
-    is($work_done_end->{params}{value}{kind},    'end',                         'end sent last');
-    is($work_done_end->{params}{value}{message}, 'Finished indexing all files', 'correct message');
+    is(
+        $work_done_end, hash
+        {
+            field method => '$/progress';    ## no critic (RequireInterpolationOfMetachars)
+            field params => hash
+            {
+                field token => $token;
+                field value => hash
+                {
+                    field kind => 'end';
+                    field message => 'Finished indexing all files'
+                }
+            };
+            etc()
+        },
+        'work done report sent'
+      );
 
     $comm->send_message(slurp('configuration.json', $configuration->{id}));
     my $uri         = open_file('Communicate.pm', $comm);
     my $diagnostics = $comm->recv_message();
 
-    ok(valid_notification($diagnostics), 'diagnostics notification returned');
-    is($diagnostics->{method},                  'textDocument/publishDiagnostics', 'got diagnostics after configuration sent');
-    is($diagnostics->{params}{uri},             $uri,                              'got diagnostics for correct file');
-    is(ref $diagnostics->{params}{diagnostics}, 'ARRAY',                           'diagnostics is an array');
-    ok(
-        (
-         List::Util::all
-         {
-                   length $_->{code}
-               and length $_->{codeDescription}{href}
-               and length $_->{message}
-               and length $_->{severity}
-               and $_->{source} eq 'perlcritic'
-               and length $_->{range}{start}{line}
-               and length $_->{range}{start}{character}
-               and length $_->{range}{end}{line}
-               and length $_->{range}{end}{character}
-         } ## end List::Util::all
-         @{$diagnostics->{params}{diagnostics}}
-        ),
+    is(valid_notification($diagnostics), T(), 'diagnostics notification returned');
+    is(
+        $diagnostics, hash
+        {
+            field method => 'textDocument/publishDiagnostics';
+            field params => hash
+            {
+                field uri => $uri;
+                field diagnostics => array
+                {
+                    all_items hash
+                    {
+                        field code            => L();
+                        field codeDescription => hash { field href => L() };
+                        field message         => L();
+                        field severity        => L();
+                        field source          => 'perlcritic';
+                        field range => hash
+                        {
+                            field start => hash
+                            {
+                                field line      => L();
+                                field character => L();
+                            };
+                            field end => hash
+                            {
+                                field line      => L();
+                                field character => L();
+                            }
+                        } ## end hash
+                    };
+                    etc();
+                } ## end array
+            };
+            etc()
+        },
         'diagnostics are valid'
       );
 
     $comm->stop_server();
-};
+}; ## end 'initial requests' => sub
 
 subtest 'cancel request' => sub {
     plan tests => 4;
@@ -269,12 +406,12 @@ subtest 'cancel request' => sub {
     $comm->send_message($cancel);
     my $response = $comm->recv_message();
 
-    ok(valid_response($response), 'valid response');
-    cmp_ok($response->{id},          '==', $format->{id}, 'correct id');
-    cmp_ok($response->{error}{code}, '==', -32800,        'correct code');    # request cancelled = -32800
-    is($response->{error}{message}, 'Request cancelled.', 'correct error message');
+    is(valid_response($response),   T(),                   'valid response');
+    is($response->{id},             number($format->{id}), 'correct id');
+    is($response->{error}{code},    number(-32_800),       'correct code');            # request cancelled = -32800
+    is($response->{error}{message}, 'Request cancelled.',  'correct error message');
     $comm->stop_server();
-};
+}; ## end 'cancel request' => sub
 
 subtest 'bad message' => sub {
     plan tests => 1;
@@ -284,7 +421,7 @@ subtest 'bad message' => sub {
     chomp(my $error = $comm->recv_err());
     like($error, qr/no content-length header/i, 'no content length header error thrown');
     waitpid $comm->{pid}, 0;
-};
+}; ## end 'bad message' => sub
 
 subtest 'shutdown and exit' => sub {
     plan tests => 5;
@@ -294,15 +431,15 @@ subtest 'shutdown and exit' => sub {
     complete_initialization($comm);
 
     my $shutdown_response = $comm->send_message_and_recv_response(slurp('shutdown.json', 2));
-    cmp_ok($shutdown_response->{id}, '==', 2, 'got shutdown response');
+    is($shutdown_response->{id}, number(2), 'got shutdown response');
 
     my $invalid_request = $comm->send_message_and_recv_response(slurp('formatting.json', 3));
-    cmp_ok($invalid_request->{id},          '==', 3,      'got invalid request response');
-    cmp_ok($invalid_request->{error}{code}, '==', -32600, 'got correct error code');
+    is($invalid_request->{id},          number( 3),      'got invalid request response');
+    is($invalid_request->{error}{code}, number(-32_600), 'got correct error code');
 
     $comm->send_message(slurp('exit.json'));
     waitpid $comm->{pid}, 0;
-    cmp_ok($? >> 8, '==', 0, 'got 0 exit code when shutdown request sent before exit');
+    is($? >> 8, number(0), 'got 0 exit code when shutdown request sent before exit');
 
     $comm = t::Communicate->new();
     initialize_server($comm);
@@ -310,5 +447,5 @@ subtest 'shutdown and exit' => sub {
 
     $comm->send_message(slurp('exit.json'));
     waitpid $comm->{pid}, 0;
-    cmp_ok($? >> 8, '==', 1, 'got 1 exit code when exit request sent without shutdown');
-};
+    is($? >> 8, number(1), 'got 1 exit code when exit request sent without shutdown');
+}; ## end 'shutdown and exit' => sub

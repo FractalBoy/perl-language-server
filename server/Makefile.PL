@@ -23,6 +23,9 @@ WriteMakefile(
                             'PPR'           => 0.000028,
                             'URI'           => 1.76
                            },
+              TEST_REQUIRES => {
+                                'Test::Simple' => 1.302214
+                               },
               test => {TESTS => 't/*.t'},
               (
                eval { ExtUtils::MakeMaker->VERSION(6.46) }

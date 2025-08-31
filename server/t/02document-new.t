@@ -1,9 +1,7 @@
 #!perl
 
-use strict;
-use warnings;
+use Test2::V0;
 
-use Test::More tests => 5;
 use FindBin;
 use File::Basename;
 use File::Path;
@@ -14,6 +12,8 @@ use URI;
 use PLS::Parser::Document;
 use PLS::Server::State;
 
+plan tests => 5;
+
 my $index = PLS::Parser::Index->new(workspace_folders => [$FindBin::RealBin]);
 
 subtest 'new with uri' => sub {
@@ -22,9 +22,9 @@ subtest 'new with uri' => sub {
     my $uri = URI::file->new(File::Spec->catfile($FindBin::RealBin, $FindBin::RealScript));
     my $doc = PLS::Parser::Document->new(uri => $uri->as_string);
 
-    isa_ok($doc,             'PLS::Parser::Document');
-    isa_ok($doc->{document}, 'PPI::Document');
-    isa_ok($doc->{index},    'PLS::Parser::Index');
+    is($doc,             check_isa('PLS::Parser::Document'), 'PLS document valid');
+    is($doc->{document}, check_isa('PPI::Document'),         'PPI document valid');
+    is($doc->{index},    check_isa('PLS::Parser::Index'),    'index valid');
 
     subtest 'new with line' => sub {
         plan tests => 5;
@@ -33,16 +33,16 @@ subtest 'new with uri' => sub {
         $index->{subs}     = {};
         $index->{packages} = {};
         $index->{files}    = {};
-        isa_ok($doc,             'PLS::Parser::Document');
-        isa_ok($doc->{document}, 'PPI::Document');
-        isa_ok($doc->{index},    'PLS::Parser::Index');
-        ok($doc->{one_line}, 'one line flag on');
+        is($doc,             check_isa('PLS::Parser::Document'), 'PLS document valid');
+        is($doc->{document}, check_isa('PPI::Document'),         'PPI document valid');
+        is($doc->{index},    check_isa('PLS::Parser::Index'),    'index valid');
+        is($doc->{one_line}, T(),                                'one line flag on');
 
         my $file  = $doc->{document}->serialize();
         my @lines = split /\n/, $file;
-        cmp_ok(scalar @lines, '==', 1, 'only one line in document');
-    };
-};
+        is(\@lines, meta { prop size => 1 }, 'only one line in document');
+    }; ## end 'new with line' => sub
+}; ## end 'new with uri' => sub
 
 subtest 'new with path' => sub {
     plan tests => 3;
@@ -53,17 +53,17 @@ subtest 'new with path' => sub {
     $index->{files}    = {};
     my $doc = PLS::Parser::Document->new(path => $uri->file);
 
-    isa_ok($doc,             'PLS::Parser::Document');
-    isa_ok($doc->{document}, 'PPI::Document');
-    isa_ok($doc->{index},    'PLS::Parser::Index');
-};
+    is($doc,             check_isa('PLS::Parser::Document'), 'PLS document valid');
+    is($doc->{document}, check_isa('PPI::Document'),         'PPI document valid');
+    is($doc->{index},    check_isa('PLS::Parser::Index'),    'index valid');
+}; ## end 'new with path' => sub
 
 subtest 'new without path or uri' => sub {
     plan tests => 1;
 
     my $doc = PLS::Parser::Document->new();
-    ok(!defined($doc), 'no document returned without path or uri');
-};
+    is($doc, U(), 'no document returned without path or uri');
+}; ## end 'new without path or uri' => sub
 
 subtest 'new with bad path' => sub {
     plan tests => 1;
@@ -72,8 +72,8 @@ subtest 'new with bad path' => sub {
     close $temp;
     unlink $temp->filename;
     my $doc = PLS::Parser::Document->new(path => $temp->filename);
-    ok(!defined($doc), 'no document returned with nonexistent path');
-};
+    is($doc, U(), 'no document returned with nonexistent path');
+}; ## end 'new with bad path' => sub
 
 subtest 'new with bad uri' => sub {
     plan tests => 1;
@@ -83,5 +83,5 @@ subtest 'new with bad uri' => sub {
     unlink $temp->filename;
     my $uri = URI::file->new($temp->filename);
     my $doc = PLS::Parser::Document->new(uri => $uri->as_string);
-    ok(!defined($doc), 'no document returned with nonexistent uri');
-};
+    is($doc, U(), 'no document returned with nonexistent uri');
+}; ## end 'new with bad uri' => sub

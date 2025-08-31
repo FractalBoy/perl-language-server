@@ -9,3 +9,7 @@ requires 'Pod::Markdown', 3.200;
 requires 'PPI', 1.264;
 requires 'PPR', 0.000028;
 requires 'URI', 1.76;
+
+on test => sub {
+    requires 'Test::Simple', 1.302214;
+};

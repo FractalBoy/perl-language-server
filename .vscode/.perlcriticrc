@@ -1126,7 +1126,7 @@ allow_with_category_restriction = 1
 
 # The additional modules to treat as equivalent to "strict".
 # Values that are always included: Any::Moose, Dancer, Dancer2, Mo, Modern::Perl, Mojo::Base, Mojolicious::Lite, Moo, Moo::Role, Moos, Moose, Moose::Exporter, Moose::Role, Moose::Util::TypeConstraints, MooseX::NonMoose, MooseX::Role::Parameterized, MooseX::Singleton, Mouse, Mouse::Exporter, Mouse::Role, Mouse::Util, Mouse::Util::TypeConstraints, Mousse, Object::Simple, Role::Tiny, sane, shit, strict, strictures.
-# equivalent_modules =
+equivalent_modules = Test2::V0
 
 
 # Always `use warnings'.
@@ -1138,7 +1138,7 @@ allow_with_category_restriction = 1
 
 # The additional modules to treat as equivalent to "warnings".
 # Values that are always included: Any::Moose, Dancer, Dancer2, Mo, Modern::Perl, Mojo::Base, Mojolicious::Lite, Moo, Moo::Role, Moos, Moose, Moose::Exporter, Moose::Role, Moose::Util::TypeConstraints, MooseX::NonMoose, MooseX::Role::Parameterized, MooseX::Singleton, Mouse, Mouse::Exporter, Mouse::Role, Mouse::Util, Mouse::Util::TypeConstraints, Mousse, Object::Simple, Role::Tiny, sane, shit, strictures, warnings.
-# equivalent_modules =
+equivalent_modules = Test2::V0
 
 
 # Don't use the comma operator as a statement separator.
