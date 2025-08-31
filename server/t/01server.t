@@ -380,7 +380,8 @@ subtest 'initial requests' => sub {
             };
             etc()
         },
-        'diagnostics are valid'
+        'diagnostics are valid',
+        $diagnostics
       );
 
     $comm->stop_server();
