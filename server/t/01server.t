@@ -340,7 +340,9 @@ subtest 'initial requests' => sub {
         'work done report sent'
       );
 
-    $comm->send_message(slurp('configuration.json', $configuration->{id}));
+    $configuration = slurp('configuration.json', $configuration->{id});
+    $configuration->{result}[0]{inc} = \@INC;
+    $comm->send_message($configuration);
     my $uri         = open_file('Communicate.pm', $comm);
     my $diagnostics = $comm->recv_message();
 
