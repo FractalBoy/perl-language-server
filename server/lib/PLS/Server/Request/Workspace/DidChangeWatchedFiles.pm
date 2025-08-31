@@ -45,8 +45,6 @@ sub service
             next;
         }
 
-        next if ($file->file =~ /\/\.pls-tmp-[^\/]*$/);
-
         next unless $index->is_perl_file($file->file);
         next if $index->is_ignored($file->file);
 

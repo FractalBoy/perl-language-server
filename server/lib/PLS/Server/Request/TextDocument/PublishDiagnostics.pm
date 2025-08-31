@@ -109,44 +109,27 @@ sub get_compilation_errors
 
     my $future = $loop->new_future();
 
-    my $fh;
-    my $path;
-    my $temp;
+    my $ok = open my $fh, '<', $source;
 
-    if (ref $source eq 'SCALAR')
+    if (not $ok)
     {
-        $temp = eval { File::Temp->new(CLEANUP => 0, TEMPLATE => '.pls-tmp-XXXXXXXXXX', DIR => $dir) };
-        $temp = eval { File::Temp->new(CLEANUP => 0) } if (ref $temp ne 'File::Temp');
-        $path = $temp->filename;
-        $future->on_done(sub { unlink $temp });
-
-        my $source_text = Encode::encode('UTF-8', ${$source});
-
-        print {$temp} $source_text;
-        close $temp;
-
-        open $fh, '<', \$source_text or return [];
-    } ## end if (ref $source eq 'SCALAR'...)
-    else
-    {
-        $path = $source;
-        open $fh, '<', $path or return [];
+        $future->done();
+        return $future;
     }
 
-    my $line_lengths = get_line_lengths($fh);
-
+    my $line_ranges = get_line_ranges($fh);
     close $fh;
 
     my $perl = PLS::Parser::Pod->get_perl_exe();
-    my $inc  = PLS::Parser::Pod->get_clean_inc();
     my $args = PLS::Parser::Pod->get_perl_args();
-    my @inc  = map { "-I$_" } @{$inc // []};
+
+    my @inc = map { "-I$_" } @{$PLS::Server::State::CONFIG->{inc} // []};
 
     my @loadfile;
 
     if (not length $suffix or $suffix eq '.pl' or $suffix eq '.t' or $suffix eq '.plx')
     {
-        @loadfile = (-c => $path);
+        @loadfile = (-c => ((ref $source eq 'SCALAR') ? '-' : $source));
     }
     elsif ($suffix eq '.pod')
     {
@@ -160,7 +143,7 @@ sub get_compilation_errors
         # Try to get the path as relative to @INC. If we're successful,
         # then we can convert it to a package name and import it using that name
         # instead of the full path.
-        foreach my $inc_path (@{$inc})
+        foreach my $inc_path (@{PLS::Parser::Pod->get_clean_inc()})
         {
             my $rel = path($orig_path)->relative($inc_path);
 
@@ -172,10 +155,10 @@ sub get_compilation_errors
                 $module =~ s/\//::/g;
                 last;
             } ## end if ($rel !~ /\.\./)
-        } ## end foreach my $inc_path (@{$inc...})
+        } ## end foreach my $inc_path (@{PLS::Parser::Pod...})
 
         my $code;
-        $path =~ s/'/\\'/g;
+        $orig_path =~ s/'/\\'/g;
 
         if (length $module and length $relative)
         {
@@ -183,7 +166,7 @@ sub get_compilation_errors
 
             # Load code using module name, but redirect Perl to the temp file
             # when loading the file we are compiling.
-            $code = <<~ "EOF";
+            $code = <<~"EOF";
             BEGIN
             {
                 unshift \@INC, sub {
@@ -191,7 +174,7 @@ sub get_compilation_errors
 
                     if (\$filename eq '$relative')
                     {
-                        if (open my \$fh, '<', '$path')
+                        if (open my \$fh, '<&=', 'STDIN')
                         {
                             \$INC{\$filename} = '$orig_path';
                             return \$fh;
@@ -207,7 +190,7 @@ sub get_compilation_errors
         } ## end if (length $module and...)
         else
         {
-            $code = "BEGIN { require '$path' }";
+            $code = "BEGIN { require '$orig_path'}";
         }
 
         @loadfile = (-e => $code);
@@ -215,8 +198,13 @@ sub get_compilation_errors
 
     my @diagnostics;
 
+    if (scalar @{$args})
+    {
+        unshift @{$args}, '--';
+    }
+
     my $proc = IO::Async::Process->new(
-        command => [$perl, @inc, @loadfile, '--', @{$args}],
+        command => [$perl, @inc, @loadfile, @{$args}],
         setup   => [chdir => path($orig_path)->parent],
         stderr  => {
             on_read => sub {
@@ -228,12 +216,19 @@ sub get_compilation_errors
 
                     next if $line =~ /syntax OK$/;
 
+                    # hide the code ref entry we injected into @INC
+                    $line =~ s/\@INC entries checked: CODE\(0x[0-9a-f]+\) /\@INC entries checked: /;
+
                     if (my ($error, $file, $line_num, $area) = $line =~ /^(.+) at (.+?) line (\d+)(, .+)?/)
                     {
                         $line_num = int $line_num;
-                        $file     = $orig_path if ($file eq $path);
 
-                        if ($file ne $path and $file ne $orig_path)
+                        if ($file eq '-')
+                        {
+                            $file = $orig_path;
+                        }
+
+                        if ($file ne $orig_path)
                         {
                             $error .= " at $file line $line_num" if ($file ne '-e');
                             $line_num = 1;
@@ -258,8 +253,8 @@ sub get_compilation_errors
                         push @diagnostics,
                           {
                             range => {
-                                      start => {line => $line_num - 1, character => 0},
-                                      end   => {line => $line_num - 1, character => $line_lengths->[$line_num]}
+                                      start => {line => $line_num - 1, character => $line_ranges->[$line_num]{start}},
+                                      end   => {line => $line_num - 1, character => $line_ranges->[$line_num]{end}}
                                      },
                             message  => $error,
                             severity => 1,
@@ -270,7 +265,7 @@ sub get_compilation_errors
                 } ## end while (${$buffref} =~ s/^(.*)\n//...)
 
                 return 0;
-            }
+            } ## end sub
         },
         stdout => {
             on_read => sub {
@@ -280,15 +275,14 @@ sub get_compilation_errors
                 # This can happen if there is a BEGIN block that prints to STDOUT.
                 ${$buffref} = '';
                 return 0;
-            }
+            } ## end sub
         },
+        ((ref $source eq 'SCALAR') ? (stdin => {from => ${$source}}) : ()),
         on_finish => sub {
             $future->done(@diagnostics);
         }
     );
-
     $loop->add($proc);
-
     return $future;
 } ## end sub get_compilation_errors
 
@@ -362,20 +356,21 @@ sub run_perlcritic
     return @diagnostics;
 } ## end sub run_perlcritic
 
-sub get_line_lengths
+sub get_line_ranges
 {
     my ($fh) = @_;
 
-    my @line_lengths;
+    my @line_ranges;
 
     while (my $line = <$fh>)
     {
         chomp $line;
-        $line_lengths[$.] = length $line;
-    }
+        $line =~ /^\s*(.)/;
+        $line_ranges[$.] = {start => $-[1], end => length $line};
+    } ## end while (my $line = <$fh>)
 
-    return \@line_lengths;
-} ## end sub get_line_lengths
+    return \@line_ranges;
+} ## end sub get_line_ranges
 
 sub get_podchecker_errors
 {
@@ -394,7 +389,7 @@ sub run_podchecker
     open my $ofh, '>', \$errors or return;
     open my $ifh, '<', $source  or return;
 
-    my $line_lengths = get_line_lengths($ifh);
+    my $line_ranges = get_line_ranges($ifh);
     seek $ifh, 0, Fcntl::SEEK_SET;
 
     Pod::Checker::podchecker($ifh, $ofh);
@@ -410,8 +405,8 @@ sub run_podchecker
             push @diagnostics,
               {
                 range => {
-                          start => {line => $line_num - 1, character => 0},
-                          end   => {line => $line_num - 1, character => $line_lengths->[$line_num]}
+                          start => {line => $line_num - 1, character => $line_ranges->[$line_num]{start}},
+                          end   => {line => $line_num - 1, character => $line_ranges->[$line_num]{end}}
                          },
                 message  => $error,
                 severity => $severity eq 'ERROR' ? 1 : 2,
