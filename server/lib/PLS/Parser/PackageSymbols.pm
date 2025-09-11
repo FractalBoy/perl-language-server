@@ -329,7 +329,7 @@ while (my $line = <STDIN>)
             # Constants are created as scalar refs in the symbol table
             next if (ref $symbol_table_after{$subroutine} ne 'SCALAR' and ref $symbol_table_after{$subroutine} ne 'GLOB' and ref \($symbol_table_after{$subroutine}) ne 'GLOB');
             next if ((ref $symbol_table_after{$subroutine} eq 'GLOB' or ref \($symbol_table_after{$subroutine}) eq 'GLOB') and ref *{$symbol_table_after{$subroutine}}{CODE} ne 'CODE');
-            my $module = eval { B::svref_2object(\&{$symbol_table_after{$subroutine}})->GV->STASH->NAME };
+            my $module = eval { B::svref_2object(\&{$symbol_table_after{$subroutine}})->GV->STASH->NAME } // $import->{module};
             $functions{$module}{$subroutine} = 1;
             push @subroutines, {module => $module, subroutine => $subroutine};
         } ## end foreach my $subroutine (keys...)
