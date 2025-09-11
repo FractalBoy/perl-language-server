@@ -223,25 +223,48 @@ sub find_pod_in_file
 
     my @lines;
     my $start = '';
+    my $over  = 0;
 
     while (my $line = <$fh>)
     {
+        my $matched = 0;
+
         if ($line =~ /^=(head\d|item).*\b\Q$name\E\b.*$/)
         {
-            $start = $1;
-            push @lines, $line;
-            next;
+            $matched = 1;
+            $start   = $1;
+
+            # assume we're already in an =over (should be if we hit =item)
+            if ($start eq 'item')
+            {
+                $over++;
+                push @lines, "=over\n", "\n";
+            }
         } ## end if ($line =~ /^=(head\d|item).*\b\Q$name\E\b.*$/...)
 
         if (length $start)
         {
+            # increment or decrement indent level depending on =over or =back
+            if ($start eq 'item' and $line =~ /^=over/)
+            {
+                $over++;
+            }
+
+            if ($start eq 'item' and $line =~ /^=back/)
+            {
+                $over--;
+            }
+
             push @lines, $line;
 
-            if (   $start eq 'item' and $line =~ /^=item/
+            next if $matched;
+
+            # if we hit =back and we're at the same indent level as when we found =item, then we're at the end of the =over
+            if (   $start eq 'item' and $line =~ /^=back/ and not $over
                 or $start =~ /head/ and $line =~ /^=$start/
                 or $line =~ /^=cut/)
             {
-                last;
+                $start = '';
             } ## end if ($start eq 'item' and...)
         } ## end if (length $start)
     } ## end while (my $line = <$fh>)
@@ -249,24 +272,60 @@ sub find_pod_in_file
     close $fh;
 
     # we don't want the last line - it's a start of a new section.
-    pop @lines;
+    if ($lines[-1] ne "=back\n")
+    {
+        pop @lines;
+    }
+
+    my @padded;
+
+    # pad the lines to make sure that all POD directives are treated as such
+    foreach my $i (0 .. $#lines)
+    {
+        my $pad_start = 0;
+        my $pad_end   = 0;
+        if ($lines[$i] =~ /^=(back|item|over|head|cut|begin|end|for|encoding|pod)/)
+        {
+            if ($i == 0 or $lines[$i - 1] ne "\n")
+            {
+                $pad_start = 1;
+            }
+
+            if ($i == $#lines or $lines[$i + 1] ne "\n")
+            {
+                $pad_end = 1;
+            }
+        } ## end if ($lines[$i] =~ /^=(back|item|over|head|cut|begin|end|for|encoding|pod)/...)
+
+        if ($pad_start)
+        {
+            push @padded, "\n";
+        }
+
+        push @padded, $lines[$i];
+
+        if ($pad_end)
+        {
+            push @padded, "\n";
+        }
+    } ## end foreach my $i (0 .. $#lines...)
 
     my $markdown = '';
 
-    if (scalar @lines)
+    if (scalar @padded)
     {
         my $parser = Pod::Markdown->new();
 
         $parser->output_string(\$markdown);
         $parser->no_whining(1);
-        $parser->parse_lines(@lines, undef);
+        $parser->parse_lines(@padded, undef);
 
         # remove first extra space to avoid markdown from being displayed inappropriately as code
         $markdown =~ s/\n\n/\n/;
         my $ok = $parser->content_seen;
         return 0 unless $ok;
         return $ok, \$markdown;
-    } ## end if (scalar @lines)
+    } ## end if (scalar @padded)
 
     return 0;
 } ## end sub find_pod_in_file

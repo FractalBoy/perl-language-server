@@ -123,7 +123,7 @@ sub _get_setup
 sub get_package_symbols_code
 {
     my $code = <<'EOF';
-close STDERR;
+$SIG{__WARN__} = sub { };
 
 use B;
 
@@ -258,7 +258,9 @@ EOF
 sub get_imported_package_symbols_code
 {
     my $code = <<'EOF';
-close STDERR;
+$SIG{__WARN__} = sub { };
+
+use B;
 
 my $json_package = 'JSON::PP';
 
@@ -303,7 +305,7 @@ while (my $line = <STDIN>)
                 {
                     foreach my $subroutine (@{$symbol_cache{$import->{use}}})
                     {
-                        $functions{$import->{module}}{$subroutine} = 1;
+                        $functions{$subroutine->{module}}{$subroutine->{subroutine}} = 1;
                     }
 
                     next;
@@ -327,8 +329,9 @@ while (my $line = <STDIN>)
             # Constants are created as scalar refs in the symbol table
             next if (ref $symbol_table_after{$subroutine} ne 'SCALAR' and ref $symbol_table_after{$subroutine} ne 'GLOB' and ref \($symbol_table_after{$subroutine}) ne 'GLOB');
             next if ((ref $symbol_table_after{$subroutine} eq 'GLOB' or ref \($symbol_table_after{$subroutine}) eq 'GLOB') and ref *{$symbol_table_after{$subroutine}}{CODE} ne 'CODE');
-            $functions{$import->{module}}{$subroutine} = 1;
-            push @subroutines, $subroutine;
+            my $module = eval { B::svref_2object(\&{$symbol_table_after{$subroutine}})->GV->STASH->NAME };
+            $functions{$module}{$subroutine} = 1;
+            push @subroutines, {module => $module, subroutine => $subroutine};
         } ## end foreach my $subroutine (keys...)
 
         # Reset symbol table

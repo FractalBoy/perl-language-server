@@ -43,90 +43,95 @@ sub find
     my ($self) = @_;
 
     my $definitions;
+    my $future = Future->done();
 
     # If there is no package name in the subroutine call, check to see if the
     # function is imported.
     if (length $self->{uri} and (ref $self->{packages} ne 'ARRAY' or not scalar @{$self->{packages}}))
     {
         require PLS::Parser::Document;
-        my $full_text          = PLS::Parser::Document->text_from_uri($self->{uri});
-        my $imports            = PLS::Parser::Document->get_imports($full_text);
-        my $imported_functions = PLS::Parser::PackageSymbols::get_imported_package_symbols($PLS::Server::State::CONFIG, @{$imports})->get();
+        my $full_text = PLS::Parser::Document->text_from_uri($self->{uri});
+        my $imports   = PLS::Parser::Document->get_imports($full_text);
 
-      PACKAGE: foreach my $package (keys %{$imported_functions})
-        {
-            foreach my $subroutine (@{$imported_functions->{$package}})
-            {
-                if ($self->{subroutine} eq $subroutine)
+        $future = PLS::Parser::PackageSymbols::get_imported_package_symbols($PLS::Server::State::CONFIG, @{$imports})->then(
+            sub {
+                my ($imported_functions) = @_;
+
+              PACKAGE: foreach my $package (keys %{$imported_functions})
                 {
-                    $self->{packages} = [$package];
-                    last PACKAGE;
-                }
-            } ## end foreach my $subroutine (@{$imported_functions...})
-        } ## end foreach my $package (keys %...)
+                    foreach my $subroutine (@{$imported_functions->{$package}})
+                    {
+                        if ($self->{subroutine} eq $subroutine)
+                        {
+                            $self->{packages} = [$package];
+                            last PACKAGE;
+                        }
+                    } ## end foreach my $subroutine (@{$imported_functions...})
+                } ## end foreach my $package (keys %...)
+            }
+        );
     } ## end if (length $self->{uri...})
 
     my @markdown;
-    my @definitions;
 
-    if (ref $self->{packages} eq 'ARRAY' and scalar @{$self->{packages}})
-    {
-        my $include = $self->get_clean_inc();
-        foreach my $package (@{$self->{packages}})
-        {
-            my $search = Pod::Simple::Search->new();
-            $search->inc(0);
-            my $path = $search->find($package, @{$include});
-            my $ok;
+    return $future->then(
+        sub {
+            my @definitions;
 
-            if (length $path)
+            if (ref $self->{packages} eq 'ARRAY' and scalar @{$self->{packages}})
             {
-                my $markdown;
-                ($ok, $markdown) = $self->find_pod_in_file($path, $self->{subroutine});
-                push @markdown, ${$markdown} if $ok;
-            } ## end if (length $path)
-
-            if (not $ok)
-            {
-                push @definitions, @{$self->{index}->find_package_subroutine($package, $self->{subroutine})} if (ref $self->{index} eq 'PLS::Parser::Index');
-            }
-        } ## end foreach my $package (@{$self...})
-    } ## end if (ref $self->{packages...})
-    elsif (ref $self->{index} eq 'PLS::Parser::Index')
-    {
-        push @definitions, @{$self->{index}->find_subroutine($self->{subroutine})};
-    }
-
-    if (scalar @definitions)
-    {
-        my ($ok, $markdown) = $self->find_pod_in_definitions(\@definitions);
-        push @markdown, ${$markdown} if $ok;
-    }
-
-    my $builtin_future;
-
-    if ($self->{include_builtins})
-    {
-        my $builtin = PLS::Parser::Pod::Builtin->new(function => $self->{subroutine});
-        $builtin_future = $builtin->find()->then(
-            sub {
-                my ($ok) = @_;
-
-                if ($ok)
+                my $include = $self->get_clean_inc();
+                foreach my $package (@{$self->{packages}})
                 {
-                    return Future->done(1, $builtin);
-                }
+                    my $search = Pod::Simple::Search->new();
+                    $search->inc(0);
+                    my $path = $search->find($package, @{$include});
+                    my $ok;
 
-                return Future->done(0);
+                    if (length $path)
+                    {
+                        my $markdown;
+                        ($ok, $markdown) = $self->find_pod_in_file($path, $self->{subroutine});
+                        push @markdown, ${$markdown} if $ok;
+                    } ## end if (length $path)
+
+                    if (not $ok)
+                    {
+                        push @definitions, @{$self->{index}->find_package_subroutine($package, $self->{subroutine})} if (ref $self->{index} eq 'PLS::Parser::Index');
+                    }
+                } ## end foreach my $package (@{$self...})
+            } ## end if (ref $self->{packages...})
+            elsif (ref $self->{index} eq 'PLS::Parser::Index')
+            {
+                push @definitions, @{$self->{index}->find_subroutine($self->{subroutine})};
             }
-        );
-    } ## end if ($self->{include_builtins...})
-    else
-    {
-        $builtin_future = Future->done(0);
-    }
 
-    return $builtin_future->then(
+            if (scalar @definitions)
+            {
+                my ($ok, $markdown) = $self->find_pod_in_definitions(\@definitions);
+                push @markdown, ${$markdown} if $ok;
+            }
+
+            if ($self->{include_builtins})
+            {
+                my $builtin = PLS::Parser::Pod::Builtin->new(function => $self->{subroutine});
+                return $builtin->find()->then(
+                    sub {
+                        my ($ok) = @_;
+
+                        if ($ok)
+                        {
+                            return Future->done(1, $builtin);
+                        }
+
+                        return Future->done(0);
+                    }
+                );
+            } ## end if ($self->{include_builtins...})
+
+            return Future->done(0);
+        }
+      )->then(
         sub {
             my ($ok, $builtin) = @_;
 
@@ -166,7 +171,7 @@ sub find
 
             return Future->done(0);
         }
-    );
+      );
 } ## end sub find
 
 sub find_pod_in_definitions
