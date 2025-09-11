@@ -223,7 +223,7 @@ sub find_pod_in_file
 
     my @lines;
     my $start = '';
-    my $over  = 0;
+    my $over;
 
     while (my $line = <$fh>)
     {
@@ -237,7 +237,7 @@ sub find_pod_in_file
             # assume we're already in an =over (should be if we hit =item)
             if ($start eq 'item')
             {
-                $over++;
+                $over = 1;
                 push @lines, "=over\n", "\n";
             }
         } ## end if ($line =~ /^=(head\d|item).*\b\Q$name\E\b.*$/...)
@@ -250,7 +250,7 @@ sub find_pod_in_file
                 $over++;
             }
 
-            if ($start eq 'item' and $line =~ /^=back/)
+            if ($start eq 'item' and $line =~ /^=back/ and $over > 0)
             {
                 $over--;
             }
