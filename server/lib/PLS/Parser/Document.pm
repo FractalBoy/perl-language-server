@@ -1234,8 +1234,8 @@ sub get_constants_fast
     return []                      if (ref $text ne 'SCALAR');
 
     state $block_rx        = qr/use\h+constant(?&PerlOWS)((?&PerlBlock))$PPR::GRAMMAR/;
-    state $bareword_rx     = qr/((?&PerlBareword))(?&PerlOWS)(?&PerlComma)$PPR::GRAMMAR/;
-    state $one_constant_rx = qr/use\h+constant\h+((?&PerlBareword))(?&PerlOWS)(?&PerlComma)$PPR::GRAMMAR/;
+    state $bareword_rx     = qr/\b((?&PerlIdentifier))(?&PerlOWS)(?&PerlComma)$PPR::GRAMMAR/;
+    state $one_constant_rx = qr/use\h+constant\h+((?&PerlIdentifier))(?&PerlOWS)(?&PerlComma)$PPR::GRAMMAR/;
     my @constants;
 
     while (${$text} =~ /$block_rx/g)

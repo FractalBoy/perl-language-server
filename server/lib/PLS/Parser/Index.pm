@@ -635,8 +635,8 @@ sub get_subroutines
     } ## end while (${$text} =~ /$sub_rx/g...)
 
     state $block_rx        = qr/use\h+constant(?&PerlOWS)((?&PerlBlock))$PPR::GRAMMAR/;
-    state $bareword_rx     = qr/((?&PerlBareword))(?&PerlOWS)(?&PerlComma)$PPR::GRAMMAR/;
-    state $one_constant_rx = qr/use\h+constant\h+((?&PerlBareword))(?&PerlOWS)(?&PerlComma)$PPR::GRAMMAR/;
+    state $bareword_rx     = qr/\b((?&PerlIdentifier))(?&PerlOWS)(?&PerlComma)$PPR::GRAMMAR/;
+    state $one_constant_rx = qr/use\h+constant\h+((?&PerlIdentifier))(?&PerlOWS)(?&PerlComma)$PPR::GRAMMAR/;
 
     while (${$text} =~ /$block_rx/g)
     {
