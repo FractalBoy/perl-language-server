@@ -38,7 +38,7 @@ nvim-lspconfig comes with a default configuration for PLS and its name is `perlp
 
 The simplest means of configuring PLS is to place the following somewhere in your Neovim config:
 ```
-require'lspconfig'.perlpls.setup()
+require'lspconfig'.perlpls.setup({})
 ```
 This will set you up with the defaults. It assumes that `pls` is in your $PATH. By default Perl Critic integration will be turned off.
 
