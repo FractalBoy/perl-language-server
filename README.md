@@ -30,21 +30,36 @@ Install the fractalboy.pls extension in Visual Studio Code: https://marketplace.
 
 ### Neovim
 
-This assumes Neovim 0.5.0 or greater.
+Using the built-in LSP features requires Neovim 0.5 or greater.
+
+A [default configuration](https://github.com/neovim/nvim-lspconfig/blob/master/doc/configs.md#perlpls) for PLS is
+available through nvim-lspconfig. Its name is `perlpls`; do not confuse this with `perlls` which is the default
+configuration for Perl::LanguageServer.
+
+See `perldoc PLS` for details about available configuration items.
+
+The instructions assume that `pls` is in your $PATH. By default Perl Critic integration will be turned off.
+
+If you are using a Vimscript configuration remember to wrap everything in a Lua here-doc, e.g.:
+```
+lua <<EOF
+...config...
+EOF
+```
+
+#### Neovim 0.11 and newer
 
 Install [nvim-lspconfig](https://github.com/neovim/nvim-lspconfig).
 
-nvim-lspconfig comes with a default configuration for PLS and its name is `perlpls` (do not confuse this with `perlls` which is the default configuration for Perl::LanguageServer).
-
-The simplest means of configuring PLS is to place the following somewhere in your Neovim config:
+Place the following in your Neovim config:
 ```
-require'lspconfig'.perlpls.setup()
+vim.lsp.enable('perlpls')
 ```
-This will set you up with the defaults. It assumes that `pls` is in your $PATH. By default Perl Critic integration will be turned off.
+This will set you up with the defaults.
 
 A more complex configuration will look like this:
 ```
-local config = {
+vim.lsp.config('perlpls', {
   cmd = { '/opt/bin/pls' }, -- complete path to where PLS is located
   settings = {
     pls = {
@@ -55,17 +70,47 @@ local config = {
       perltidy = { perltidyrc = '/my/projects/.perltidyrc' } -- non-default location for perltidy's config
     }
   }
-}
-require'lspconfig'.perlpls.setup(config)
+})
+vim.lsp.enable('perlpls')
 ```
-See `perldoc PLS` for more details about the configuration items.
 
-The above assumes a Lua configuration. If you are using a Vimscript configuration remember to wrap everything in a Lua here-doc, e.g.:
+#### Neovim 0.9 and 0.10
+
+Install [nvim-lspconfig](https://github.com/neovim/nvim-lspconfig).
+
+For Neovim 0.9, make sure to pin the version to [v1.8.0](https://github.com/neovim/nvim-lspconfig/releases/tag/v1.8.0).
+
+For Neovim 0.10, make sure to pin the version to [v2.5.0](https://github.com/neovim/nvim-lspconfig/releases/tag/v2.5.0).
+
+Place the following in your Neovim config:
 ```
-lua <<EOF
-...config...
-EOF
+require('lspconfig')['perlpls'].setup({})
 ```
+This will set you up with the defaults.
+
+A more complex configuration will look like this:
+```
+require('lspconfig')['perlpls'].setup({
+  cmd = { '/opt/bin/pls' }, -- complete path to where PLS is located
+  settings = {
+    pls = {
+      inc = { '/my/perl/5.34/lib', '/some/other/perl/lib' },  -- add list of dirs to @INC
+      cwd = { '/my/projects' },   -- working directory for PLS
+      perlcritic = { enabled = true, perlcriticrc = '/my/projects/.perlcriticrc' },  -- use perlcritic and pass a non-default location for its config
+      syntax = { enabled = true, perl = '/usr/bin/perl', args = { 'arg1', 'arg2' } }, -- enable syntax checking and use a non-default perl binary
+      perltidy = { perltidyrc = '/my/projects/.perltidyrc' } -- non-default location for perltidy's config
+    }
+  }
+})
+```
+
+#### Neovim 0.8 and older
+
+nvim-lspconfig does not offer full backwards compatibility for old Neovim versions.
+
+For such versions, you'll probably want to manually set up the language server. Instructions on how to do this for your
+version can be found in `:h lsp-quickstart`. You may still copy and use the default configuration provided by the
+nvim-lspconfig repository (see above).
 
 ### BBEdit
 
