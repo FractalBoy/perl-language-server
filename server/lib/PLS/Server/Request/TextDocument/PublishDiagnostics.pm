@@ -121,7 +121,7 @@ sub get_compilation_errors
     close $fh;
 
     my $perl = PLS::Parser::Pod->get_perl_exe();
-    my $args = PLS::Parser::Pod->get_perl_args();
+    my @args = @{PLS::Parser::Pod->get_perl_args()};
 
     my @inc = map { "-I$_" } @{$PLS::Server::State::CONFIG->{inc} // []};
 
@@ -198,13 +198,13 @@ sub get_compilation_errors
 
     my @diagnostics;
 
-    if (scalar @{$args})
+    if (scalar @args)
     {
-        unshift @{$args}, '--';
+        unshift @args, '--';
     }
 
     my $proc = IO::Async::Process->new(
-        command => [$perl, @inc, @loadfile, @{$args}],
+        command => [$perl, @inc, @loadfile, @args],
         setup   => [chdir => path($orig_path)->parent],
         stderr  => {
             on_read => sub {
