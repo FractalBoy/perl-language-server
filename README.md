@@ -194,4 +194,4 @@ For example, if you run `pls` in a docker container, `pls.cmd` would be `docker`
 
 Client (VS Code extension): [MIT License](./client/LICENSE)
 
-Server (Perl CPAN module): [Perl Artistic License or GPL v3](./server/LICENSE) (your choice)
+Server (Perl CPAN module): [Perl Artistic License or GPL v1 or later](./server/LICENSE) (your choice)
