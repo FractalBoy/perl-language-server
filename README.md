@@ -189,3 +189,9 @@ For example, if you run `pls` in a docker container, `pls.cmd` would be `docker`
   * This is likely not useful for most developers, unless your code base changes behavior based on `@ARGV` in a `BEGIN` block.
 * Create a `.plsignore` file in your workspace root with Perl glob patterns that you do not wish to index. By default, PLS will index all files ending with `.pl`, `.pm`, or have `perl` in the shebang line that are not `.t` files.
   * If you have a lot of files that are not Perl files in your workspace, it may slow down indexing if they are not ignored. This is the case for PLS itself, where the entire `client` directory is not Perl and contains many small files in `node_modules`.
+ 
+## License
+
+Client (VS Code extension): [MIT License](./client/LICENSE)
+
+Server (Perl CPAN module): [Perl Artistic License or GPL v3](./server/LICENSE) (your choice)
