@@ -3,6 +3,6 @@ package t::DoesNotCompile;    ## no critic (Capitalization RequireFilenameMatche
 use strict;
 use warnings;
 
-xx
+xx;
 
-  1;
+1;
