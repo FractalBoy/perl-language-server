@@ -387,12 +387,28 @@ sub is_ignored
     my ($self, $file) = @_;
 
     my @ignore_files = @{$self->get_ignored_files()};
-    return unless (scalar @ignore_files);
+    if (not scalar @ignore_files)
+    {
+        return;
+    }
 
-    my $real_path = path($file)->realpath;
+    my $path = path($file);
+    if (-l $path and not -e $path)
+    {
+        # bad symlink
+        return 1;
+    }
+    my $real_path = $path->realpath;
 
-    return 1 if any { $_ eq $real_path } @ignore_files;
-    return 1 if any { $_->subsumes($real_path) } @ignore_files;
+    if (any { $_ eq $real_path } @ignore_files)
+    {
+        return 1;
+    }
+
+    if (any { $_->subsumes($real_path) } @ignore_files)
+    {
+        return 1;
+    }
 
     return;
 } ## end sub is_ignored
