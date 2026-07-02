@@ -317,6 +317,17 @@ sub run_perlcritic
     my %args;
     $args{filename} = $path if (ref $source eq 'SCALAR');
     my $doc        = PPI::Document->new($source, %args);
+    # Perl::Critic::Violation::source only gives the full line of source code,
+    # so we can't figure out where the violation ends.
+    # To work around this, override the Perl::Critic::Violation constructor
+    # to store the element itself, instead of the whole line.
+    my $old_new = \&Perl::Critic::Violation::new;
+    local *Perl::Critic::Violation::new = sub {
+        my ($class, $desc, $expl, $elem, $sev) = @_;
+        my $self = $class->$old_new($desc, $expl, $elem, $sev);
+        $self->{_source} = $elem;
+        return $self;
+    };
     my @violations = eval { $critic->critique($doc) };
 
     my @diagnostics;
