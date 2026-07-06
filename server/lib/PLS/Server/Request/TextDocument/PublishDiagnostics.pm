@@ -326,6 +326,7 @@ sub run_perlcritic
         my ($class, $desc, $expl, $elem, $sev) = @_;
         my $self = $class->$old_new($desc, $expl, $elem, $sev);
         $self->{_source} = $elem;
+        $self->{_policy} = caller;
         return $self;
     };
     my @violations = eval { $critic->critique($doc) };
