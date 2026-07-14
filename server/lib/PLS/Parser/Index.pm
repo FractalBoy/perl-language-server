@@ -336,12 +336,12 @@ sub get_ignored_files
         next if (not -f $plsignore or not -r $plsignore);
 
         my $mtime = stat($plsignore)->mtime;
-        next if (length $self->{ignore_files_mtimes}{$plsignore} and $self->{ignore_file_mtimes}{$plsignore} >= $mtime);
+        next if (length $self->{ignore_files_mtimes}{$plsignore} and $self->{ignore_files_mtimes}{$plsignore} >= $mtime);
 
         open my $fh, '<', $plsignore or next;
 
         $self->{ignored_files}{$plsignore}      = [];
-        $self->{ignore_file_mtimes}{$plsignore} = $mtime;
+        $self->{ignore_files_mtimes}{$plsignore} = $mtime;
 
         while (my $line = <$fh>)
         {
